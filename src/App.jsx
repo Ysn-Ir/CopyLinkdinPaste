@@ -407,6 +407,17 @@ export default function App() {
             onQuickIngest={handleRunIngestion}
             isIngesting={isIngesting}
             initialCategoryFilter={activeCategoryFilter}
+            clips={clips}
+            onSyncClips={async () => {
+              const res = await StorageService.syncAllClipsToOffers()
+              if (res?.syncedCount > 0) {
+                const refreshed = await StorageService.getOffers()
+                setOffers(refreshed)
+                confetti({ particleCount: 35, spread: 50 })
+              }
+              await loadClips()
+            }}
+            onNavigate={setActiveView}
           />
         )}
 
@@ -527,6 +538,16 @@ export default function App() {
                 confetti({ particleCount: 30, spread: 40, origin: { y: 0.8 } })
               }
               await loadClips()
+            }}
+            onSyncAllClips={async () => {
+              const res = await StorageService.syncAllClipsToOffers()
+              if (res?.syncedCount > 0) {
+                const refreshedOffers = await StorageService.getOffers()
+                setOffers(refreshedOffers)
+                confetti({ particleCount: 40, spread: 50, origin: { y: 0.7 } })
+              }
+              await loadClips()
+              return res
             }}
             clipboardMonitorActive={clipMonitorActive}
             onToggleMonitor={() => setClipMonitorActive(!clipMonitorActive)}

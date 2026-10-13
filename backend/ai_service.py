@@ -205,22 +205,63 @@ Output ONLY valid JSON. No markdown fences.
             content = "\n".join(lines).strip()
         parsed = json.loads(content)
         parsed["sourceDomain"] = extracted_domain
+        
+        # Ensure jobData exists if isJobOffer is True
+        if parsed.get("isJobOffer") and not parsed.get("jobData"):
+            import re
+            emails = re.findall(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', raw_text)
+            phones = re.findall(r'(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}', raw_text)
+            channel = "email" if emails else ("direct_contact" if (phones or "whatsapp" in raw_text.lower() or "linkedin.com/in" in raw_text.lower()) else "external")
+            cat = "ai-ml" if any(w in raw_text.lower() for w in ["ai", "ia", "nlp", "llm", "machine learning", "deep learning"]) else ("data" if any(w in raw_text.lower() for w in ["data", "sql", "spark"]) else "dev-fullstack")
+            parsed["jobData"] = {
+                "title": parsed.get("title") or "Engineering Opportunity",
+                "company": extracted_domain or "Company",
+                "location": "Remote / On-site",
+                "category": cat,
+                "recruiterEmail": emails[0] if emails else "",
+                "recruiterName": "",
+                "skills": parsed.get("tags") or ["Python", "Engineering"],
+                "channel": channel
+            }
         return parsed
     except Exception as e:
         logger.warning(f"Universal clip AI parsing failed: {e}. Using intelligent fallback.")
-        is_job = any(w in raw_text.lower() for w in ["stage", "pfe", "recrute", "hiring", "candidat", "poste", "cdi", "internship", "job offer"])
+        import re
+        is_job = any(w in raw_text.lower() for w in [
+            "stage", "pfe", "recrute", "hiring", "candidat", "poste", "cdi", "cdd", "internship", "job offer", "apply", "engineer", "ingénieur", "developer", "recrutement"
+        ])
         is_code = any(w in raw_text for w in ["def ", "class ", "import ", "const ", "function", "return ", "npm ", "git ", "{", "};", "<div", "export "])
         content_type = "job_offer" if is_job else ("code_snippet" if is_code else "note")
-        first_line = raw_text.split("\n")[0][:70].strip() or "Note Presse-papiers"
+        first_line = raw_text.split("\n")[0][:70].strip() or "Clipboard Note"
+
+        emails = re.findall(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', raw_text)
+        phones = re.findall(r'(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}', raw_text)
+        channel = "email" if emails else ("direct_contact" if (phones or "whatsapp" in raw_text.lower() or "linkedin.com/in" in raw_text.lower()) else "external")
+        cat = "ai-ml" if any(w in raw_text.lower() for w in ["ai", "ia", "nlp", "llm", "machine learning", "deep learning"]) else ("data" if any(w in raw_text.lower() for w in ["data", "sql", "spark", "etl"]) else "dev-fullstack")
+
+        job_data = None
+        if is_job:
+            job_data = {
+                "title": first_line,
+                "company": extracted_domain or "Recruiter Post",
+                "location": "Hybride / Télétravail" if "hybride" in raw_text.lower() or "remote" in raw_text.lower() else "Paris / France",
+                "category": cat,
+                "recruiterEmail": emails[0] if emails else "",
+                "recruiterName": "",
+                "skills": ["Software Engineering", "Tech"],
+                "channel": channel
+            }
 
         return {
             "contentType": content_type,
             "title": first_line,
             "summary": raw_text[:200] + ("..." if len(raw_text) > 200 else ""),
-            "tags": ["Presse-papiers", extracted_domain] if extracted_domain else ["Presse-papiers"],
+            "tags": ["Clipboard", extracted_domain] if extracted_domain else ["Clipboard"],
             "entities": {},
             "isJobOffer": is_job,
+            "jobData": job_data,
             "sourceDomain": extracted_domain,
-            "detectedLanguage": "fr"
+            "detectedLanguage": "en"
         }
+
 

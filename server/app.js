@@ -281,22 +281,112 @@ app.post('/api/clips/ingest', async (req, res) => {
       return res.status(400).json({ error: 'Content cannot be empty' })
     }
 
+    const raw = content.trim()
+    const isJob = /stage|pfe|recrute|hiring|candidat|poste|cdi|cdd|internship|job offer|apply|engineer|developer/i.test(raw)
+    const emails = raw.match(/[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+/g) || []
+    const phones = raw.match(/(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}/g) || []
+
+    let channel = 'external'
+    if (emails.length > 0) channel = 'email'
+    else if (phones.length > 0 || /whatsapp|linkedin\.com\/in/i.test(raw)) channel = 'direct_contact'
+
+    let category = 'dev-fullstack'
+    if (/ai|ia|nlp|llm|machine learning|deep learning/i.test(raw)) category = 'ai-ml'
+    else if (/data|sql|spark|analytics/i.test(raw)) category = 'data'
+    else if (/devops|cloud|aws|docker/i.test(raw)) category = 'devops-cloud'
+    else if (/cyber|security/i.test(raw)) category = 'cybersecurity'
+
     const clip = DbService.saveClip({
-      content: content.trim(),
+      content: raw,
       sourceUrl: sourceUrl || '',
       sourceDomain: sourceDomain || 'clipboard',
       sourceDevice: sourceDevice || 'desktop',
       copiedAt: copiedAt || new Date().toISOString(),
-      contentType: 'note',
-      title: content.trim().split('\n')[0].slice(0, 70),
-      summary: content.trim().slice(0, 200),
+      contentType: isJob ? 'job_offer' : 'note',
+      title: raw.split('\n')[0].slice(0, 70),
+      summary: raw.slice(0, 200),
+      convertedToOffer: isJob ? 1 : 0,
     })
 
-    res.json({ success: true, clip, isJobOffer: false, offer: null })
+    let offer = null
+    if (isJob) {
+      offer = DbService.saveOffer({
+        id: `offer-clip-${Date.now()}`,
+        title: clip.title,
+        company: sourceDomain || 'Company',
+        location: 'Remote / Hybride',
+        category,
+        categoryReasoning: `Auto-routed to ${channel.toUpperCase()} channel from clipboard`,
+        channel,
+        recruiterEmail: emails[0] || '',
+        recruiterName: '',
+        skills: ['Software Engineering'],
+        description: raw,
+        sourceUrl: sourceUrl || '',
+        status: 'saved',
+        attachedCvTag: 'CV - General',
+        confidence: 0.92,
+        needsUserReview: true,
+        notes: `Captured from ${sourceDomain} (${sourceDevice})`,
+        createdAt: new Date().toISOString(),
+      })
+    }
+
+    res.json({ success: true, clip, isJobOffer: isJob, offer })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
 })
+
+app.post('/api/clips/sync-all', (req, res) => {
+  try {
+    const clips = DbService.getClips()
+    const uncoverted = clips.filter((c) => !c.convertedToOffer)
+    const createdOffers = []
+
+    for (const clip of uncoverted) {
+      const raw = clip.content || ''
+      const isJob = clip.contentType === 'job_offer' || /stage|pfe|recrute|hiring|candidat|poste|cdi|internship|job/i.test(raw)
+      if (!isJob) continue
+
+      const emails = raw.match(/[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+/g) || []
+      const phones = raw.match(/(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}/g) || []
+      let channel = 'external'
+      if (emails.length > 0) channel = 'email'
+      else if (phones.length > 0 || /whatsapp|linkedin\.com\/in/i.test(raw)) channel = 'direct_contact'
+
+      let category = 'dev-fullstack'
+      if (/ai|ia|nlp|llm|machine learning/i.test(raw)) category = 'ai-ml'
+      else if (/data|sql|spark/i.test(raw)) category = 'data'
+
+      const offer = DbService.saveOffer({
+        id: `offer-clip-${Date.now()}-${clip.id.slice(0, 6)}`,
+        title: clip.title,
+        company: clip.sourceDomain || 'Company',
+        location: 'Remote / Hybride',
+        category,
+        categoryReasoning: `Synced from Clip Vault to ${channel} channel`,
+        channel,
+        recruiterEmail: emails[0] || '',
+        recruiterName: '',
+        description: raw,
+        sourceUrl: clip.sourceUrl || '',
+        status: 'saved',
+        confidence: 0.9,
+        needsUserReview: true,
+        createdAt: new Date().toISOString(),
+      })
+
+      DbService.saveClip({ ...clip, convertedToOffer: 1, contentType: 'job_offer' })
+      createdOffers.push(offer)
+    }
+
+    res.json({ success: true, syncedCount: createdOffers.length, offers: createdOffers })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 
 app.patch('/api/clips/:id/star', (req, res) => {
   try {

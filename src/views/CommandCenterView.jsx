@@ -89,6 +89,9 @@ export function CommandCenterView({
   isIngesting = false,
   initialCategoryFilter = 'all',
   initialChannelFilter = 'all',
+  clips = [],
+  onSyncClips,
+  onNavigate,
 }) {
   const domainCategories = useMemo(() => {
     return (categories && categories.length > 0) ? categories : CATEGORIES
@@ -482,8 +485,9 @@ export function CommandCenterView({
             style={{
               height: '40px',
               padding: '0 18px',
-              background: '#2563eb',
-              borderColor: '#3b82f6',
+              background: '#4f46e5',
+              borderColor: '#6366f1',
+              color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
@@ -601,6 +605,29 @@ export function CommandCenterView({
               <span>ATS</span>
               <span className="badge-pill">{externalOffersCount}</span>
             </button>
+
+            {clips && clips.some((c) => !c.convertedToOffer && (c.contentType === 'job_offer' || /stage|pfe|recrute|hiring|candidat|poste|cdi|internship|job/i.test(c.content || ''))) && onSyncClips && (
+              <button
+                className="pill-btn"
+                onClick={onSyncClips}
+                style={{
+                  padding: '3px 8px',
+                  fontSize: '10.5px',
+                  display: 'flex',
+                  gap: '4px',
+                  alignItems: 'center',
+                  background: 'rgba(79, 70, 229, 0.15)',
+                  borderColor: 'rgba(99, 102, 241, 0.4)',
+                  color: '#c7d2fe',
+                  fontWeight: 600,
+                  marginLeft: 'auto',
+                }}
+                title="Sync captured job offers from clipboard vault into channels"
+              >
+                <Zap size={11} />
+                <span>Sync Vault</span>
+              </button>
+            )}
           </div>
 
           {/* Search, Category & Grouping Filter Bar */}
@@ -727,15 +754,15 @@ export function CommandCenterView({
                           padding: '10px 12px',
                           marginBottom: '4px',
                           borderRadius: '6px',
-                          background: isSelected ? '#1f1f23' : 'transparent',
-                          border: `1px solid ${isSelected ? '#3b82f6' : offer.needsUserReview ? 'rgba(234, 179, 8, 0.35)' : 'transparent'}`,
+                          background: isSelected ? 'var(--bg-surface-active)' : 'transparent',
+                          border: `1px solid ${isSelected ? 'var(--border-focus)' : offer.needsUserReview ? 'rgba(234, 179, 8, 0.25)' : 'transparent'}`,
                           cursor: 'pointer',
-                          transition: 'background 0.12s ease',
+                          transition: 'all 0.12s ease',
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '3px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: '#93c5fd' }}>
-                            {offer.company || 'Entreprise Confidentielle'}
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: isSelected ? '#ffffff' : 'var(--text-secondary)' }}>
+                            {offer.company || 'Confidential Company'}
                           </span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                             {offer.createdAt && (
@@ -901,8 +928,8 @@ export function CommandCenterView({
                 <div
                   style={{
                     padding: '12px 20px',
-                    background: 'linear-gradient(90deg, rgba(168, 85, 247, 0.12) 0%, rgba(59, 130, 246, 0.12) 100%)',
-                    borderBottom: '1px solid rgba(168, 85, 247, 0.35)',
+                    background: 'rgba(79, 70, 229, 0.08)',
+                    borderBottom: '1px solid rgba(79, 70, 229, 0.25)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -917,11 +944,11 @@ export function CommandCenterView({
                         width: '32px',
                         height: '32px',
                         borderRadius: '6px',
-                        background: 'rgba(168, 85, 247, 0.2)',
+                        background: 'rgba(79, 70, 229, 0.15)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#c084fc',
+                        color: '#a5b4fc',
                         flexShrink: 0,
                       }}
                     >
@@ -929,7 +956,7 @@ export function CommandCenterView({
                     </div>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#f3e8ff' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#f1f5f9' }}>
                           AI Classified as:
                         </span>
                         <span
@@ -938,13 +965,13 @@ export function CommandCenterView({
                             fontSize: '11px',
                             fontWeight: 700,
                             padding: '2px 8px',
-                            color: currentCategory?.color || '#a855f7',
-                            borderColor: currentCategory?.borderColor || '#a855f7',
+                            color: currentCategory?.color || '#818cf8',
+                            borderColor: currentCategory?.borderColor || '#4f46e5',
                           }}
                         >
                           {currentCategory?.label || currentOffer.category}
                         </span>
-                        <span style={{ fontSize: '11px', color: '#93c5fd', fontFamily: 'var(--font-mono)' }}>
+                        <span style={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
                           ({Math.round((currentOffer.confidence || 0.9) * 100)}% certainty)
                         </span>
                       </div>

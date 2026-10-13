@@ -1040,37 +1040,71 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
 
     # If it was identified as a job offer, auto-create the corresponding offer
     auto_created_offer = None
-    if analyzed.get("isJobOffer") and analyzed.get("jobData"):
-        job_data = analyzed["jobData"]
-        offer_id = f"offer-clip-{int(datetime.utcnow().timestamp()*1000)}"
-        cat_id = job_data.get("category") or "dev-fullstack"
+    is_job = bool(
+        analyzed.get("isJobOffer")
+        or content_type in ["job_offer", "job"]
+        or any(w in raw_content.lower() for w in [
+            "stage", "pfe", "internship", "intern", "hiring", "recrute", "recrutement",
+            "candidat", "poste", "cdi", "cdd", "job offer", "we are hiring", "apply now", "postuler"
+        ])
+    )
+
+    if is_job:
+        job_data = analyzed.get("jobData") or {}
+        import re
+        emails = re.findall(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', raw_content)
+        phones = re.findall(r'(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}', raw_content)
         
+        detected_channel = job_data.get("channel")
+        if not detected_channel or detected_channel not in ["email", "direct_contact", "external"]:
+            if emails:
+                detected_channel = "email"
+            elif phones or "whatsapp" in raw_content.lower() or "linkedin.com/in" in raw_content.lower() or "mp" in raw_content.lower() or "dm" in raw_content.lower():
+                detected_channel = "direct_contact"
+            else:
+                detected_channel = "external"
+
+        offer_id = f"offer-clip-{int(datetime.utcnow().timestamp()*1000)}"
+        cat_id = job_data.get("category")
+        if not cat_id:
+            if any(w in raw_content.lower() for w in ["ai", "ia", "nlp", "llm", "machine learning", "deep learning", "vision"]):
+                cat_id = "ai-ml"
+            elif any(w in raw_content.lower() for w in ["data", "sql", "spark", "bi", "analytics"]):
+                cat_id = "data"
+            elif any(w in raw_content.lower() for w in ["devops", "cloud", "aws", "docker", "kubernetes"]):
+                cat_id = "devops-cloud"
+            elif any(w in raw_content.lower() for w in ["cyber", "security", "pentest"]):
+                cat_id = "cybersecurity"
+            else:
+                cat_id = "dev-fullstack"
+
         db_cat = db.query(CategoryModel).filter_by(id=cat_id).first()
         cv_tag = db_cat.default_cv_tag if db_cat else "CV - General"
 
         new_offer = OfferModel(
             id=offer_id,
             title=job_data.get("title") or title,
-            company=job_data.get("company") or "",
-            location=job_data.get("location") or "",
+            company=job_data.get("company") or source_domain or "Company",
+            location=job_data.get("location") or "Hybride / Télétravail",
             category=cat_id,
-            category_reasoning=f"Identifié automatiquement depuis le presse-papiers ({source_domain})",
-            channel=job_data.get("channel") or "external",
-            recruiter_email=job_data.get("recruiterEmail") or "",
+            category_reasoning=f"Auto-routed to {detected_channel.upper()} channel from clipboard ({source_domain})",
+            channel=detected_channel,
+            recruiter_email=job_data.get("recruiterEmail") or (emails[0] if emails else ""),
             recruiter_name=job_data.get("recruiterName") or "",
             skills_json=json.dumps(job_data.get("skills") or tags),
             description=raw_content,
             source_url=req.sourceUrl or "",
             status="saved",
             attached_cv_tag=cv_tag,
-            confidence=0.92,
+            confidence=0.94,
             needs_user_review=True,
-            notes=f"Auto-capturé depuis {source_domain} ({req.sourceDevice}) le {datetime.utcnow().strftime('%d/%m/%Y %H:%M')}",
+            notes=f"Auto-captured from {source_domain} ({req.sourceDevice}) on {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
             created_at=datetime.utcnow().isoformat(),
             updated_at=datetime.utcnow().isoformat(),
         )
         db.add(new_offer)
         clip.converted_to_offer = True
+        clip.content_type = "job_offer"
         auto_created_offer = new_offer
 
     db.commit()
@@ -1079,9 +1113,79 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
     return {
         "success": True,
         "clip": clip.to_dict(),
-        "isJobOffer": bool(analyzed.get("isJobOffer")),
+        "isJobOffer": bool(is_job),
         "offer": auto_created_offer.to_dict() if auto_created_offer else None
     }
+
+
+@app.post("/api/clips/sync-all")
+async def sync_all_clips_to_offers(db: Session = Depends(get_db)):
+    """Scans all clips in the vault and automatically converts any job offer clips into pipeline offers"""
+    clips = db.query(ClipVaultModel).filter_by(converted_to_offer=False).all()
+    created_offers = []
+    import re
+    
+    for clip in clips:
+        is_job = (
+            clip.content_type in ["job_offer", "job"]
+            or any(w in clip.content.lower() for w in [
+                "stage", "pfe", "internship", "intern", "hiring", "recrute", "recrutement",
+                "candidat", "poste", "cdi", "cdd", "job offer", "we are hiring", "apply now", "postuler"
+            ])
+        )
+        if not is_job:
+            continue
+            
+        raw_text = clip.content
+        emails = re.findall(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', raw_text)
+        phones = re.findall(r'(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}', raw_text)
+        
+        channel = "email" if emails else ("direct_contact" if (phones or "whatsapp" in raw_text.lower() or "linkedin.com/in" in raw_text.lower()) else "external")
+        cat = "ai-ml" if any(w in raw_text.lower() for w in ["ai", "ia", "nlp", "llm", "machine learning", "deep learning"]) else ("data" if any(w in raw_text.lower() for w in ["data", "sql", "spark"]) else "dev-fullstack")
+        
+        offer_id = f"offer-clip-{int(datetime.utcnow().timestamp()*1000)}-{clip.id[:6]}"
+        db_cat = db.query(CategoryModel).filter_by(id=cat).first()
+        cv_tag = db_cat.default_cv_tag if db_cat else "CV - General"
+        
+        tags = []
+        try:
+            tags = json.loads(clip.tags_json) if clip.tags_json else []
+        except:
+            tags = []
+            
+        new_offer = OfferModel(
+            id=offer_id,
+            title=clip.title,
+            company=clip.source_domain or "Company",
+            location="Remote / Hybride",
+            category=cat,
+            category_reasoning=f"Synced from Clip Vault (#{clip.id}) to {channel} channel",
+            channel=channel,
+            recruiter_email=emails[0] if emails else "",
+            recruiter_name="",
+            skills_json=json.dumps(tags),
+            description=clip.content,
+            source_url=clip.source_url or "",
+            status="saved",
+            attached_cv_tag=cv_tag,
+            confidence=0.92,
+            needs_user_review=True,
+            notes=f"Synced from Clip Vault to {channel} channel",
+            created_at=datetime.utcnow().isoformat(),
+            updated_at=datetime.utcnow().isoformat(),
+        )
+        db.add(new_offer)
+        clip.converted_to_offer = True
+        clip.content_type = "job_offer"
+        created_offers.append(new_offer)
+        
+    db.commit()
+    return {
+        "success": True,
+        "syncedCount": len(created_offers),
+        "offers": [o.to_dict() for o in created_offers]
+    }
+
 
 
 @app.post("/api/clips/{clip_id}/convert-to-offer")

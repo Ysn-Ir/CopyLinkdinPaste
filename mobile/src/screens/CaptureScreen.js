@@ -56,14 +56,14 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
         }
       }
     } catch {
-      Alert.alert('Erreur', 'Impossible de lire le presse-papiers.')
+      Alert.alert('Error', 'Unable to read system clipboard.')
     }
   }
 
   const handleIngest = async () => {
     const rawContent = inputText.trim() || sourceUrl.trim()
     if (!rawContent) {
-      Alert.alert('Champ Requis', 'Veuillez coller le texte ou le lien à capturer.')
+      Alert.alert('Required Field', 'Please paste the text or link you wish to capture.')
       return
     }
 
@@ -83,10 +83,10 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
         setLastCreatedOffer(res.offer)
         setInputText('')
         setSourceUrl('')
-        Alert.alert('Succès 🎉', `Offre "${res.offer.title}" analysée par l'IA et synchronisée avec le PC !`)
+        Alert.alert('Success 🎉', `Offer "${res.offer.title}" parsed by AI and synced to PC!`)
         if (onOfferCreated) onOfferCreated(res.offer)
       } else {
-        Alert.alert('Erreur de Capture', res.error || 'Vérifiez la connexion avec le PC.')
+        Alert.alert('Capture Error', res.error || 'Verify LAN connection with PC.')
       }
     } else {
       // Auto or Clip mode: Universal ingest
@@ -108,16 +108,16 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           setLastCreatedOffer(res.offer)
           if (onOfferCreated) onOfferCreated(res.offer)
           Alert.alert(
-            'Succès 🎉 Offre Détectée !',
-            `L'IA a identifié une offre d'emploi : "${res.offer.title}". Elle est maintenant dans votre Pipeline et votre Clip Vault !`
+            'Success 🎉 Job Offer Detected!',
+            `AI detected an opportunity: "${res.offer.title}". It has been routed to your Offer Channel and synced to PC!`
           )
         } else {
-          Alert.alert('Succès ✨ Clip Sauvegardé', `"${res.clip.title}" capturé et classifié dans le Clip Vault.`)
+          Alert.alert('Success ✨ Saved to Vault', `"${res.clip.title}" classified and saved in your Clip Vault.`)
         }
         setInputText('')
         setSourceUrl('')
       } else {
-        Alert.alert('Erreur de Capture', res.error || 'Vérifiez la connexion avec le PC.')
+        Alert.alert('Capture Error', res.error || 'Verify LAN connection with PC.')
       }
     }
   }
@@ -127,11 +127,11 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
       {/* Top Banner */}
       <View style={styles.header}>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>IA & MULTI-DEVICE SYNC</Text>
+          <Text style={styles.badgeText}>AI SYNC • CROSS-DEVICE</Text>
         </View>
-        <Text style={styles.title}>Capture Universelle Mobile</Text>
+        <Text style={styles.title}>Universal Capture</Text>
         <Text style={styles.subtitle}>
-          Copiez une offre LinkedIn, un article, un repo GitHub ou une note : l'IA classifie et injecte directement sur votre PC !
+          Copy a LinkedIn job, article, GitHub repo, or note: AI classifies and syncs it directly to your PC.
         </Text>
       </View>
 
@@ -142,7 +142,7 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           onPress={() => setCaptureMode('auto')}
         >
           <Text style={[styles.modeTabText, captureMode === 'auto' && styles.modeTabTextActive]}>
-            ⚡ Auto-Détection
+            ⚡ Auto-Detect
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -150,7 +150,7 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           onPress={() => setCaptureMode('offer')}
         >
           <Text style={[styles.modeTabText, captureMode === 'offer' && styles.modeTabTextActive]}>
-            💼 Offre PFE
+            💼 Job Offer
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -158,7 +158,7 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           onPress={() => setCaptureMode('clip')}
         >
           <Text style={[styles.modeTabText, captureMode === 'clip' && styles.modeTabTextActive]}>
-            📋 OmniCapture
+            📋 Universal Clip
           </Text>
         </TouchableOpacity>
       </View>
@@ -168,22 +168,22 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
         <TouchableOpacity style={styles.clipboardChip} onPress={handlePasteFromClipboard}>
           <Text style={styles.clipboardIcon}>📋</Text>
           <View style={{ flex: 1 }}>
-            <Text style={styles.clipboardLabel}>Contenu Détecté dans le Presse-Papiers :</Text>
+            <Text style={styles.clipboardLabel}>Detected in Clipboard:</Text>
             <Text style={styles.clipboardPreview} numberOfLines={1}>
               {clipboardContent}
             </Text>
           </View>
-          <Text style={styles.clipboardAction}>Coller ⚡</Text>
+          <Text style={styles.clipboardAction}>Paste ⚡</Text>
         </TouchableOpacity>
       ) : null}
 
       {/* Main Input Form */}
       <View style={styles.card}>
-        <Text style={styles.fieldLabel}>LIEN / URL (OPTIONNEL)</Text>
+        <Text style={styles.fieldLabel}>URL / LINK (OPTIONAL)</Text>
         <TextInput
           style={styles.urlInput}
-          placeholder="https://linkedin.com/posts/... ou https://github.com/..."
-          placeholderTextColor="#52525b"
+          placeholder="https://linkedin.com/posts/... or https://indeed.com/..."
+          placeholderTextColor="#64748b"
           value={sourceUrl}
           onChangeText={setSourceUrl}
           autoCapitalize="none"
@@ -192,10 +192,10 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
 
         <View style={styles.fieldHeader}>
           <Text style={styles.fieldLabel}>
-            {captureMode === 'offer' ? 'TEXTE DU POST / DESCRIPTIF PFE' : 'CONTENU DU TEXTE / NOTE / CODE'}
+            {captureMode === 'offer' ? 'JOB POST / RECRUITER TEXT' : 'TEXT CONTENT / CODE / NOTE'}
           </Text>
           <TouchableOpacity onPress={handlePasteFromClipboard}>
-            <Text style={styles.pasteText}>Coller Presse-papiers</Text>
+            <Text style={styles.pasteText}>Paste Clipboard</Text>
           </TouchableOpacity>
         </View>
 
@@ -203,10 +203,10 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           style={styles.textArea}
           placeholder={
             captureMode === 'offer'
-              ? 'Collez ici le post LinkedIn du recruteur, email ou descriptif du stage PFE...'
-              : 'Collez ici n\'importe quel texte, snippet, idée, contact ou post...'
+              ? 'Paste recruiter post, job description, or application requirements here...'
+              : 'Paste any text snippet, article link, idea, code, or contact...'
           }
-          placeholderTextColor="#52525b"
+          placeholderTextColor="#64748b"
           multiline
           numberOfLines={6}
           textAlignVertical="top"
@@ -222,11 +222,11 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           {isIngesting ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator color="#ffffff" size="small" />
-              <Text style={styles.ingestButtonText}>Classification IA en cours...</Text>
+              <Text style={styles.ingestButtonText}>Analyzing with AI...</Text>
             </View>
           ) : (
             <Text style={styles.ingestButtonText}>
-              {captureMode === 'offer' ? '🚀 Extraire Offre & Sauvegarder' : '✨ Classifier & Enregistrer sur PC'}
+              {captureMode === 'offer' ? '🚀 Extract & Route to Channel' : '✨ Classify & Sync to PC'}
             </Text>
           )}
         </TouchableOpacity>
@@ -236,55 +236,58 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
       {lastCreatedOffer ? (
         <View style={styles.resultCard}>
           <View style={styles.resultHeader}>
-            <Text style={styles.resultBadge}>🎯 Offre PFE Enregistrée</Text>
+            <Text style={styles.resultBadge}>🎯 Offer Routed</Text>
             <Text style={styles.resultStatus}>{lastCreatedOffer.status?.toUpperCase()}</Text>
           </View>
           <Text style={styles.resultTitle}>{lastCreatedOffer.title}</Text>
           <Text style={styles.resultCompany}>
-            🏢 {lastCreatedOffer.company || 'Entreprise identifiée'} • 📍 {lastCreatedOffer.location || 'France / Remote'}
+            🏢 {lastCreatedOffer.company || 'Company'} • 📍 {lastCreatedOffer.location || 'Remote / Hybrid'}
           </Text>
 
           {lastCreatedOffer.categoryReasoning ? (
             <Text style={styles.resultReasoning}>
-              💡 IA : {lastCreatedOffer.categoryReasoning}
+              💡 AI: {lastCreatedOffer.categoryReasoning}
             </Text>
           ) : null}
 
           {lastCreatedOffer.recruiterName || lastCreatedOffer.recruiterEmail ? (
             <View style={styles.recruiterBox}>
               <Text style={styles.recruiterText}>
-                👤 {lastCreatedOffer.recruiterName || 'Recruteur'} {lastCreatedOffer.recruiterEmail ? `(${lastCreatedOffer.recruiterEmail})` : ''}
+                👤 {lastCreatedOffer.recruiterName || 'Recruiter'} {lastCreatedOffer.recruiterEmail ? `(${lastCreatedOffer.recruiterEmail})` : ''}
               </Text>
             </View>
           ) : null}
 
           <TouchableOpacity
-            style={styles.viewOffersButton}
-            onPress={() => onNavigateOffers && onNavigateOffers()}
+            style={styles.viewOfferBtn}
+            onPress={() => {
+              if (onNavigateOffers) onNavigateOffers()
+            }}
           >
-            <Text style={styles.viewOffersText}>Voir dans le Stream Offres →</Text>
+            <Text style={styles.viewOfferBtnText}>View in Offers Pipeline →</Text>
           </TouchableOpacity>
         </View>
       ) : null}
 
-      {/* Clip Result Card (if not already an offer) */}
+      {/* Clip Result Card */}
       {lastCreatedClip && !lastCreatedOffer ? (
-        <View style={[styles.resultCard, { borderColor: 'rgba(56, 189, 248, 0.4)' }]}>
+        <View style={styles.clipResultCard}>
           <View style={styles.resultHeader}>
-            <Text style={[styles.resultBadge, { color: '#38bdf8' }]}>
-              📋 Clip Enregistré ({lastCreatedClip.contentType})
-            </Text>
-            <Text style={styles.resultStatus}>{lastCreatedClip.sourceDomain}</Text>
+            <Text style={styles.clipBadge}>📋 Saved to Clip Vault</Text>
+            <Text style={styles.clipType}>{lastCreatedClip.contentType?.toUpperCase()}</Text>
           </View>
           <Text style={styles.resultTitle}>{lastCreatedClip.title}</Text>
-          <Text style={[styles.resultReasoning, { color: '#94a3b8' }]}>
-            {lastCreatedClip.summary}
+          <Text style={styles.resultReasoning}>
+            {lastCreatedClip.summary || lastCreatedClip.content?.slice(0, 140)}
           </Text>
+
           <TouchableOpacity
-            style={[styles.viewOffersButton, { borderColor: 'rgba(56, 189, 248, 0.4)' }]}
-            onPress={() => onNavigateClips && onNavigateClips()}
+            style={styles.viewOfferBtn}
+            onPress={() => {
+              if (onNavigateClips) onNavigateClips()
+            }}
           >
-            <Text style={[styles.viewOffersText, { color: '#38bdf8' }]}>Voir dans le Clip Vault →</Text>
+            <Text style={styles.viewOfferBtnText}>View in Vault →</Text>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -299,48 +302,73 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingTop: 30,
+    paddingTop: 28,
     paddingBottom: 60,
   },
   header: {
-    alignItems: 'center',
     marginBottom: 16,
   },
   badge: {
+    alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    backgroundColor: THEME.colors.accentLight,
-    borderWidth: 1,
-    borderColor: THEME.colors.accentBorder,
     borderRadius: 6,
+    backgroundColor: 'rgba(79, 70, 229, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
     marginBottom: 8,
   },
   badgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: THEME.colors.accent,
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#a5b4fc',
     letterSpacing: 0.5,
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: THEME.colors.textPrimary,
   },
   subtitle: {
     fontSize: 12,
     color: THEME.colors.textSecondary,
-    textAlign: 'center',
     marginTop: 4,
-    paddingHorizontal: 16,
     lineHeight: 16,
+  },
+  modeSelector: {
+    flexDirection: 'row',
+    backgroundColor: THEME.colors.bgCard,
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+  },
+  modeTab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  modeTabActive: {
+    backgroundColor: THEME.colors.bgElevated,
+  },
+  modeTabText: {
+    fontSize: 11,
+    color: THEME.colors.textMuted,
+    fontWeight: '500',
+  },
+  modeTabTextActive: {
+    color: '#f8fafc',
+    fontWeight: '700',
   },
   clipboardChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+    backgroundColor: 'rgba(79, 70, 229, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.3)',
-    borderRadius: 12,
+    borderColor: 'rgba(99, 102, 241, 0.25)',
+    borderRadius: 10,
     padding: 10,
     marginBottom: 14,
     gap: 8,
@@ -351,7 +379,7 @@ const styles = StyleSheet.create({
   clipboardLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#d8b4fe',
+    color: '#a5b4fc',
   },
   clipboardPreview: {
     fontSize: 11,
@@ -361,71 +389,71 @@ const styles = StyleSheet.create({
   clipboardAction: {
     fontSize: 11,
     fontWeight: '700',
-    color: THEME.colors.accent,
+    color: '#c7d2fe',
   },
   card: {
     backgroundColor: THEME.colors.bgCard,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: THEME.colors.border,
-    padding: 16,
+    padding: 14,
     marginBottom: 16,
+  },
+  fieldLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    color: THEME.colors.textMuted,
+    marginBottom: 6,
   },
   fieldHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12,
     marginBottom: 6,
-  },
-  fieldLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    color: THEME.colors.textMuted,
   },
   pasteText: {
     fontSize: 11,
-    color: THEME.colors.accent,
+    color: '#a5b4fc',
     fontWeight: '600',
   },
   urlInput: {
     backgroundColor: THEME.colors.bgDark,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: THEME.colors.border,
     paddingHorizontal: 12,
-    height: 42,
+    height: 40,
     color: THEME.colors.textPrimary,
-    fontSize: 13,
-    marginTop: 6,
+    fontSize: 12.5,
+    marginBottom: 12,
   },
   textArea: {
     backgroundColor: THEME.colors.bgDark,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: THEME.colors.border,
     padding: 12,
-    height: 120,
+    minHeight: 110,
     color: THEME.colors.textPrimary,
-    fontSize: 13,
+    fontSize: 12.5,
     lineHeight: 18,
+    marginBottom: 14,
   },
   ingestButton: {
+    height: 44,
+    borderRadius: 8,
     backgroundColor: THEME.colors.accent,
-    borderRadius: 12,
-    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
   },
   ingestButtonDisabled: {
     opacity: 0.6,
   },
   ingestButtonText: {
     color: '#ffffff',
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '700',
   },
   loadingRow: {
     flexDirection: 'row',
@@ -433,11 +461,20 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   resultCard: {
-    backgroundColor: THEME.colors.bgCard,
-    borderRadius: 14,
+    backgroundColor: 'rgba(79, 70, 229, 0.08)',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.4)',
+    borderColor: 'rgba(99, 102, 241, 0.3)',
     padding: 14,
+    marginBottom: 16,
+  },
+  clipResultCard: {
+    backgroundColor: THEME.colors.bgCard,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+    padding: 14,
+    marginBottom: 16,
   },
   resultHeader: {
     flexDirection: 'row',
@@ -448,81 +485,61 @@ const styles = StyleSheet.create({
   resultBadge: {
     fontSize: 11,
     fontWeight: '700',
-    color: THEME.colors.success,
+    color: '#c7d2fe',
+  },
+  clipBadge: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: THEME.colors.textSecondary,
   },
   resultStatus: {
     fontSize: 10,
     fontWeight: '700',
-    color: THEME.colors.textMuted,
-    backgroundColor: THEME.colors.bgElevated,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    color: '#34d399',
+  },
+  clipType: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#60a5fa',
   },
   resultTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '700',
     color: THEME.colors.textPrimary,
     marginBottom: 4,
   },
   resultCompany: {
-    fontSize: 12,
+    fontSize: 11.5,
     color: THEME.colors.textSecondary,
     marginBottom: 6,
   },
   resultReasoning: {
     fontSize: 11,
-    color: '#a78bfa',
-    fontStyle: 'italic',
-    marginBottom: 8,
+    color: THEME.colors.textMuted,
     lineHeight: 15,
+    marginBottom: 8,
   },
   recruiterBox: {
-    backgroundColor: THEME.colors.bgElevated,
     padding: 8,
-    borderRadius: 8,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
     marginBottom: 10,
   },
   recruiterText: {
     fontSize: 11,
     color: THEME.colors.textSecondary,
   },
-  viewOffersButton: {
-    alignItems: 'center',
+  viewOfferBtn: {
     paddingVertical: 8,
-    backgroundColor: THEME.colors.bgElevated,
-    borderRadius: 8,
+    alignItems: 'center',
+    borderRadius: 6,
+    backgroundColor: 'rgba(79, 70, 229, 0.15)',
     borderWidth: 1,
-    borderColor: THEME.colors.border,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
   },
-  viewOffersText: {
-    color: THEME.colors.accent,
-    fontSize: 12,
+  viewOfferBtnText: {
+    fontSize: 11.5,
+    color: '#c7d2fe',
     fontWeight: '600',
-  },
-  modeSelector: {
-    flexDirection: 'row',
-    backgroundColor: THEME.colors.bgElevated,
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 14,
-    gap: 4,
-  },
-  modeTab: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  modeTabActive: {
-    backgroundColor: THEME.colors.accent,
-  },
-  modeTabText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: THEME.colors.textSecondary,
-  },
-  modeTabTextActive: {
-    color: '#ffffff',
   },
 })

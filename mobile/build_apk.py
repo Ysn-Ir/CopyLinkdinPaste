@@ -56,8 +56,10 @@ def build():
                 break
                 
     if found_apk and os.path.exists(found_apk):
-        dest_apk = os.path.join(root_dir, 'pfe-hunter-mobile.apk')
+        dest_apk = os.path.join(root_dir, 'omnihunt-mobile.apk')
         shutil.copy2(found_apk, dest_apk)
+        # Also copy to legacy name for compatibility
+        shutil.copy2(found_apk, os.path.join(root_dir, 'pfe-hunter-mobile.apk'))
         print(f"[+] Output APK copied to: {dest_apk} ({os.path.getsize(dest_apk) // 1024} KB)")
         return True
     else:

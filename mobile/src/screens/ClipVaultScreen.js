@@ -18,27 +18,41 @@ import { THEME } from '../theme'
 import { ApiService } from '../services/api'
 
 const CONTENT_TYPES = [
-  { id: 'all', label: 'Tout', icon: '📋' },
-  { id: 'job_offer', label: 'Offres', icon: '💼' },
+  { id: 'all', label: 'All', icon: '📋' },
+  { id: 'job_offer', label: 'Job Offers', icon: '💼' },
   { id: 'code_snippet', label: 'Code', icon: '💻' },
   { id: 'tech_article', label: 'Articles', icon: '📰' },
   { id: 'social_post', label: 'Social', icon: '💬' },
-  { id: 'tool_or_repo', label: 'Repos', icon: '🔧' },
+  { id: 'tool_or_repo', label: 'Repositories', icon: '🔧' },
   { id: 'note', label: 'Notes', icon: '📝' },
   { id: 'contact', label: 'Contacts', icon: '👤' },
 ]
 
 function getTypeColor(typeId) {
   const map = {
-    job_offer: '#a855f7',
-    code_snippet: '#22d3ee',
-    tech_article: '#3b82f6',
-    social_post: '#f59e0b',
-    tool_or_repo: '#10b981',
-    note: '#8b5cf6',
-    contact: '#f43f5e',
+    job_offer: '#818cf8',
+    code_snippet: '#38bdf8',
+    tech_article: '#60a5fa',
+    social_post: '#fbbf24',
+    tool_or_repo: '#34d399',
+    note: '#a78bfa',
+    contact: '#fb7185',
   }
   return map[typeId] || '#94a3b8'
+}
+
+function getChannelBadge(clip) {
+  const channel = clip.channel || (clip.jobData && clip.jobData.channel)
+  if (channel === 'email' || (clip.content && clip.content.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/))) {
+    return { label: 'Email Channel', color: '#818cf8', bg: 'rgba(129, 140, 248, 0.12)' }
+  }
+  if (channel === 'direct_contact' || (clip.content && clip.content.match(/(?:wa\.me|\+?[0-9]{9,15})/i))) {
+    return { label: 'Direct DM', color: '#2dd4bf', bg: 'rgba(45, 212, 191, 0.12)' }
+  }
+  if (clip.contentType === 'job_offer') {
+    return { label: 'ATS Portal', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.12)' }
+  }
+  return null
 }
 
 function formatTime(iso) {
@@ -46,10 +60,10 @@ function formatTime(iso) {
   const d = new Date(iso)
   const now = new Date()
   const diff = now - d
-  if (diff < 60000) return 'à l\'instant'
-  if (diff < 3600000) return `${Math.floor(diff / 60000)} min`
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`
-  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+  if (diff < 60000) return 'Just now'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
+  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
 }
 
 function getDomainEmoji(domain) {
@@ -68,6 +82,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
   const [clips, setClips] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [isSyncingAll, setIsSyncingAll] = useState(false)
   const [search, setSearch] = useState('')
   const [activeType, setActiveType] = useState('all')
   const [autoCapture, setAutoCapture] = useState(true)
@@ -129,7 +144,6 @@ export function ClipVaultScreen({ onNavigateTab }) {
       if (hash === lastClipHash) return
       setLastClipHash(hash)
 
-      // Detect source domain from text
       let sourceDomain = 'clipboard'
       const urlMatch = text.match(/https?:\/\/([^\s/]+)/)
       if (urlMatch) sourceDomain = urlMatch[1].replace('www.', '')
@@ -144,10 +158,10 @@ export function ClipVaultScreen({ onNavigateTab }) {
 
       if (res.success) {
         await loadClips()
-        // Show brief notification
+        const channelMsg = res.channel ? `Routed directly to ${res.channel.toUpperCase()} channel!` : ''
         Alert.alert(
-          '📋 Clip capturé !',
-          `${res.clip?.title || 'Nouveau clip'}\n${res.isJobOffer ? '💼 Offre d\'emploi détectée — créée automatiquement !' : ''}`,
+          'Clip Captured',
+          `${res.clip?.title || 'New Clip'}\n${res.isJobOffer ? `Job Offer detected! ${channelMsg}` : ''}`,
           [{ text: 'OK', style: 'default' }],
           { cancelable: true }
         )
@@ -162,6 +176,23 @@ export function ClipVaultScreen({ onNavigateTab }) {
     await checkClipboard()
   }
 
+  const handleSyncAllClipsToOffers = async () => {
+    setIsSyncingAll(true)
+    const res = await ApiService.syncAllClips()
+    setIsSyncingAll(false)
+    if (res.success) {
+      Alert.alert(
+        'Channels Synchronized',
+        res.count > 0
+          ? `Successfully routed ${res.count} vault clips into target offer channels!`
+          : 'All eligible clips are already synchronized to offer channels.'
+      )
+      await loadClips()
+    } else {
+      Alert.alert('Notice', res.error || 'Failed to sync vault clips.')
+    }
+  }
+
   const handleStar = async (clipId) => {
     const res = await ApiService.starClip(clipId)
     if (res.success) {
@@ -172,10 +203,10 @@ export function ClipVaultScreen({ onNavigateTab }) {
   }
 
   const handleDelete = (clipId) => {
-    Alert.alert('Supprimer ce clip ?', 'Cette action est irréversible.', [
-      { text: 'Annuler', style: 'cancel' },
+    Alert.alert('Delete Clip', 'Are you sure you want to delete this clip?', [
+      { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Supprimer',
+        text: 'Delete',
         style: 'destructive',
         onPress: async () => {
           await ApiService.deleteClip(clipId)
@@ -188,24 +219,32 @@ export function ClipVaultScreen({ onNavigateTab }) {
   const handleConvertToOffer = async (clipId) => {
     const res = await ApiService.convertClipToOffer(clipId)
     if (res.success) {
-      Alert.alert('✅ Offre créée !', `"${res.offer?.title}" a été ajouté au pipeline.`)
+      Alert.alert('Offer Created', `"${res.offer?.title || 'Offer'}" routed to application pipeline.`)
       await loadClips()
     } else {
-      Alert.alert('Erreur', 'Conversion échouée.')
+      Alert.alert('Notice', 'Failed to route clip to offer channel.')
     }
   }
 
   const renderClip = ({ item: clip }) => {
     const typeColor = getTypeColor(clip.contentType)
     const typeInfo = CONTENT_TYPES.find((t) => t.id === clip.contentType) || CONTENT_TYPES[0]
+    const channelBadge = getChannelBadge(clip)
 
     return (
       <View style={styles.clipCard}>
         {/* Header */}
         <View style={styles.clipHeader}>
-          <View style={[styles.typeBadge, { backgroundColor: typeColor + '20', borderColor: typeColor + '40' }]}>
-            <Text style={{ fontSize: 10 }}>{typeInfo.icon}</Text>
-            <Text style={[styles.typeBadgeText, { color: typeColor }]}>{typeInfo.label}</Text>
+          <View style={styles.headerLeftBadges}>
+            <View style={[styles.typeBadge, { backgroundColor: typeColor + '20', borderColor: typeColor + '40' }]}>
+              <Text style={{ fontSize: 10 }}>{typeInfo.icon}</Text>
+              <Text style={[styles.typeBadgeText, { color: typeColor }]}>{typeInfo.label}</Text>
+            </View>
+            {channelBadge && (
+              <View style={[styles.channelMiniBadge, { backgroundColor: channelBadge.bg, borderColor: channelBadge.color + '40' }]}>
+                <Text style={[styles.channelMiniText, { color: channelBadge.color }]}>{channelBadge.label}</Text>
+              </View>
+            )}
           </View>
           <Text style={styles.clipTime}>{formatTime(clip.copiedAt || clip.createdAt)}</Text>
         </View>
@@ -245,15 +284,15 @@ export function ClipVaultScreen({ onNavigateTab }) {
               <Text style={{ fontSize: 16 }}>{clip.isStarred ? '⭐' : '☆'}</Text>
             </TouchableOpacity>
 
-            {clip.contentType === 'job_offer' && !clip.convertedToOffer && (
+            {(clip.contentType === 'job_offer' || clip.isJobOffer) && !clip.convertedToOffer && (
               <TouchableOpacity onPress={() => handleConvertToOffer(clip.id)} style={[styles.actionBtn, styles.convertBtn]}>
-                <Text style={styles.convertBtnText}>💼 → Offre</Text>
+                <Text style={styles.convertBtnText}>⚡ Route to Channel</Text>
               </TouchableOpacity>
             )}
 
             {clip.convertedToOffer && (
               <View style={styles.convertedBadge}>
-                <Text style={styles.convertedText}>✓ Offre</Text>
+                <Text style={styles.convertedText}>✓ Routed to Offers</Text>
               </View>
             )}
 
@@ -276,9 +315,23 @@ export function ClipVaultScreen({ onNavigateTab }) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>📋 Clip Vault</Text>
+        <View>
+          <Text style={styles.headerTitle}>Clip Vault</Text>
+          <Text style={styles.headerSubtitle}>Cross-device clipboard hub</Text>
+        </View>
         <View style={styles.headerActions}>
           {ingestingClip && <ActivityIndicator size="small" color={THEME.colors.accent} />}
+          <TouchableOpacity
+            onPress={handleSyncAllClipsToOffers}
+            style={styles.syncBtn}
+            disabled={isSyncingAll}
+          >
+            {isSyncingAll ? (
+              <ActivityIndicator size="small" color="#818cf8" />
+            ) : (
+              <Text style={styles.syncBtnText}>🔄 Sync Channels</Text>
+            )}
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setAutoCapture(!autoCapture)}
             style={[styles.toggleBtn, autoCapture ? styles.toggleBtnOn : styles.toggleBtnOff]}
@@ -287,9 +340,6 @@ export function ClipVaultScreen({ onNavigateTab }) {
               {autoCapture ? '⚡ Auto ON' : '⚡ Auto OFF'}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleManualCapture} style={styles.captureBtn}>
-            <Text style={styles.captureBtnText}>📋 Capturer</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -297,7 +347,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Rechercher clips..."
+          placeholder="Search vault clips..."
           placeholderTextColor={THEME.colors.textMuted}
           value={search}
           onChangeText={setSearch}
@@ -346,9 +396,9 @@ export function ClipVaultScreen({ onNavigateTab }) {
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyIcon}>📋</Text>
-              <Text style={styles.emptyTitle}>Aucun clip</Text>
+              <Text style={styles.emptyTitle}>Vault is empty</Text>
               <Text style={styles.emptySubtitle}>
-                Copiez n'importe quel texte — il sera automatiquement classifié.
+                Copy any text on mobile or PC — OmniHunt classifies and routes job offers automatically.
               </Text>
             </View>
           }
@@ -377,14 +427,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: THEME.colors.textPrimary,
   },
+  headerSubtitle: {
+    fontSize: 11,
+    color: THEME.colors.textMuted,
+    marginTop: 1,
+  },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
+  syncBtn: {
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    backgroundColor: 'rgba(129, 140, 248, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(129, 140, 248, 0.3)',
+  },
+  syncBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#818cf8',
+  },
   toggleBtn: {
     paddingVertical: 4,
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     borderRadius: 14,
     borderWidth: 1,
   },
@@ -397,21 +465,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   toggleBtnText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
-  },
-  captureBtn: {
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    backgroundColor: THEME.colors.accentLight,
-    borderWidth: 1,
-    borderColor: THEME.colors.accentBorder,
-  },
-  captureBtnText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: THEME.colors.accent,
   },
   searchContainer: {
     paddingHorizontal: 16,
@@ -452,7 +507,7 @@ const styles = StyleSheet.create({
     color: THEME.colors.textMuted,
   },
   filterTextActive: {
-    color: THEME.colors.accent,
+    color: '#818cf8',
     fontWeight: '600',
   },
   centerLoader: {
@@ -474,6 +529,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
+  headerLeftBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   typeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -486,6 +546,16 @@ const styles = StyleSheet.create({
   typeBadgeText: {
     fontSize: 10,
     fontWeight: '600',
+  },
+  channelMiniBadge: {
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  channelMiniText: {
+    fontSize: 9,
+    fontWeight: '700',
   },
   clipTime: {
     fontSize: 10,
@@ -542,19 +612,19 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   actionBtn: {
-    paddingVertical: 3,
+    paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 8,
   },
   convertBtn: {
-    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+    backgroundColor: 'rgba(129, 140, 248, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.3)',
+    borderColor: 'rgba(129, 140, 248, 0.3)',
   },
   convertBtnText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#a855f7',
+    fontWeight: '700',
+    color: '#818cf8',
   },
   convertedBadge: {
     paddingVertical: 2,

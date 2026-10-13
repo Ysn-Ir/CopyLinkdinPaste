@@ -40,28 +40,40 @@ export const ApiService = {
   },
 
   /**
-   * Tests network ping and returns pairing metadata
+   * Tests network ping and returns pairing metadata.
+   * If target is unreachable and none specified, attempts local candidates.
    */
   async testConnection(targetUrl = null) {
-    const base = (targetUrl || currentServerUrl).replace(/\/+$/, '')
-    const url = `${base}/api/mobile/pairing`
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 4000)
+    const candidates = targetUrl
+      ? [targetUrl]
+      : [currentServerUrl, 'http://192.168.1.12:8003', 'http://100.89.108.117:8003', 'http://10.0.2.2:8003']
 
-    try {
-      const res = await fetch(url, {
-        signal: controller.signal,
-        headers: { 'Accept': 'application/json' },
-      })
-      clearTimeout(timer)
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`)
+    for (const cand of candidates) {
+      const base = cand.replace(/\/+$/, '')
+      const url = `${base}/api/mobile/pairing`
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 3000)
+
+      try {
+        const res = await fetch(url, {
+          signal: controller.signal,
+          headers: { Accept: 'application/json' },
+        })
+        clearTimeout(timer)
+        if (res.ok) {
+          const data = await res.json()
+          currentServerUrl = base
+          await AsyncStorage.setItem(STORAGE_KEY_SERVER_URL, base)
+          return { success: true, data, url: base }
+        }
+      } catch (err) {
+        clearTimeout(timer)
       }
-      const data = await res.json()
-      return { success: true, data }
-    } catch (err) {
-      clearTimeout(timer)
-      return { success: false, error: err.message || 'Server unreachable on this network' }
+    }
+
+    return {
+      success: false,
+      error: `Could not connect to PC at ${targetUrl || currentServerUrl}. Ensure phone is connected to the same Wi-Fi and FastAPI server is running.`,
     }
   },
 
@@ -253,6 +265,20 @@ export const ApiService = {
       return { success: true, offer: data.offer }
     } catch (err) {
       return { success: false, error: err.message }
+    }
+  },
+
+  /**
+   * Syncs all job clips from vault into the offers pipeline
+   */
+  async syncAllClips() {
+    const url = `${currentServerUrl}/api/clips/sync-all`
+    try {
+      const res = await fetch(url, { method: 'POST' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return await res.json()
+    } catch (err) {
+      return { success: false, error: err.message, syncedCount: 0 }
     }
   },
 }

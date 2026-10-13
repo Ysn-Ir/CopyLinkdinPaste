@@ -23,14 +23,14 @@ import {
 } from 'lucide-react'
 
 const CONTENT_TYPES = [
-  { id: 'all', label: 'Tout', icon: '📋', color: '#94a3b8' },
-  { id: 'job_offer', label: 'Offres', icon: '💼', color: '#a855f7' },
-  { id: 'code_snippet', label: 'Code', icon: '💻', color: '#22d3ee' },
-  { id: 'tech_article', label: 'Articles', icon: '📰', color: '#3b82f6' },
-  { id: 'social_post', label: 'Social', icon: '💬', color: '#f59e0b' },
-  { id: 'tool_or_repo', label: 'Outils/Repos', icon: '🔧', color: '#10b981' },
-  { id: 'note', label: 'Notes', icon: '📝', color: '#8b5cf6' },
-  { id: 'contact', label: 'Contacts', icon: '👤', color: '#f43f5e' },
+  { id: 'all', label: 'All', icon: '📋', color: '#94a3b8' },
+  { id: 'job_offer', label: 'Job Offers', icon: '💼', color: '#818cf8' },
+  { id: 'code_snippet', label: 'Code Snippets', icon: '💻', color: '#38bdf8' },
+  { id: 'tech_article', label: 'Articles', icon: '📰', color: '#60a5fa' },
+  { id: 'social_post', label: 'Social', icon: '💬', color: '#fbbf24' },
+  { id: 'tool_or_repo', label: 'Tools & Repos', icon: '🔧', color: '#34d399' },
+  { id: 'note', label: 'Notes', icon: '📝', color: '#a78bfa' },
+  { id: 'contact', label: 'Contacts', icon: '👤', color: '#fb7185' },
 ]
 
 function getTypeInfo(typeId) {
@@ -42,10 +42,10 @@ function formatTimestamp(iso) {
   const d = new Date(iso)
   const now = new Date()
   const diff = now - d
-  if (diff < 60000) return 'à l\'instant'
-  if (diff < 3600000) return `il y a ${Math.floor(diff / 60000)} min`
-  if (diff < 86400000) return `il y a ${Math.floor(diff / 3600000)}h`
-  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  if (diff < 60000) return 'just now'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
+  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
 function getDomainIcon(domain) {
@@ -62,12 +62,24 @@ function getDomainIcon(domain) {
   return '🌐'
 }
 
+function detectClipChannel(clip) {
+  const text = (clip.content || '') + ' ' + (clip.summary || '')
+  if (/[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+/.test(text)) {
+    return { id: 'email', label: 'Email Channel', color: '#34d399' }
+  }
+  if (/(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}/.test(text) || /whatsapp|linkedin\.com\/in/i.test(text)) {
+    return { id: 'direct_contact', label: 'Direct DM / WA', color: '#818cf8' }
+  }
+  return { id: 'external', label: 'ATS Portal', color: '#60a5fa' }
+}
+
 export function ClipVaultView({
   clips,
   onRefresh,
   onDeleteClip,
   onStarClip,
   onConvertToOffer,
+  onSyncAllClips,
   clipboardMonitorActive,
   onToggleMonitor,
 }) {
@@ -75,6 +87,7 @@ export function ClipVaultView({
   const [activeType, setActiveType] = useState('all')
   const [activeDomain, setActiveDomain] = useState('all')
   const [showStarredOnly, setShowStarredOnly] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
 
   // Derive unique domains from clips
   const domains = useMemo(() => {
@@ -120,21 +133,56 @@ export function ClipVaultView({
     return counts
   }, [clips])
 
+  const handleSyncAll = async () => {
+    if (!onSyncAllClips || isSyncing) return
+    setIsSyncing(true)
+    try {
+      await onSyncAllClips()
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
   return (
     <div className="workspace-view" style={{ padding: '20px 24px', overflowY: 'auto' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-            <Clipboard size={22} style={{ color: '#a855f7' }} />
-            Clip Vault — Universal Clipboard
+            <Clipboard size={22} style={{ color: '#818cf8' }} />
+            Clip Vault — Universal Memory
           </h2>
           <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
-            Tout ce que vous copiez est automatiquement classifié, taggé et mémorisé par l'IA.
+            Copied content from any site or app is classified, tagged, and synced to career channels.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Sync to Channels Button */}
+          {onSyncAllClips && (
+            <button
+              onClick={handleSyncAll}
+              disabled={isSyncing}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '8px',
+                background: '#4f46e5',
+                border: '1px solid #6366f1',
+                color: '#ffffff',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: 600,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Zap size={13} />
+              <span>{isSyncing ? 'Syncing...' : 'Sync Offers to Channels'}</span>
+            </button>
+          )}
+
           {/* Monitor toggle */}
           <button
             onClick={onToggleMonitor}
@@ -144,17 +192,17 @@ export function ClipVaultView({
               gap: '6px',
               padding: '6px 14px',
               borderRadius: '8px',
-              border: `1px solid ${clipboardMonitorActive ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
-              background: clipboardMonitorActive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+              border: `1px solid ${clipboardMonitorActive ? 'rgba(52, 211, 153, 0.3)' : 'rgba(248, 113, 113, 0.3)'}`,
+              background: clipboardMonitorActive ? 'rgba(52, 211, 153, 0.08)' : 'rgba(248, 113, 113, 0.08)',
               color: clipboardMonitorActive ? '#34d399' : '#f87171',
               cursor: 'pointer',
               fontSize: '12px',
               fontWeight: 600,
-              transition: 'all 0.2s ease',
+              transition: 'all 0.15s ease',
             }}
           >
-            <Zap size={14} />
-            {clipboardMonitorActive ? 'Auto-Capture ON' : 'Auto-Capture OFF'}
+            <Zap size={13} />
+            {clipboardMonitorActive ? 'Auto-Capture Active' : 'Auto-Capture Paused'}
           </button>
 
           <button
@@ -166,14 +214,14 @@ export function ClipVaultView({
               padding: '6px 12px',
               borderRadius: '8px',
               border: '1px solid var(--border-default)',
-              background: 'var(--bg-elevated)',
+              background: 'var(--bg-surface)',
               color: 'var(--text-secondary)',
               cursor: 'pointer',
               fontSize: '12px',
             }}
           >
             <RefreshCw size={13} />
-            Actualiser
+            Refresh
           </button>
         </div>
       </div>
@@ -238,7 +286,7 @@ export function ClipVaultView({
           }} />
           <input
             type="text"
-            placeholder="Rechercher clips, tags, contenus..."
+            placeholder="Search clips, tags, content..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
@@ -246,7 +294,7 @@ export function ClipVaultView({
               padding: '7px 12px 7px 32px',
               borderRadius: '8px',
               border: '1px solid var(--border-default)',
-              background: 'var(--bg-elevated)',
+              background: 'var(--bg-surface)',
               color: 'var(--text-primary)',
               fontSize: '12px',
               outline: 'none',
@@ -264,13 +312,13 @@ export function ClipVaultView({
               padding: '6px 10px',
               borderRadius: '6px',
               border: '1px solid var(--border-default)',
-              background: 'var(--bg-elevated)',
+              background: 'var(--bg-surface)',
               color: 'var(--text-primary)',
               fontSize: '12px',
               cursor: 'pointer',
             }}
           >
-            <option value="all">Toutes les sources</option>
+            <option value="all">All Sources</option>
             {domains.filter((d) => d !== 'all').map((d) => (
               <option key={d} value={d}>{getDomainIcon(d)} {d}</option>
             ))}
@@ -288,13 +336,13 @@ export function ClipVaultView({
             borderRadius: '6px',
             border: `1px solid ${showStarredOnly ? 'rgba(250, 204, 21, 0.4)' : 'var(--border-default)'}`,
             background: showStarredOnly ? 'rgba(250, 204, 21, 0.1)' : 'transparent',
-            color: showStarredOnly ? '#facc15' : 'var(--text-tertiary)',
+            color: showStarredOnly ? '#fbbf24' : 'var(--text-tertiary)',
             cursor: 'pointer',
             fontSize: '12px',
           }}
         >
           {showStarredOnly ? <Star size={13} /> : <StarOff size={13} />}
-          Favoris
+          Favorites
         </button>
       </div>
 
@@ -305,17 +353,17 @@ export function ClipVaultView({
         marginBottom: '18px',
         padding: '10px 16px',
         borderRadius: '8px',
-        background: 'var(--bg-elevated)',
+        background: 'var(--bg-surface)',
         border: '1px solid var(--border-default)',
         fontSize: '12px',
         color: 'var(--text-secondary)',
         flexWrap: 'wrap',
       }}>
-        <span><strong style={{ color: '#a855f7' }}>{clips.length}</strong> clips total</span>
-        <span><strong style={{ color: '#f59e0b' }}>{clips.filter((c) => c.isStarred).length}</strong> favoris</span>
-        <span><strong style={{ color: '#10b981' }}>{clips.filter((c) => c.convertedToOffer).length}</strong> convertis en offres</span>
-        <span><strong style={{ color: '#3b82f6' }}>{domains.length - 1}</strong> sources détectées</span>
-        <span>Affiché: <strong>{filteredClips.length}</strong></span>
+        <span><strong style={{ color: '#818cf8' }}>{clips.length}</strong> total clips</span>
+        <span><strong style={{ color: '#fbbf24' }}>{clips.filter((c) => c.isStarred).length}</strong> favorites</span>
+        <span><strong style={{ color: '#34d399' }}>{clips.filter((c) => c.convertedToOffer).length}</strong> routed to offers</span>
+        <span><strong style={{ color: '#60a5fa' }}>{domains.length - 1}</strong> web sources</span>
+        <span>Showing: <strong>{filteredClips.length}</strong></span>
       </div>
 
       {/* Clips Grid */}
@@ -330,17 +378,20 @@ export function ClipVaultView({
           textAlign: 'center',
         }}>
           <Clipboard size={42} style={{ opacity: 0.3, marginBottom: '12px' }} />
-          <p style={{ fontSize: '14px', fontWeight: 600 }}>Aucun clip trouvé</p>
+          <p style={{ fontSize: '14px', fontWeight: 600 }}>No clips captured yet</p>
           <p style={{ fontSize: '12px', maxWidth: '350px', marginTop: '6px' }}>
             {clipboardMonitorActive
-              ? 'Copiez n\'importe quel texte — il sera automatiquement capturé et classifié par l\'IA.'
-              : 'Activez l\'Auto-Capture pour commencer à mémoriser automatiquement tout ce que vous copiez.'}
+              ? 'Copy text from any site or app — OmniMemory AI will classify and organize it automatically.'
+              : 'Turn on Auto-Capture above to automatically remember everything you copy.'}
           </p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {filteredClips.map((clip) => {
             const typeInfo = getTypeInfo(clip.contentType)
+            const channelMeta = detectClipChannel(clip)
+            const isJobOffer = clip.contentType === 'job_offer' || /stage|pfe|recrute|hiring|candidat|poste|cdi|internship|job/i.test(clip.content)
+
             return (
               <div
                 key={clip.id}
@@ -348,14 +399,14 @@ export function ClipVaultView({
                   padding: '14px 18px',
                   borderRadius: '10px',
                   border: `1px solid ${clip.isStarred ? 'rgba(250, 204, 21, 0.3)' : 'var(--border-default)'}`,
-                  background: 'var(--bg-card)',
-                  transition: 'all 0.2s ease',
+                  background: 'var(--bg-surface)',
+                  transition: 'all 0.15s ease',
                   position: 'relative',
                 }}
               >
-                {/* Top row: Type + Title + Actions */}
+                {/* Top row: Type + Channel Badge + Title + Actions */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0, flexWrap: 'wrap' }}>
                     {/* Type badge */}
                     <span style={{
                       display: 'inline-flex',
@@ -373,6 +424,25 @@ export function ClipVaultView({
                       {typeInfo.icon} {typeInfo.label}
                     </span>
 
+                    {/* Detected Channel Badge */}
+                    {isJobOffer && (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '2px 7px',
+                        borderRadius: '4px',
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        border: `1px solid ${channelMeta.color}35`,
+                        color: channelMeta.color,
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {channelMeta.label}
+                      </span>
+                    )}
+
                     {/* Title */}
                     <h4 style={{
                       fontSize: '13px',
@@ -382,48 +452,50 @@ export function ClipVaultView({
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
+                      flex: 1,
+                      minWidth: '160px',
                     }}>
                       {clip.title}
                     </h4>
                   </div>
 
                   {/* Actions */}
-                  <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
                     <button
                       onClick={() => onStarClip(clip.id)}
-                      title={clip.isStarred ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                      title={clip.isStarred ? 'Remove from favorites' : 'Add to favorites'}
                       style={{
                         padding: '4px',
                         borderRadius: '4px',
                         border: 'none',
                         background: 'transparent',
-                        color: clip.isStarred ? '#facc15' : 'var(--text-tertiary)',
+                        color: clip.isStarred ? '#fbbf24' : 'var(--text-tertiary)',
                         cursor: 'pointer',
                       }}
                     >
                       {clip.isStarred ? <Star size={14} /> : <StarOff size={14} />}
                     </button>
 
-                    {!clip.convertedToOffer && clip.contentType === 'job_offer' && (
+                    {!clip.convertedToOffer && isJobOffer && (
                       <button
                         onClick={() => onConvertToOffer(clip.id)}
-                        title="Convertir en offre PFE"
+                        title="Route to Offer Channel"
                         style={{
-                          padding: '4px 8px',
-                          borderRadius: '4px',
-                          border: '1px solid rgba(168, 85, 247, 0.3)',
-                          background: 'rgba(168, 85, 247, 0.1)',
-                          color: '#a855f7',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid #4f46e5',
+                          background: 'rgba(79, 70, 229, 0.15)',
+                          color: '#c7d2fe',
                           cursor: 'pointer',
-                          fontSize: '10px',
+                          fontSize: '10.5px',
                           fontWeight: 600,
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '3px',
+                          gap: '4px',
                         }}
                       >
                         <Briefcase size={11} />
-                        → Offre
+                        → Route to Channel
                       </button>
                     )}
 
@@ -431,19 +503,19 @@ export function ClipVaultView({
                       <span style={{
                         padding: '3px 8px',
                         borderRadius: '4px',
-                        background: 'rgba(16, 185, 129, 0.1)',
-                        border: '1px solid rgba(16, 185, 129, 0.3)',
-                        color: '#10b981',
+                        background: 'rgba(52, 211, 153, 0.1)',
+                        border: '1px solid rgba(52, 211, 153, 0.3)',
+                        color: '#34d399',
                         fontSize: '10px',
                         fontWeight: 600,
                       }}>
-                        ✓ Offre créée
+                        ✓ Synced in Channel
                       </span>
                     )}
 
                     <button
                       onClick={() => onDeleteClip(clip.id)}
-                      title="Supprimer"
+                      title="Delete"
                       style={{
                         padding: '4px',
                         borderRadius: '4px',
@@ -514,7 +586,7 @@ export function ClipVaultView({
                       }}
                     >
                       <ArrowUpRight size={11} />
-                      Ouvrir
+                      Open Source
                     </a>
                   )}
 
@@ -527,7 +599,7 @@ export function ClipVaultView({
                           style={{
                             padding: '1px 6px',
                             borderRadius: '10px',
-                            background: 'var(--bg-elevated)',
+                            background: 'var(--bg-app)',
                             border: '1px solid var(--border-default)',
                             fontSize: '10px',
                             color: 'var(--text-secondary)',

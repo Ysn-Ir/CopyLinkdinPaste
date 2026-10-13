@@ -16,6 +16,7 @@ import { THEME, getStageMeta } from '../theme'
 export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
   const [offers, setOffers] = useState([])
   const [categories, setCategories] = useState([])
+  const [selectedChannel, setSelectedChannel] = useState('all') // 'all' | 'email' | 'direct_contact' | 'external'
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedStage, setSelectedStage] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -56,7 +57,7 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
     loadData()
   }
 
-  const handleQuickAdvance = async (offer, e) => {
+  const handleQuickAdvance = async (offer) => {
     const stageOrder = ['saved', 'ready', 'applied', 'interview', 'offer']
     const currentIndex = stageOrder.indexOf(offer.status)
     if (currentIndex >= 0 && currentIndex < stageOrder.length - 1) {
@@ -67,16 +68,21 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
           prev.map((o) => (o.id === offer.id ? { ...o, status: nextStage } : o))
         )
       } else {
-        Alert.alert('Erreur', res.error || 'Impossible de mettre à jour le statut.')
+        Alert.alert('Error', res.error || 'Unable to update status.')
       }
     }
   }
+
+  // Filter offers by channel locally if selected
+  const displayedOffers = selectedChannel === 'all'
+    ? offers
+    : offers.filter((o) => o.channel === selectedChannel)
 
   const renderOfferItem = ({ item }) => {
     const stageMeta = getStageMeta(item.status)
     const cat = categories.find((c) => c.id === item.category)
     const createdDate = item.createdAt
-      ? new Date(item.createdAt).toLocaleDateString('fr-FR', {
+      ? new Date(item.createdAt).toLocaleDateString('en-US', {
           day: '2-digit',
           month: 'short',
         })
@@ -93,22 +99,22 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
             <View
               style={[
                 styles.domainDot,
-                { backgroundColor: cat?.color || THEME.colors.accent },
+                { backgroundColor: cat?.color || '#818cf8' },
               ]}
             />
             <Text
               style={[
                 styles.domainText,
-                { color: cat?.color || THEME.colors.accent },
+                { color: cat?.color || '#818cf8' },
               ]}
             >
-              {cat?.short_label || cat?.label || item.category || 'Général'}
+              {cat?.short_label || cat?.label || item.category || 'General'}
             </Text>
           </View>
 
           <View style={styles.headerRight}>
             {createdDate ? (
-              <Text style={styles.dateText}>📅 {createdDate}</Text>
+              <Text style={styles.dateText}>{createdDate}</Text>
             ) : null}
             <View
               style={[
@@ -128,7 +134,7 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
         </Text>
 
         <Text style={styles.companyText}>
-          🏢 {item.company || 'Entreprise PFE'} • 📍 {item.location || 'France'}
+          🏢 {item.company || 'Company'} • 📍 {item.location || 'Remote / Hybrid'}
         </Text>
 
         {item.skills && item.skills.length > 0 ? (
@@ -145,24 +151,33 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
         ) : null}
 
         <View style={styles.cardFooter}>
-          <Text style={styles.channelLabel}>
-            {item.channel === 'email'
-              ? '✉️ Email Studio'
-              : item.channel === 'direct_contact'
-              ? '💬 DM / WhatsApp'
-              : '🌐 ATS / Portail'}
-          </Text>
+          <View style={styles.channelPill}>
+            <Text style={styles.channelLabel}>
+              {item.channel === 'email'
+                ? '✉️ Email Outreach'
+                : item.channel === 'direct_contact'
+                ? '💬 Direct DM / WA'
+                : '🌐 ATS Portal'}
+            </Text>
+          </View>
 
           <TouchableOpacity
             style={styles.advanceButton}
             onPress={() => handleQuickAdvance(item)}
           >
-            <Text style={styles.advanceButtonText}>Avancer étape →</Text>
+            <Text style={styles.advanceButtonText}>Advance Stage →</Text>
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
     )
   }
+
+  const CHANNELS = [
+    { id: 'all', label: 'All Channels' },
+    { id: 'email', label: '✉️ Email' },
+    { id: 'direct_contact', label: '💬 Direct DM' },
+    { id: 'external', label: '🌐 ATS' },
+  ]
 
   return (
     <View style={styles.container}>
@@ -170,8 +185,8 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Rechercher par titre, boîte, compétence..."
-          placeholderTextColor="#71717a"
+          placeholder="Search offers, company, skills..."
+          placeholderTextColor="#64748b"
           value={searchQuery}
           onChangeText={setSearchQuery}
           onSubmitEditing={handleSearchSubmit}
@@ -179,12 +194,30 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
         />
       </View>
 
+      {/* Channel Filters */}
+      <View style={styles.channelFilterRow}>
+        {CHANNELS.map((ch) => {
+          const isSelected = selectedChannel === ch.id
+          return (
+            <TouchableOpacity
+              key={ch.id}
+              style={[styles.channelChip, isSelected && styles.channelChipActive]}
+              onPress={() => setSelectedChannel(ch.id)}
+            >
+              <Text style={[styles.channelChipText, isSelected && styles.channelChipTextActive]}>
+                {ch.label}
+              </Text>
+            </TouchableOpacity>
+          )
+        })}
+      </View>
+
       {/* Domain Category Filters */}
       <View style={styles.filtersScroll}>
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
-          data={[{ id: 'all', label: 'Tous les domaines' }, ...categories]}
+          data={[{ id: 'all', label: 'All Domains' }, ...categories]}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
           renderItem={({ item }) => {
@@ -215,25 +248,25 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
       {isLoading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator color={THEME.colors.accent} size="large" />
-          <Text style={styles.loadingText}>Synchronisation du flux...</Text>
+          <Text style={styles.loadingText}>Syncing offers stream...</Text>
         </View>
-      ) : offers.length === 0 ? (
+      ) : displayedOffers.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>📭</Text>
-          <Text style={styles.emptyTitle}>Aucune offre trouvée</Text>
+          <Text style={styles.emptyTitle}>No offers found</Text>
           <Text style={styles.emptyText}>
-            Capturez un post LinkedIn ou modifiez vos filtres de recherche.
+            Capture a job link from your phone or change your filter above.
           </Text>
           <TouchableOpacity
             style={styles.emptyButton}
             onPress={onOpenCapture}
           >
-            <Text style={styles.emptyButtonText}>+ Capturer un Post</Text>
+            <Text style={styles.emptyButtonText}>+ Capture New Offer</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <FlatList
-          data={offers}
+          data={displayedOffers}
           keyExtractor={(item) => item.id}
           renderItem={renderOfferItem}
           contentContainerStyle={styles.listContent}
@@ -257,51 +290,78 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 16,
     paddingBottom: 8,
   },
   searchInput: {
+    height: 42,
     backgroundColor: THEME.colors.bgCard,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: THEME.colors.border,
-    borderRadius: 12,
     paddingHorizontal: 14,
-    height: 42,
     color: THEME.colors.textPrimary,
     fontSize: 13,
   },
-  filtersScroll: {
+  channelFilterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 6,
     marginBottom: 8,
   },
-  filterChip: {
-    paddingHorizontal: 12,
+  channelChip: {
+    flex: 1,
     paddingVertical: 6,
+    alignItems: 'center',
     borderRadius: 8,
     backgroundColor: THEME.colors.bgCard,
     borderWidth: 1,
     borderColor: THEME.colors.border,
   },
+  channelChipActive: {
+    backgroundColor: 'rgba(79, 70, 229, 0.15)',
+    borderColor: 'rgba(99, 102, 241, 0.4)',
+  },
+  channelChipText: {
+    fontSize: 10.5,
+    color: THEME.colors.textMuted,
+    fontWeight: '500',
+  },
+  channelChipTextActive: {
+    color: '#c7d2fe',
+    fontWeight: '700',
+  },
+  filtersScroll: {
+    marginBottom: 10,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 16,
+    backgroundColor: THEME.colors.bgCard,
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+  },
   filterChipActive: {
-    backgroundColor: THEME.colors.accentLight,
-    borderColor: THEME.colors.accentBorder,
+    backgroundColor: 'rgba(79, 70, 229, 0.15)',
+    borderColor: 'rgba(99, 102, 241, 0.4)',
   },
   filterChipText: {
     fontSize: 11,
-    color: THEME.colors.textSecondary,
-    fontWeight: '500',
+    color: THEME.colors.textMuted,
   },
   filterChipTextActive: {
-    color: THEME.colors.accent,
-    fontWeight: '700',
+    color: '#ffffff',
+    fontWeight: '600',
   },
   listContent: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 70,
     gap: 12,
-    paddingBottom: 40,
   },
   card: {
     backgroundColor: THEME.colors.bgCard,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: THEME.colors.border,
     padding: 14,
@@ -316,10 +376,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
   },
   domainDot: {
     width: 6,
@@ -327,128 +383,139 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   domainText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   dateText: {
     fontSize: 10,
     color: THEME.colors.textMuted,
   },
   stageBadge: {
-    borderWidth: 1,
     paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: 4,
+    borderWidth: 1,
   },
   stageText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '700',
   },
   cardTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: THEME.colors.textPrimary,
-    lineHeight: 20,
+    lineHeight: 18,
     marginBottom: 4,
   },
   companyText: {
     fontSize: 12,
     color: THEME.colors.textSecondary,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   skillsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: 6,
-    marginBottom: 10,
+    marginBottom: 12,
+    flexWrap: 'wrap',
   },
   skillChip: {
-    backgroundColor: THEME.colors.bgElevated,
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 4,
+    backgroundColor: THEME.colors.bgElevated,
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
   },
   skillText: {
     fontSize: 10,
-    color: THEME.colors.textMuted,
+    color: THEME.colors.textSecondary,
   },
   moreSkills: {
     fontSize: 10,
     color: THEME.colors.textMuted,
-    alignSelf: 'center',
   },
   cardFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    justifyContent: 'space-between',
     paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  channelPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
   },
   channelLabel: {
-    fontSize: 11,
-    color: THEME.colors.textSecondary,
+    fontSize: 10,
+    color: THEME.colors.textMuted,
+    fontWeight: '500',
   },
   advanceButton: {
-    backgroundColor: THEME.colors.bgElevated,
-    borderWidth: 1,
-    borderColor: THEME.colors.border,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
+    backgroundColor: 'rgba(79, 70, 229, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
   },
   advanceButtonText: {
     fontSize: 11,
-    color: THEME.colors.accent,
+    color: '#c7d2fe',
     fontWeight: '600',
   },
   centerContainer: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 60,
   },
   loadingText: {
-    color: THEME.colors.textMuted,
     fontSize: 12,
-    marginTop: 8,
+    color: THEME.colors.textMuted,
+    marginTop: 10,
   },
   emptyContainer: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 30,
+    paddingTop: 60,
+    paddingHorizontal: 20,
   },
   emptyIcon: {
     fontSize: 40,
     marginBottom: 12,
+    opacity: 0.5,
   },
   emptyTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 15,
+    fontWeight: '700',
     color: THEME.colors.textPrimary,
     marginBottom: 6,
   },
   emptyText: {
     fontSize: 12,
-    color: THEME.colors.textSecondary,
+    color: THEME.colors.textMuted,
     textAlign: 'center',
-    lineHeight: 16,
     marginBottom: 16,
+    lineHeight: 16,
   },
   emptyButton: {
-    backgroundColor: THEME.colors.accent,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
+    backgroundColor: THEME.colors.accent,
   },
   emptyButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
     color: '#ffffff',
-    fontSize: 13,
-    fontWeight: 'bold',
   },
 })

@@ -36,13 +36,16 @@ export function ConnectScreen({ onConnected, onCancel }) {
 
     if (res.success) {
       setStatusResult(res.data)
-      await ApiService.setServerUrl(targetUrl)
+      await ApiService.setServerUrl(res.url || targetUrl)
       if (showAlert) {
-        Alert.alert('Connexion Réussie 🎉', `Connecté au PC (${res.data.hostname || 'FastAPI'}) !\n${res.data.counts?.offers || 0} offres disponibles.`)
+        Alert.alert(
+          'Connection Successful 🎉',
+          `Connected to PC (${res.data.hostname || 'FastAPI'})!\n${res.data.counts?.offers || 0} offers synced.`
+        )
       }
     } else {
       setStatusResult(null)
-      setErrorMsg(res.error || 'Impossible de joindre le serveur. Vérifiez que le téléphone et le PC sont sur le même Wi-Fi.')
+      setErrorMsg(res.error || 'Server unreachable. Verify PC and phone are on the same Wi-Fi network.')
     }
   }
 
@@ -53,9 +56,10 @@ export function ConnectScreen({ onConnected, onCancel }) {
   }
 
   const PRESETS = [
-    'http://192.168.1.12:8003',
-    'http://10.0.2.2:8003',
-    'http://localhost:8003',
+    { label: 'Wi-Fi LAN', url: 'http://192.168.1.12:8003' },
+    { label: 'Tailscale', url: 'http://100.89.108.117:8003' },
+    { label: 'Android VM', url: 'http://10.0.2.2:8003' },
+    { label: 'Localhost', url: 'http://localhost:8003' },
   ]
 
   return (
@@ -65,44 +69,47 @@ export function ConnectScreen({ onConnected, onCancel }) {
         <View style={styles.iconCircle}>
           <Text style={styles.iconText}>📡</Text>
         </View>
-        <Text style={styles.title}>Synchronisation Réseau Local</Text>
+        <Text style={styles.title}>Local Network Sync</Text>
         <Text style={styles.subtitle}>
-          Connectez l'application au backend FastAPI de votre ordinateur sur le même réseau Wi-Fi.
+          Connect OmniHunt to the FastAPI backend running on your PC over local Wi-Fi or Tailscale.
         </Text>
       </View>
 
       {/* Input Box */}
       <View style={styles.card}>
-        <Text style={styles.label}>ADRESSE IP DU PC (PORT 8003)</Text>
+        <Text style={styles.label}>PC SERVER ENDPOINT (PORT 8003)</Text>
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
             value={ipInput}
             onChangeText={setIpInput}
             placeholder="http://192.168.1.12:8003"
-            placeholderTextColor="#52525b"
+            placeholderTextColor="#64748b"
             autoCapitalize="none"
             autoCorrect={false}
           />
         </View>
 
         {/* Quick IP Presets */}
-        <Text style={styles.presetsLabel}>Raccourcis réseau rapides :</Text>
+        <Text style={styles.presetsLabel}>Quick Network Presets:</Text>
         <View style={styles.presetsRow}>
-          {PRESETS.map((p) => (
-            <TouchableOpacity
-              key={p}
-              style={[styles.presetChip, ipInput === p && styles.presetChipActive]}
-              onPress={() => {
-                setIpInput(p)
-                testUrl(p, false)
-              }}
-            >
-              <Text style={[styles.presetText, ipInput === p && styles.presetTextActive]}>
-                {p.replace('http://', '').replace(':8003', '')}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {PRESETS.map((p) => {
+            const isMatch = ipInput === p.url
+            return (
+              <TouchableOpacity
+                key={p.url}
+                style={[styles.presetChip, isMatch && styles.presetChipActive]}
+                onPress={() => {
+                  setIpInput(p.url)
+                  testUrl(p.url, false)
+                }}
+              >
+                <Text style={[styles.presetText, isMatch && styles.presetTextActive]}>
+                  {p.label}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
         </View>
 
         {/* Action Buttons */}
@@ -113,9 +120,9 @@ export function ConnectScreen({ onConnected, onCancel }) {
             disabled={isTesting}
           >
             {isTesting ? (
-              <ActivityIndicator color="#fafafa" size="small" />
+              <ActivityIndicator color="#f8fafc" size="small" />
             ) : (
-              <Text style={styles.testButtonText}>⚡ Tester Connexion</Text>
+              <Text style={styles.testButtonText}>⚡ Test Ping</Text>
             )}
           </TouchableOpacity>
 
@@ -123,7 +130,7 @@ export function ConnectScreen({ onConnected, onCancel }) {
             style={[styles.saveButton, !statusResult && styles.saveButtonDisabled]}
             onPress={handleSaveAndProceed}
           >
-            <Text style={styles.saveButtonText}>Valider & Accéder</Text>
+            <Text style={styles.saveButtonText}>Save & Proceed</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -133,40 +140,40 @@ export function ConnectScreen({ onConnected, onCancel }) {
         <View style={styles.statusSuccessCard}>
           <View style={styles.statusHeader}>
             <View style={styles.onlineDot} />
-            <Text style={styles.statusTitle}>Backend FastAPI En Ligne</Text>
+            <Text style={styles.statusTitle}>FastAPI Backend Online</Text>
           </View>
           <View style={styles.statGrid}>
             <View style={styles.statBox}>
               <Text style={styles.statNumber}>{statusResult.counts?.offers || 0}</Text>
-              <Text style={styles.statLabel}>Offres Synchro</Text>
+              <Text style={styles.statLabel}>Offers</Text>
             </View>
             <View style={styles.statBox}>
               <Text style={styles.statNumber}>{statusResult.counts?.categories || 0}</Text>
-              <Text style={styles.statLabel}>Domaines IA</Text>
+              <Text style={styles.statLabel}>Domains</Text>
             </View>
             <View style={styles.statBox}>
               <Text style={styles.statNumber}>{statusResult.counts?.cvs || 0}</Text>
-              <Text style={styles.statLabel}>CVs Coffre</Text>
+              <Text style={styles.statLabel}>CV Variants</Text>
             </View>
           </View>
-          <Text style={styles.hostnameText}>PC : {statusResult.hostname || 'Poste de travail'}</Text>
+          <Text style={styles.hostnameText}>PC Host: {statusResult.hostname || 'Workstation'}</Text>
         </View>
       ) : errorMsg ? (
         <View style={styles.statusErrorCard}>
-          <Text style={styles.errorTitle}>Échec de connexion</Text>
+          <Text style={styles.errorTitle}>Connection Failed</Text>
           <Text style={styles.errorText}>{errorMsg}</Text>
           <Text style={styles.errorHelp}>
-            Astuce : Scannez le QR code affiché sur l'écran de votre ordinateur ou vérifiez que votre PC et téléphone partagent la même box Wi-Fi.
+            Tip: Verify that start.bat is running on your PC, both devices are on the same Wi-Fi, and your PC IP matches the preset above.
           </Text>
         </View>
       ) : null}
 
-      {/* Guide Checklist */}
+      {/* Connection Checklist */}
       <View style={styles.guideCard}>
-        <Text style={styles.guideTitle}>💡 Checklist de Connexion :</Text>
-        <Text style={styles.guideItem}>1. Téléphone connecté au même Wi-Fi que le PC.</Text>
-        <Text style={styles.guideItem}>2. Backend Python actif (port 8003).</Text>
-        <Text style={styles.guideItem}>3. Sur le PC, cliquez sur "Appairer Mobile" pour vérifier l'IP.</Text>
+        <Text style={styles.guideTitle}>💡 Connection Checklist:</Text>
+        <Text style={styles.guideItem}>1. Phone and PC connected to the same Wi-Fi network.</Text>
+        <Text style={styles.guideItem}>2. Backend active on port 8003 (launch via start.bat).</Text>
+        <Text style={styles.guideItem}>3. If Wi-Fi isolates devices, use Tailscale (100.89.108.117:8003).</Text>
       </View>
     </ScrollView>
   )
@@ -179,7 +186,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingTop: 40,
+    paddingTop: 36,
     paddingBottom: 60,
   },
   header: {
@@ -187,9 +194,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     backgroundColor: THEME.colors.accentLight,
     borderWidth: 1,
     borderColor: THEME.colors.accentBorder,
@@ -198,11 +205,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   iconText: {
-    fontSize: 28,
+    fontSize: 26,
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: THEME.colors.textPrimary,
     textAlign: 'center',
   },
@@ -216,7 +223,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: THEME.colors.bgCard,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: THEME.colors.border,
     padding: 16,
@@ -231,22 +238,23 @@ const styles = StyleSheet.create({
   },
   inputRow: {
     backgroundColor: THEME.colors.bgDark,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: THEME.colors.border,
     paddingHorizontal: 12,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   input: {
     height: 44,
     color: THEME.colors.textPrimary,
-    fontSize: 14,
+    fontSize: 13.5,
     fontFamily: 'monospace',
   },
   presetsLabel: {
     fontSize: 11,
     color: THEME.colors.textMuted,
     marginBottom: 8,
+    fontWeight: '500',
   },
   presetsRow: {
     flexDirection: 'row',
@@ -256,7 +264,7 @@ const styles = StyleSheet.create({
   },
   presetChip: {
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 8,
     backgroundColor: THEME.colors.bgElevated,
     borderWidth: 1,
@@ -269,11 +277,11 @@ const styles = StyleSheet.create({
   presetText: {
     fontSize: 11,
     color: THEME.colors.textSecondary,
-    fontFamily: 'monospace',
+    fontWeight: '500',
   },
   presetTextActive: {
-    color: THEME.colors.accent,
-    fontWeight: '600',
+    color: '#c7d2fe',
+    fontWeight: '700',
   },
   buttonRow: {
     flexDirection: 'row',
@@ -282,7 +290,7 @@ const styles = StyleSheet.create({
   testButton: {
     flex: 1,
     height: 44,
-    borderRadius: 10,
+    borderRadius: 8,
     backgroundColor: THEME.colors.bgElevated,
     borderWidth: 1,
     borderColor: THEME.colors.border,
@@ -297,24 +305,24 @@ const styles = StyleSheet.create({
   saveButton: {
     flex: 1,
     height: 44,
-    borderRadius: 10,
+    borderRadius: 8,
     backgroundColor: THEME.colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   saveButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   saveButtonText: {
     color: '#ffffff',
     fontSize: 13,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   statusSuccessCard: {
     backgroundColor: 'rgba(16, 185, 129, 0.08)',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(16, 185, 129, 0.25)',
     padding: 16,
     marginBottom: 16,
   },
@@ -331,7 +339,7 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.colors.success,
   },
   statusTitle: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '700',
     color: THEME.colors.success,
   },
@@ -346,7 +354,7 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: THEME.colors.textPrimary,
   },
   statLabel: {
@@ -361,10 +369,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   statusErrorCard: {
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    backgroundColor: 'rgba(244, 63, 94, 0.08)',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderColor: 'rgba(244, 63, 94, 0.25)',
     padding: 14,
     marginBottom: 16,
   },

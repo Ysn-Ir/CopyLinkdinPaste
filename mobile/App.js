@@ -56,7 +56,7 @@ export default function App() {
   if (!isReady) {
     return (
       <View style={styles.splashContainer}>
-        <Text style={styles.splashText}>PFE Hunter Mobile</Text>
+        <Text style={styles.splashText}>OmniHunt</Text>
       </View>
     )
   }
@@ -127,7 +127,7 @@ export default function App() {
             📊
           </Text>
           <Text style={[styles.navLabel, activeTab === 'dashboard' && styles.navLabelActive]}>
-            Aperçu
+            Dashboard
           </Text>
         </TouchableOpacity>
 
@@ -151,7 +151,7 @@ export default function App() {
             💼
           </Text>
           <Text style={[styles.navLabel, activeTab === 'offers' && styles.navLabelActive]}>
-            Offres
+            Offers
           </Text>
         </TouchableOpacity>
 
@@ -163,7 +163,7 @@ export default function App() {
             📋
           </Text>
           <Text style={[styles.navLabel, activeTab === 'clipvault' && styles.navLabelActive]}>
-            Clips
+            Vault
           </Text>
         </TouchableOpacity>
 
@@ -175,7 +175,7 @@ export default function App() {
             📡
           </Text>
           <Text style={[styles.navLabel, activeTab === 'connect' && styles.navLabelActive]}>
-            Réseau
+            Network
           </Text>
         </TouchableOpacity>
       </View>
@@ -196,9 +196,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   splashText: {
-    color: THEME.colors.accent,
-    fontSize: 20,
-    fontWeight: 'bold',
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
   mainContainer: {
     flex: 1,
@@ -220,12 +221,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   navItemActive: {
-    // subtle active indicator
+    // active
   },
   navIcon: {
     fontSize: 18,
     marginBottom: 2,
-    opacity: 0.6,
+    opacity: 0.5,
   },
   navIconActive: {
     opacity: 1,
@@ -234,13 +235,15 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: THEME.colors.accentLight,
+    backgroundColor: 'rgba(79, 70, 229, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
   },
   captureIcon: {
-    fontSize: 14,
+    fontSize: 13,
   },
   navLabel: {
     fontSize: 10,
@@ -248,7 +251,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   navLabelActive: {
-    color: THEME.colors.accent,
+    color: '#ffffff',
     fontWeight: '700',
   },
 })

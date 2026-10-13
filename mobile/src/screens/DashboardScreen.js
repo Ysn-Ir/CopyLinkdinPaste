@@ -76,9 +76,9 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
     >
       {/* Top Welcome Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Command Center Mobile</Text>
+        <Text style={styles.title}>OmniHunt</Text>
         <Text style={styles.subtitle}>
-          PFE Hunter synchronisé en temps réel avec votre PC.
+          Mobile Career & Clip Sync • Connected to PC
         </Text>
       </View>
 
@@ -90,41 +90,41 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
         <View style={styles.serverStatusDot} />
         <View style={{ flex: 1 }}>
           <Text style={styles.serverTitle}>
-            {serverInfo ? `Connecté à ${serverInfo.hostname || 'PC'}` : 'Vérification Réseau...'}
+            {serverInfo ? `Connected to ${serverInfo.hostname || 'PC'}` : 'Scanning LAN...'}
           </Text>
           <Text style={styles.serverUrl}>{ApiService.getServerUrl()}</Text>
         </View>
-        <Text style={styles.serverAction}>Paramètres →</Text>
+        <Text style={styles.serverAction}>Settings →</Text>
       </TouchableOpacity>
 
       {/* Primary KPI Grid */}
       <View style={styles.kpiGrid}>
         <View style={[styles.kpiCard, { borderColor: THEME.colors.accentBorder }]}>
-          <Text style={[styles.kpiNumber, { color: THEME.colors.accent }]}>
+          <Text style={[styles.kpiNumber, { color: '#c7d2fe' }]}>
             {stats.total}
           </Text>
-          <Text style={styles.kpiLabel}>Total Offres PFE</Text>
+          <Text style={styles.kpiLabel}>Total Offers</Text>
         </View>
 
         <View style={styles.kpiCard}>
           <Text style={[styles.kpiNumber, { color: '#60a5fa' }]}>
             {stats.ready}
           </Text>
-          <Text style={styles.kpiLabel}>Prêt à Postuler</Text>
+          <Text style={styles.kpiLabel}>Ready</Text>
         </View>
 
         <View style={styles.kpiCard}>
-          <Text style={[styles.kpiNumber, { color: '#c084fc' }]}>
+          <Text style={[styles.kpiNumber, { color: '#818cf8' }]}>
             {stats.applied}
           </Text>
-          <Text style={styles.kpiLabel}>Candidaté</Text>
+          <Text style={styles.kpiLabel}>Applied</Text>
         </View>
 
         <View style={styles.kpiCard}>
-          <Text style={[styles.kpiNumber, { color: '#f59e0b' }]}>
+          <Text style={[styles.kpiNumber, { color: '#fbbf24' }]}>
             {stats.interview}
           </Text>
-          <Text style={styles.kpiLabel}>Entretiens</Text>
+          <Text style={styles.kpiLabel}>Interviews</Text>
         </View>
       </View>
 
@@ -137,9 +137,9 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
           <Text style={styles.ctaIcon}>⚡</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.ctaTitle}>Capturer depuis le Presse-papiers</Text>
+          <Text style={styles.ctaTitle}>Capture Clipboard Post</Text>
           <Text style={styles.ctaSubtitle}>
-            Copiez un post LinkedIn sur votre téléphone pour l'ingérer instantanément.
+            Copy any LinkedIn post, job listing, or URL to ingest with AI instantly.
           </Text>
         </View>
         <Text style={styles.ctaArrow}>→</Text>
@@ -147,9 +147,9 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
 
       {/* Recent Offers Section */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Dernières Offres Ajoutées</Text>
+        <Text style={styles.sectionTitle}>Recent Synced Offers</Text>
         <TouchableOpacity onPress={() => onNavigateTab('offers')}>
-          <Text style={styles.viewAllText}>Voir tout ({stats.total}) →</Text>
+          <Text style={styles.viewAllText}>View All ({stats.total}) →</Text>
         </TouchableOpacity>
       </View>
 
@@ -157,7 +157,7 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
         <ActivityIndicator color={THEME.colors.accent} style={{ marginTop: 20 }} />
       ) : recentOffers.length === 0 ? (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>Aucune offre synchronisée pour le moment.</Text>
+          <Text style={styles.emptyText}>No synced offers yet. Capture or sync from PC.</Text>
         </View>
       ) : (
         <View style={styles.recentList}>
@@ -172,10 +172,12 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
                   {o.title}
                 </Text>
                 <Text style={styles.recentMeta}>
-                  {o.company || 'Entreprise'} • {o.category || 'Général'}
+                  {o.company || 'Company'} • {o.category || 'General'} • {o.channel === 'email' ? 'Email' : o.channel === 'direct_contact' ? 'Direct DM' : 'ATS'}
                 </Text>
               </View>
-              <Text style={styles.recentStatus}>{o.status}</Text>
+              <View style={styles.recentStatusBadge}>
+                <Text style={styles.recentStatus}>{o.status}</Text>
+              </View>
             </TouchableOpacity>
           ))}
         </View>
@@ -191,7 +193,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingTop: 30,
+    paddingTop: 28,
     paddingBottom: 60,
   },
   header: {
@@ -199,8 +201,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: THEME.colors.textPrimary,
+    letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: 12,
@@ -213,7 +216,7 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.colors.bgCard,
     borderWidth: 1,
     borderColor: THEME.colors.border,
-    borderRadius: 14,
+    borderRadius: 12,
     padding: 12,
     marginBottom: 16,
     gap: 10,
@@ -237,7 +240,7 @@ const styles = StyleSheet.create({
   },
   serverAction: {
     fontSize: 11,
-    color: THEME.colors.accent,
+    color: '#a5b4fc',
     fontWeight: '600',
   },
   kpiGrid: {
@@ -252,45 +255,45 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.colors.bgCard,
     borderWidth: 1,
     borderColor: THEME.colors.border,
-    borderRadius: 14,
+    borderRadius: 12,
     padding: 14,
-    alignItems: 'center',
   },
   kpiNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 4,
   },
   kpiLabel: {
     fontSize: 11,
     color: THEME.colors.textMuted,
-    marginTop: 4,
+    fontWeight: '500',
   },
   ctaBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+    backgroundColor: 'rgba(79, 70, 229, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.35)',
-    borderRadius: 14,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    borderRadius: 12,
     padding: 14,
     marginBottom: 20,
     gap: 12,
   },
   ctaIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(168, 85, 247, 0.2)',
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: 'rgba(79, 70, 229, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   ctaIcon: {
-    fontSize: 20,
+    fontSize: 16,
   },
   ctaTitle: {
     fontSize: 13,
-    fontWeight: 'bold',
-    color: THEME.colors.textPrimary,
+    fontWeight: '700',
+    color: '#ffffff',
   },
   ctaSubtitle: {
     fontSize: 11,
@@ -299,66 +302,74 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   ctaArrow: {
-    fontSize: 18,
-    color: THEME.colors.accent,
-    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#c7d2fe',
+    fontWeight: '700',
   },
   sectionHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '700',
     color: THEME.colors.textPrimary,
   },
   viewAllText: {
-    fontSize: 12,
-    color: THEME.colors.accent,
+    fontSize: 11,
+    color: '#a5b4fc',
     fontWeight: '600',
+  },
+  emptyCard: {
+    backgroundColor: THEME.colors.bgCard,
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+  },
+  emptyText: {
+    fontSize: 12,
+    color: THEME.colors.textMuted,
   },
   recentList: {
     gap: 8,
   },
   recentItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: THEME.colors.bgCard,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: THEME.colors.border,
-    borderRadius: 12,
     padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
   },
   recentTitle: {
     fontSize: 13,
     fontWeight: '600',
     color: THEME.colors.textPrimary,
-    marginBottom: 2,
+    marginBottom: 3,
   },
   recentMeta: {
     fontSize: 11,
     color: THEME.colors.textMuted,
   },
+  recentStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: THEME.colors.bgElevated,
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+  },
   recentStatus: {
     fontSize: 10,
-    fontWeight: '700',
-    color: THEME.colors.accent,
-    backgroundColor: THEME.colors.accentLight,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 4,
-    marginLeft: 8,
-  },
-  emptyCard: {
-    backgroundColor: THEME.colors.bgCard,
-    padding: 20,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 12,
-    color: THEME.colors.textMuted,
+    color: THEME.colors.textSecondary,
+    textTransform: 'capitalize',
+    fontWeight: '600',
   },
 })

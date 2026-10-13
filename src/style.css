@@ -12,44 +12,44 @@
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Neutral Dark Zinc Palette */
-  --bg-app: #09090b;
-  --bg-sidebar: #0e0e11;
-  --bg-surface: #141417;
-  --bg-surface-hover: #1c1c20;
-  --bg-surface-active: #232328;
-  --bg-input: #121215;
-  --bg-subtle: #19191d;
+  /* Executive Obsidian & Titanium Slate Palette */
+  --bg-app: #080a0f;
+  --bg-sidebar: #0c0e14;
+  --bg-surface: #11141c;
+  --bg-surface-hover: #171b26;
+  --bg-surface-active: #1f2533;
+  --bg-input: #0d1017;
+  --bg-subtle: #141822;
 
-  --border-subtle: #1f1f23;
-  --border-default: #27272a;
-  --border-focus: #3b82f6;
+  --border-subtle: #181d29;
+  --border-default: #222838;
+  --border-focus: #4f46e5;
 
-  --text-primary: #f4f4f5;
-  --text-secondary: #a1a1aa;
-  --text-tertiary: #71717a;
-  --text-disabled: #52525b;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --text-disabled: #475569;
 
-  --accent-primary: #3b82f6;
-  --accent-primary-hover: #2563eb;
+  --accent-primary: #4f46e5;
+  --accent-primary-hover: #4338ca;
   --accent-foreground: #ffffff;
 
-  /* Muted, Color-Blind Safe Category Palette (Used ONLY for category tags & chart dots) */
-  --cat-ai: #a855f7;
-  --cat-data: #06b6d4;
-  --cat-dev: #3b82f6;
-  --cat-cloud: #10b981;
-  --cat-cyber: #f43f5e;
-  --cat-embedded: #f59e0b;
-  --cat-other: #71717a;
+  /* Sophisticated, Desaturated Muted Category Palette */
+  --cat-ai: #818cf8;
+  --cat-data: #38bdf8;
+  --cat-dev: #60a5fa;
+  --cat-cloud: #34d399;
+  --cat-cyber: #fb7185;
+  --cat-embedded: #fbbf24;
+  --cat-other: #94a3b8;
 
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.5);
-  --shadow-overlay: 0 20px 25px -5px rgba(0, 0, 0, 0.7), 0 8px 10px -6px rgba(0, 0, 0, 0.7);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -2px rgba(0, 0, 0, 0.6);
+  --shadow-overlay: 0 20px 25px -5px rgba(0, 0, 0, 0.8), 0 8px 10px -6px rgba(0, 0, 0, 0.8);
 }
 
 /* Density Settings */

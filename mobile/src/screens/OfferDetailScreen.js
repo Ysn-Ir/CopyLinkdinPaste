@@ -12,11 +12,18 @@ import * as Clipboard from 'expo-clipboard'
 import { ApiService } from '../services/api'
 import { THEME, getStageMeta } from '../theme'
 
+function getChannelMeta(channel) {
+  if (channel === 'email') return { label: 'Email Channel', icon: '✉️', color: '#818cf8', bg: 'rgba(129, 140, 248, 0.12)' }
+  if (channel === 'direct_contact') return { label: 'Direct DM / WA', icon: '💬', color: '#2dd4bf', bg: 'rgba(45, 212, 191, 0.12)' }
+  return { label: 'ATS / External Portal', icon: '🌐', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.12)' }
+}
+
 export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
   const [currentOffer, setCurrentOffer] = useState(offer)
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
 
   const stageMeta = getStageMeta(currentOffer.status)
+  const channelMeta = getChannelMeta(currentOffer.channel)
 
   const handleStageSelect = async (newStage) => {
     if (newStage === currentOffer.status) return
@@ -27,40 +34,40 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
       setCurrentOffer((prev) => ({ ...prev, status: newStage }))
       if (onStatusUpdated) onStatusUpdated(currentOffer.id, newStage)
     } else {
-      Alert.alert('Erreur', res.error || 'Impossible de mettre à jour le statut.')
+      Alert.alert('Error', res.error || 'Failed to update pipeline stage.')
     }
   }
 
   const handleCopyText = async (text, label) => {
     if (!text) return
     await Clipboard.setStringAsync(text)
-    Alert.alert('Copié !', `${label} copié dans le presse-papiers.`)
+    Alert.alert('Copied', `${label} copied to clipboard.`)
   }
 
   const handleOpenWhatsApp = () => {
     const phone = currentOffer.sharer?.phone || currentOffer.recruiterPhone || ''
     const cleanPhone = phone.replace(/[^0-9]/g, '')
-    const msg = currentOffer.whatsAppMsg || `Bonjour, je vous contacte au sujet de l'offre PFE ${currentOffer.title}.`
+    const msg = currentOffer.whatsAppMsg || `Hello, I am reaching out regarding the position: ${currentOffer.title}.`
     const url = cleanPhone
       ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`
       : `https://wa.me/?text=${encodeURIComponent(msg)}`
-    Linking.openURL(url).catch(() => Alert.alert('Erreur', 'Impossible d\'ouvrir WhatsApp.'))
+    Linking.openURL(url).catch(() => Alert.alert('Notice', 'Unable to open WhatsApp.'))
   }
 
   const handleOpenEmail = () => {
     const email = currentOffer.recruiterEmail
     if (!email) {
-      Alert.alert('Email indisponible', 'Aucune adresse email spécifiée pour ce poste.')
+      Alert.alert('Notice', 'No direct recruiter email found for this offer.')
       return
     }
-    const subject = `Candidature Stage PFE - ${currentOffer.title}`
-    const body = currentOffer.customEmailBody || `Bonjour,\n\nJe vous adresse ma candidature pour le stage PFE.\n\nCordialement,`
+    const subject = `Application - ${currentOffer.title}`
+    const body = currentOffer.customEmailBody || `Hello,\n\nI am writing to express my interest in the ${currentOffer.title} position.\n\nBest regards,`
     Linking.openURL(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
   }
 
   const handleOpenUrl = (url) => {
     if (url && url.startsWith('http')) {
-      Linking.openURL(url)
+      Linking.openURL(url).catch(() => Alert.alert('Notice', 'Unable to open URL.'))
     }
   }
 
@@ -69,12 +76,19 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
       {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Text style={styles.backButtonText}>← Retour</Text>
+          <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <View style={[styles.stageBadge, { backgroundColor: stageMeta.bg }]}>
-          <Text style={[styles.stageBadgeText, { color: stageMeta.color }]}>
-            {stageMeta.label}
-          </Text>
+        <View style={styles.topRightBadges}>
+          <View style={[styles.channelBadge, { backgroundColor: channelMeta.bg, borderColor: channelMeta.color + '40' }]}>
+            <Text style={[styles.channelBadgeText, { color: channelMeta.color }]}>
+              {channelMeta.icon} {channelMeta.label}
+            </Text>
+          </View>
+          <View style={[styles.stageBadge, { backgroundColor: stageMeta.bg }]}>
+            <Text style={[styles.stageBadgeText, { color: stageMeta.color }]}>
+              {stageMeta.label}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -82,28 +96,30 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
         {/* Title & Company */}
         <Text style={styles.title}>{currentOffer.title}</Text>
         <Text style={styles.company}>
-          🏢 {currentOffer.company || 'Entreprise PFE'} • 📍 {currentOffer.location || 'France'}
+          🏢 {currentOffer.company || 'Direct Organization'} • 📍 {currentOffer.location || 'Remote / Hybrid'}
         </Text>
 
         {currentOffer.createdAt && (
           <Text style={styles.createdAtText}>
-            📅 Ajouté le {new Date(currentOffer.createdAt).toLocaleDateString('fr-FR', {
-              day: '2-digit',
-              month: 'long',
+            Added {new Date(currentOffer.createdAt).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
               year: 'numeric',
             })}
           </Text>
         )}
 
-        {/* Dynamic Domain Badge */}
+        {/* Domain & AI Analysis */}
         <View style={styles.domainCard}>
           <View style={styles.domainHeader}>
-            <Text style={styles.domainTitle}>🏷️ Domaine & Analyse IA</Text>
+            <Text style={styles.domainTitle}>AI Role Intelligence</Text>
             <Text style={styles.confidenceText}>
-              Confiance : {Math.round((currentOffer.confidence || 0.9) * 100)}%
+              Confidence: {Math.round((currentOffer.confidence || 0.9) * 100)}%
             </Text>
           </View>
-          <Text style={styles.categoryBadge}>{currentOffer.category?.toUpperCase()}</Text>
+          <View style={styles.categoryRow}>
+            <Text style={styles.categoryBadge}>{currentOffer.category?.toUpperCase() || 'GENERAL'}</Text>
+          </View>
           {currentOffer.categoryReasoning ? (
             <Text style={styles.reasoningText}>
               "{currentOffer.categoryReasoning}"
@@ -111,9 +127,9 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
           ) : null}
         </View>
 
-        {/* Interactive Pipeline Stage Selector */}
+        {/* Pipeline Stage Selector */}
         <View style={styles.pipelineCard}>
-          <Text style={styles.sectionTitle}>Progression Pipeline (Synchronisé PC)</Text>
+          <Text style={styles.sectionTitle}>Pipeline Status (Synced with PC)</Text>
           <View style={styles.stageButtonsGrid}>
             {THEME.stages.map((st) => {
               const isActive = currentOffer.status === st.id
@@ -145,12 +161,12 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
         <View style={styles.actionsRow}>
           {currentOffer.recruiterEmail ? (
             <TouchableOpacity style={styles.emailActionBtn} onPress={handleOpenEmail}>
-              <Text style={styles.actionBtnText}>✉️ Envoyer Email</Text>
+              <Text style={styles.actionBtnText}>✉️ Send Email</Text>
             </TouchableOpacity>
           ) : null}
 
           <TouchableOpacity style={styles.waActionBtn} onPress={handleOpenWhatsApp}>
-            <Text style={styles.actionBtnText}>💬 WhatsApp Direct</Text>
+            <Text style={styles.actionBtnText}>💬 WhatsApp DM</Text>
           </TouchableOpacity>
 
           {currentOffer.sourceUrl ? (
@@ -158,7 +174,7 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
               style={styles.sourceActionBtn}
               onPress={() => handleOpenUrl(currentOffer.sourceUrl)}
             >
-              <Text style={styles.actionBtnText}>🔗 Post LinkedIn</Text>
+              <Text style={styles.actionBtnText}>🔗 Open Source</Text>
             </TouchableOpacity>
           ) : null}
         </View>
@@ -166,7 +182,7 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
         {/* Recruiter Details */}
         {(currentOffer.recruiterName || currentOffer.sharer?.name) && (
           <View style={styles.infoCard}>
-            <Text style={styles.sectionTitle}>Contact Recruteur</Text>
+            <Text style={styles.sectionTitle}>Recruiter / Contact Profile</Text>
             <Text style={styles.recruiterName}>
               👤 {currentOffer.recruiterName || currentOffer.sharer?.name}
             </Text>
@@ -182,30 +198,30 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
           </View>
         )}
 
-        {/* Pre-written WhatsApp Message */}
+        {/* WhatsApp Template */}
         {currentOffer.whatsAppMsg ? (
           <View style={styles.infoCard}>
             <View style={styles.cardHeaderWithCopy}>
-              <Text style={styles.sectionTitle}>Message WhatsApp Prêt à l'Emploi</Text>
+              <Text style={styles.sectionTitle}>Pre-Drafted Outreach Note</Text>
               <TouchableOpacity
-                onPress={() => handleCopyText(currentOffer.whatsAppMsg, 'Message WhatsApp')}
+                onPress={() => handleCopyText(currentOffer.whatsAppMsg, 'Outreach Note')}
               >
-                <Text style={styles.copyLink}>Copier 📋</Text>
+                <Text style={styles.copyLink}>Copy 📋</Text>
               </TouchableOpacity>
             </View>
             <Text style={styles.msgPreview}>{currentOffer.whatsAppMsg}</Text>
           </View>
         ) : null}
 
-        {/* Pre-written LinkedIn Note */}
+        {/* LinkedIn Connection Note */}
         {currentOffer.linkedInNote ? (
           <View style={styles.infoCard}>
             <View style={styles.cardHeaderWithCopy}>
-              <Text style={styles.sectionTitle}>Note d'Accompagnement LinkedIn</Text>
+              <Text style={styles.sectionTitle}>LinkedIn Connection Note</Text>
               <TouchableOpacity
-                onPress={() => handleCopyText(currentOffer.linkedInNote, 'Note LinkedIn')}
+                onPress={() => handleCopyText(currentOffer.linkedInNote, 'LinkedIn Note')}
               >
-                <Text style={styles.copyLink}>Copier 📋</Text>
+                <Text style={styles.copyLink}>Copy 📋</Text>
               </TouchableOpacity>
             </View>
             <Text style={styles.msgPreview}>{currentOffer.linkedInNote}</Text>
@@ -215,7 +231,7 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
         {/* Job Description */}
         {currentOffer.description ? (
           <View style={styles.infoCard}>
-            <Text style={styles.sectionTitle}>Description du Poste</Text>
+            <Text style={styles.sectionTitle}>Job Specification</Text>
             <Text style={styles.descText}>{currentOffer.description}</Text>
           </View>
         ) : null}
@@ -244,9 +260,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   backButtonText: {
-    color: THEME.colors.accent,
+    color: '#818cf8',
     fontSize: 14,
     fontWeight: '600',
+  },
+  topRightBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  channelBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  channelBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
   stageBadge: {
     paddingHorizontal: 10,
@@ -263,7 +294,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: THEME.colors.textPrimary,
     lineHeight: 26,
     marginBottom: 6,
@@ -280,7 +311,7 @@ const styles = StyleSheet.create({
   },
   domainCard: {
     backgroundColor: THEME.colors.bgCard,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: THEME.colors.border,
     padding: 14,
@@ -301,26 +332,28 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: THEME.colors.textMuted,
   },
+  categoryRow: {
+    marginBottom: 6,
+  },
   categoryBadge: {
     fontSize: 11,
     fontWeight: '800',
-    color: THEME.colors.accent,
-    backgroundColor: THEME.colors.accentLight,
+    color: '#818cf8',
+    backgroundColor: 'rgba(129, 140, 248, 0.12)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     alignSelf: 'flex-start',
-    marginBottom: 6,
   },
   reasoningText: {
     fontSize: 11,
-    color: '#c4b5fd',
+    color: '#94a3b8',
     fontStyle: 'italic',
     lineHeight: 16,
   },
   pipelineCard: {
     backgroundColor: THEME.colors.bgCard,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: THEME.colors.border,
     padding: 14,
@@ -357,36 +390,42 @@ const styles = StyleSheet.create({
   },
   emailActionBtn: {
     flex: 1,
-    minWidth: 120,
-    backgroundColor: '#059669',
+    minWidth: 110,
+    backgroundColor: '#065f46',
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.3)',
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
   },
   waActionBtn: {
     flex: 1,
-    minWidth: 120,
-    backgroundColor: '#0d9488',
+    minWidth: 110,
+    backgroundColor: '#0f766e',
+    borderWidth: 1,
+    borderColor: 'rgba(45, 212, 191, 0.3)',
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
   },
   sourceActionBtn: {
     flex: 1,
-    minWidth: 120,
-    backgroundColor: '#2563eb',
+    minWidth: 110,
+    backgroundColor: '#312e81',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
   },
   actionBtnText: {
-    color: '#ffffff',
+    color: '#f8fafc',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   infoCard: {
     backgroundColor: THEME.colors.bgCard,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: THEME.colors.border,
     padding: 14,
@@ -394,7 +433,7 @@ const styles = StyleSheet.create({
   },
   recruiterName: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: THEME.colors.textPrimary,
     marginBottom: 2,
   },
@@ -416,7 +455,7 @@ const styles = StyleSheet.create({
   },
   copyLink: {
     fontSize: 11,
-    color: THEME.colors.accent,
+    color: '#818cf8',
     fontWeight: '700',
   },
   msgPreview: {

@@ -444,5 +444,13 @@ export const StorageService = {
     } catch (e) {}
     return null
   },
+
+  async syncAllClipsToOffers() {
+    try {
+      const res = await fetch('/api/clips/sync-all', { method: 'POST' })
+      if (res.ok) return await res.json()
+    } catch (e) {}
+    return { success: false, syncedCount: 0, offers: [] }
+  },
 }
 
