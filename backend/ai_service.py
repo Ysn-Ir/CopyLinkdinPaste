@@ -136,3 +136,91 @@ Return ONLY the raw JSON object. Do not wrap in markdown quotes if possible."""
             "confidence": 0.75,
             "aiPowered": False
         }
+
+
+async def analyze_clip(raw_text: str, source_url: str = None, source_domain: str = None, api_key: str = None, model: str = None):
+    """
+    Universal Semantic Classifier & Extractor for General Clipboard Clips.
+    Classifies type (job_offer, code_snippet, tech_article, social_post, tool_or_repo, note, contact),
+    summarizes, tags, extracts entities and domain of origin.
+    """
+    from urllib.parse import urlparse
+
+    extracted_domain = (source_domain or "").strip()
+    if source_url and not extracted_domain:
+        try:
+            parsed = urlparse(source_url)
+            extracted_domain = parsed.netloc.replace("www.", "")
+        except Exception:
+            pass
+
+    # Heuristic domain from text if URL found inside text
+    if not extracted_domain:
+        for dom in ["linkedin.com", "github.com", "twitter.com", "x.com", "medium.com", "stackoverflow.com", "reddit.com", "youtube.com"]:
+            if dom in raw_text.lower():
+                extracted_domain = dom
+                break
+    if not extracted_domain:
+        extracted_domain = "Presse-papiers Local"
+
+    system_prompt = f"""You are OmniMemory, a high-precision universal semantic clipboard analysis engine.
+Analyze the user's copied text and extract structured metadata in strict JSON.
+
+Determine:
+1. "contentType": one of ["job_offer", "code_snippet", "tech_article", "social_post", "tool_or_repo", "note", "contact"]
+2. "title": concise, professional title (max 70 chars)
+3. "summary": 2-3 clear sentences summarizing the core idea, key takeaways or purpose
+4. "tags": 3-6 relevant keywords/topics/technologies
+5. "entities": object containing recognized items (e.g. {{"technologies": [...], "companies": [...], "people": [...], "links": [...]}})
+6. "isJobOffer": boolean (true if it represents a stage, PFE, job listing, hiring post)
+7. "detectedLanguage": "fr" | "en" | "other"
+8. If "isJobOffer" is true, also include "jobData":
+   {{
+      "title": job title,
+      "company": company name,
+      "location": city/country/remote,
+      "category": "ai-ml" | "dev-fullstack" | "data" | "devops-cloud" | "cybersecurity",
+      "recruiterEmail": email if found or "",
+      "recruiterName": recruiter name if found or "",
+      "skills": [skills],
+      "channel": "email" | "direct_contact" | "external"
+   }}
+
+Output ONLY valid JSON. No markdown fences.
+"""
+
+    try:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Source URL: {source_url or 'N/A'}\nDomain: {extracted_domain}\n\nContent:\n{raw_text[:3500]}"}
+        ]
+        res = await call_groq_chat(messages, api_key=api_key, model=model, temperature=0.2)
+        content = res["content"].strip()
+        if content.startswith("```"):
+            lines = content.split("\n")
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            content = "\n".join(lines).strip()
+        parsed = json.loads(content)
+        parsed["sourceDomain"] = extracted_domain
+        return parsed
+    except Exception as e:
+        logger.warning(f"Universal clip AI parsing failed: {e}. Using intelligent fallback.")
+        is_job = any(w in raw_text.lower() for w in ["stage", "pfe", "recrute", "hiring", "candidat", "poste", "cdi", "internship", "job offer"])
+        is_code = any(w in raw_text for w in ["def ", "class ", "import ", "const ", "function", "return ", "npm ", "git ", "{", "};", "<div", "export "])
+        content_type = "job_offer" if is_job else ("code_snippet" if is_code else "note")
+        first_line = raw_text.split("\n")[0][:70].strip() or "Note Presse-papiers"
+
+        return {
+            "contentType": content_type,
+            "title": first_line,
+            "summary": raw_text[:200] + ("..." if len(raw_text) > 200 else ""),
+            "tags": ["Presse-papiers", extracted_domain] if extracted_domain else ["Presse-papiers"],
+            "entities": {},
+            "isJobOffer": is_job,
+            "sourceDomain": extracted_domain,
+            "detectedLanguage": "fr"
+        }
+

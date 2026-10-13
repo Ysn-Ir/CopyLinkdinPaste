@@ -392,4 +392,57 @@ export const StorageService = {
       throw new Error('Invalid backup file format')
     }
   },
+
+  // ==================================================================
+  // UNIVERSAL CLIP VAULT
+  // ==================================================================
+
+  async getClips({ contentType, domain, search, starred } = {}) {
+    const params = new URLSearchParams()
+    if (contentType && contentType !== 'all') params.append('content_type', contentType)
+    if (domain && domain !== 'all') params.append('domain', domain)
+    if (search) params.append('search', search)
+    if (starred) params.append('starred', 'true')
+
+    try {
+      const res = await fetch(`/api/clips?${params.toString()}`)
+      if (res.ok) return await res.json()
+    } catch (e) {}
+    return []
+  },
+
+  async ingestClip({ content, sourceUrl = '', sourceDomain = '', sourceDevice = 'desktop', copiedAt }) {
+    try {
+      const res = await fetch('/api/clips/ingest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, sourceUrl, sourceDomain, sourceDevice, copiedAt }),
+      })
+      if (res.ok) return await res.json()
+    } catch (e) {}
+    return null
+  },
+
+  async starClip(clipId) {
+    try {
+      const res = await fetch(`/api/clips/${clipId}/star`, { method: 'PATCH' })
+      if (res.ok) return await res.json()
+    } catch (e) {}
+    return null
+  },
+
+  async deleteClip(clipId) {
+    try {
+      await fetch(`/api/clips/${clipId}`, { method: 'DELETE' })
+    } catch (e) {}
+  },
+
+  async convertClipToOffer(clipId) {
+    try {
+      const res = await fetch(`/api/clips/${clipId}/convert-to-offer`, { method: 'POST' })
+      if (res.ok) return await res.json()
+    } catch (e) {}
+    return null
+  },
 }
+

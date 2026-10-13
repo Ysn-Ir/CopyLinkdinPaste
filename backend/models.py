@@ -210,3 +210,54 @@ class CategoryModel(Base):
             "updatedAt": self.updated_at,
         }
 
+
+class ClipVaultModel(Base):
+    __tablename__ = "clips"
+
+    id = Column(String(100), primary_key=True, index=True)
+    content = Column(Text, nullable=False)
+    content_type = Column(String(50), default="note", index=True)  # job_offer, code_snippet, tech_article, social_post, tool_or_repo, note, contact
+    title = Column(String(255), default="Nouveau Clip")
+    summary = Column(Text, default="")
+    source_url = Column(Text, default="")
+    source_domain = Column(String(100), default="clipboard", index=True)
+    source_device = Column(String(50), default="desktop")  # desktop | mobile
+    tags_json = Column(Text, default="[]")
+    entities_json = Column(Text, default="{}")
+    is_starred = Column(Boolean, default=False)
+    converted_to_offer = Column(Boolean, default=False)
+    copied_at = Column(String(100), default=lambda: datetime.utcnow().isoformat())
+    created_at = Column(String(100), default=lambda: datetime.utcnow().isoformat())
+    updated_at = Column(String(100), default=lambda: datetime.utcnow().isoformat())
+
+    def to_dict(self):
+        tags = []
+        entities = {}
+        try:
+            tags = json.loads(self.tags_json) if self.tags_json else []
+        except Exception:
+            pass
+        try:
+            entities = json.loads(self.entities_json) if self.entities_json else {}
+        except Exception:
+            pass
+
+        return {
+            "id": self.id,
+            "content": self.content,
+            "contentType": self.content_type,
+            "title": self.title,
+            "summary": self.summary,
+            "sourceUrl": self.source_url,
+            "sourceDomain": self.source_domain,
+            "sourceDevice": self.source_device,
+            "tags": tags,
+            "entities": entities,
+            "isStarred": bool(self.is_starred),
+            "convertedToOffer": bool(self.converted_to_offer),
+            "copiedAt": self.copied_at,
+            "createdAt": self.created_at,
+            "updatedAt": self.updated_at,
+        }
+
+

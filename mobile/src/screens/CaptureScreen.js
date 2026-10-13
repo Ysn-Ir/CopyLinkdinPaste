@@ -13,12 +13,14 @@ import * as Clipboard from 'expo-clipboard'
 import { ApiService } from '../services/api'
 import { THEME } from '../theme'
 
-export function CaptureScreen({ onOfferCreated, onNavigateOffers }) {
+export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClips }) {
   const [inputText, setInputText] = useState('')
   const [sourceUrl, setSourceUrl] = useState('')
   const [clipboardContent, setClipboardContent] = useState('')
   const [isIngesting, setIsIngesting] = useState(false)
+  const [captureMode, setCaptureMode] = useState('auto') // 'auto' | 'offer' | 'clip'
   const [lastCreatedOffer, setLastCreatedOffer] = useState(null)
+  const [lastCreatedClip, setLastCreatedClip] = useState(null)
 
   useEffect(() => {
     checkClipboard()
@@ -31,7 +33,6 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers }) {
         const text = await Clipboard.getStringAsync()
         if (text && text.trim().length > 0) {
           setClipboardContent(text.trim())
-          // If it's a URL
           if (text.trim().startsWith('http')) {
             setSourceUrl(text.trim())
           } else {
@@ -60,28 +61,64 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers }) {
   }
 
   const handleIngest = async () => {
-    if (!inputText.trim() && !sourceUrl.trim()) {
-      Alert.alert('Champ Requis', 'Veuillez coller le texte ou le lien du post LinkedIn.')
+    const rawContent = inputText.trim() || sourceUrl.trim()
+    if (!rawContent) {
+      Alert.alert('Champ Requis', 'Veuillez coller le texte ou le lien à capturer.')
       return
     }
 
     setIsIngesting(true)
     setLastCreatedOffer(null)
+    setLastCreatedClip(null)
 
-    const res = await ApiService.ingestPost({
-      rawText: inputText.trim(),
-      sourceUrl: sourceUrl.trim(),
-    })
-    setIsIngesting(false)
+    if (captureMode === 'offer') {
+      // Ingest explicitly as job offer
+      const res = await ApiService.ingestPost({
+        rawText: inputText.trim(),
+        sourceUrl: sourceUrl.trim(),
+      })
+      setIsIngesting(false)
 
-    if (res.success && res.offer) {
-      setLastCreatedOffer(res.offer)
-      setInputText('')
-      setSourceUrl('')
-      Alert.alert('Succès 🎉', `Offre "${res.offer.title}" analysée par l'IA et synchronisée avec le PC !`)
-      if (onOfferCreated) onOfferCreated(res.offer)
+      if (res.success && res.offer) {
+        setLastCreatedOffer(res.offer)
+        setInputText('')
+        setSourceUrl('')
+        Alert.alert('Succès 🎉', `Offre "${res.offer.title}" analysée par l'IA et synchronisée avec le PC !`)
+        if (onOfferCreated) onOfferCreated(res.offer)
+      } else {
+        Alert.alert('Erreur de Capture', res.error || 'Vérifiez la connexion avec le PC.')
+      }
     } else {
-      Alert.alert('Erreur de Capture', res.error || 'Vérifiez la connexion avec le PC.')
+      // Auto or Clip mode: Universal ingest
+      let sourceDomain = 'mobile'
+      const match = rawContent.match(/https?:\/\/([^\s/]+)/)
+      if (match) sourceDomain = match[1].replace('www.', '')
+
+      const res = await ApiService.ingestClip({
+        content: rawContent,
+        sourceUrl: sourceUrl.trim(),
+        sourceDomain,
+        sourceDevice: 'mobile',
+      })
+      setIsIngesting(false)
+
+      if (res.success && res.clip) {
+        setLastCreatedClip(res.clip)
+        if (res.isJobOffer && res.offer) {
+          setLastCreatedOffer(res.offer)
+          if (onOfferCreated) onOfferCreated(res.offer)
+          Alert.alert(
+            'Succès 🎉 Offre Détectée !',
+            `L'IA a identifié une offre d'emploi : "${res.offer.title}". Elle est maintenant dans votre Pipeline et votre Clip Vault !`
+          )
+        } else {
+          Alert.alert('Succès ✨ Clip Sauvegardé', `"${res.clip.title}" capturé et classifié dans le Clip Vault.`)
+        }
+        setInputText('')
+        setSourceUrl('')
+      } else {
+        Alert.alert('Erreur de Capture', res.error || 'Vérifiez la connexion avec le PC.')
+      }
     }
   }
 
@@ -90,12 +127,40 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers }) {
       {/* Top Banner */}
       <View style={styles.header}>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>IA & CLOUD SYNC</Text>
+          <Text style={styles.badgeText}>IA & MULTI-DEVICE SYNC</Text>
         </View>
-        <Text style={styles.title}>Capture & Ingestion Mobile</Text>
+        <Text style={styles.title}>Capture Universelle Mobile</Text>
         <Text style={styles.subtitle}>
-          Copiez une offre ou un post LinkedIn sur votre téléphone, l'IA classifie et injecte directement sur votre PC !
+          Copiez une offre LinkedIn, un article, un repo GitHub ou une note : l'IA classifie et injecte directement sur votre PC !
         </Text>
+      </View>
+
+      {/* Mode Selector Tabs */}
+      <View style={styles.modeSelector}>
+        <TouchableOpacity
+          style={[styles.modeTab, captureMode === 'auto' && styles.modeTabActive]}
+          onPress={() => setCaptureMode('auto')}
+        >
+          <Text style={[styles.modeTabText, captureMode === 'auto' && styles.modeTabTextActive]}>
+            ⚡ Auto-Détection
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.modeTab, captureMode === 'offer' && styles.modeTabActive]}
+          onPress={() => setCaptureMode('offer')}
+        >
+          <Text style={[styles.modeTabText, captureMode === 'offer' && styles.modeTabTextActive]}>
+            💼 Offre PFE
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.modeTab, captureMode === 'clip' && styles.modeTabActive]}
+          onPress={() => setCaptureMode('clip')}
+        >
+          <Text style={[styles.modeTabText, captureMode === 'clip' && styles.modeTabTextActive]}>
+            📋 OmniCapture
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Clipboard Detector Chip */}
@@ -114,10 +179,10 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers }) {
 
       {/* Main Input Form */}
       <View style={styles.card}>
-        <Text style={styles.fieldLabel}>LIEN DU POST / PROFIL LINKEDIN (OPTIONNEL)</Text>
+        <Text style={styles.fieldLabel}>LIEN / URL (OPTIONNEL)</Text>
         <TextInput
           style={styles.urlInput}
-          placeholder="https://www.linkedin.com/posts/..."
+          placeholder="https://linkedin.com/posts/... ou https://github.com/..."
           placeholderTextColor="#52525b"
           value={sourceUrl}
           onChangeText={setSourceUrl}
@@ -126,7 +191,9 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers }) {
         />
 
         <View style={styles.fieldHeader}>
-          <Text style={styles.fieldLabel}>TEXTE DU POST / DESCRIPTIF DU PFE</Text>
+          <Text style={styles.fieldLabel}>
+            {captureMode === 'offer' ? 'TEXTE DU POST / DESCRIPTIF PFE' : 'CONTENU DU TEXTE / NOTE / CODE'}
+          </Text>
           <TouchableOpacity onPress={handlePasteFromClipboard}>
             <Text style={styles.pasteText}>Coller Presse-papiers</Text>
           </TouchableOpacity>
@@ -134,7 +201,11 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers }) {
 
         <TextInput
           style={styles.textArea}
-          placeholder="Collez ici le post LinkedIn du recruteur, le sujet du PFE, email ou numéro WhatsApp..."
+          placeholder={
+            captureMode === 'offer'
+              ? 'Collez ici le post LinkedIn du recruteur, email ou descriptif du stage PFE...'
+              : 'Collez ici n\'importe quel texte, snippet, idée, contact ou post...'
+          }
           placeholderTextColor="#52525b"
           multiline
           numberOfLines={6}
@@ -151,19 +222,21 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers }) {
           {isIngesting ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator color="#ffffff" size="small" />
-              <Text style={styles.ingestButtonText}>Analyse IA en cours sur le PC...</Text>
+              <Text style={styles.ingestButtonText}>Classification IA en cours...</Text>
             </View>
           ) : (
-            <Text style={styles.ingestButtonText}>🚀 Extraire & Sauvegarder sur PC</Text>
+            <Text style={styles.ingestButtonText}>
+              {captureMode === 'offer' ? '🚀 Extraire Offre & Sauvegarder' : '✨ Classifier & Enregistrer sur PC'}
+            </Text>
           )}
         </TouchableOpacity>
       </View>
 
-      {/* Last Result Card */}
+      {/* Offer Result Card */}
       {lastCreatedOffer ? (
         <View style={styles.resultCard}>
           <View style={styles.resultHeader}>
-            <Text style={styles.resultBadge}>✨ Nouvelle Offre Enregistrée</Text>
+            <Text style={styles.resultBadge}>🎯 Offre PFE Enregistrée</Text>
             <Text style={styles.resultStatus}>{lastCreatedOffer.status?.toUpperCase()}</Text>
           </View>
           <Text style={styles.resultTitle}>{lastCreatedOffer.title}</Text>
@@ -189,7 +262,29 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers }) {
             style={styles.viewOffersButton}
             onPress={() => onNavigateOffers && onNavigateOffers()}
           >
-            <Text style={styles.viewOffersText}>Voir dans le Stream Mobile →</Text>
+            <Text style={styles.viewOffersText}>Voir dans le Stream Offres →</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {/* Clip Result Card (if not already an offer) */}
+      {lastCreatedClip && !lastCreatedOffer ? (
+        <View style={[styles.resultCard, { borderColor: 'rgba(56, 189, 248, 0.4)' }]}>
+          <View style={styles.resultHeader}>
+            <Text style={[styles.resultBadge, { color: '#38bdf8' }]}>
+              📋 Clip Enregistré ({lastCreatedClip.contentType})
+            </Text>
+            <Text style={styles.resultStatus}>{lastCreatedClip.sourceDomain}</Text>
+          </View>
+          <Text style={styles.resultTitle}>{lastCreatedClip.title}</Text>
+          <Text style={[styles.resultReasoning, { color: '#94a3b8' }]}>
+            {lastCreatedClip.summary}
+          </Text>
+          <TouchableOpacity
+            style={[styles.viewOffersButton, { borderColor: 'rgba(56, 189, 248, 0.4)' }]}
+            onPress={() => onNavigateClips && onNavigateClips()}
+          >
+            <Text style={[styles.viewOffersText, { color: '#38bdf8' }]}>Voir dans le Clip Vault →</Text>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -404,5 +499,30 @@ const styles = StyleSheet.create({
     color: THEME.colors.accent,
     fontSize: 12,
     fontWeight: '600',
+  },
+  modeSelector: {
+    flexDirection: 'row',
+    backgroundColor: THEME.colors.bgElevated,
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 14,
+    gap: 4,
+  },
+  modeTab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  modeTabActive: {
+    backgroundColor: THEME.colors.accent,
+  },
+  modeTabText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: THEME.colors.textSecondary,
+  },
+  modeTabTextActive: {
+    color: '#ffffff',
   },
 })

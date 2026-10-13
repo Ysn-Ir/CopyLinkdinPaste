@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from .config import HOST, PORT, GROQ_API_KEY, DEFAULT_MODEL
 from .database import engine, Base, get_db, DB_ENGINE_TYPE
-from .models import OfferModel, CvVaultModel, UserProfileModel, AiConfigModel, CategoryModel
+from .models import OfferModel, CvVaultModel, UserProfileModel, AiConfigModel, CategoryModel, ClipVaultModel
 from .schemas import (
     OfferSchema,
     BatchSyncOffersSchema,
@@ -19,8 +19,10 @@ from .schemas import (
     AiPromptRequest,
     AiAnalyzeRequest,
     CategorySchema,
+    ClipSchema,
+    ClipIngestSchema,
 )
-from .ai_service import call_groq_chat, analyze_offer
+from .ai_service import call_groq_chat, analyze_offer, analyze_clip
 from .scraper_service import scrape_url_metadata
 
 logging.basicConfig(level=logging.INFO)
@@ -314,13 +316,15 @@ def seed_database():
 def health_check(db: Session = Depends(get_db)):
     offer_count = db.query(OfferModel).count()
     cv_count = db.query(CvVaultModel).count()
+    clip_count = db.query(ClipVaultModel).count()
     return {
         "status": "ok",
         "backend": "FastAPI",
         "databaseEngine": DB_ENGINE_TYPE,
         "counts": {
             "offers": offer_count,
-            "cvs": cv_count
+            "cvs": cv_count,
+            "clips": clip_count
         }
     }
 
@@ -329,6 +333,7 @@ def health_check(db: Session = Depends(get_db)):
 def get_db_stats(db: Session = Depends(get_db)):
     offer_count = db.query(OfferModel).count()
     cv_count = db.query(CvVaultModel).count()
+    clip_count = db.query(ClipVaultModel).count()
     has_profile = db.query(UserProfileModel).count() > 0
     return {
         "engine": DB_ENGINE_TYPE,
@@ -338,6 +343,7 @@ def get_db_stats(db: Session = Depends(get_db)):
         "counts": {
             "offers": offer_count,
             "cvs": cv_count,
+            "clips": clip_count,
             "hasProfile": has_profile
         },
         "fileSizeKb": 0
@@ -387,6 +393,7 @@ def get_mobile_pairing(db: Session = Depends(get_db)):
     offer_count = db.query(OfferModel).count()
     category_count = db.query(CategoryModel).count()
     cv_count = db.query(CvVaultModel).count()
+    clip_count = db.query(ClipVaultModel).count()
 
     return {
         "status": "online",
@@ -400,7 +407,8 @@ def get_mobile_pairing(db: Session = Depends(get_db)):
         "counts": {
             "offers": offer_count,
             "categories": category_count,
-            "cvs": cv_count
+            "cvs": cv_count,
+            "clips": clip_count
         },
         "timestamp": datetime.utcnow().isoformat()
     }
@@ -944,6 +952,211 @@ async def complete_prompt_endpoint(req: AiPromptRequest, db: Session = Depends(g
         return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==============================================================================
+# UNIVERSAL CLIPBOARD VAULT & OMNICAPTURE
+# ==============================================================================
+
+@app.get("/api/clips")
+def get_clips(
+    content_type: Optional[str] = None,
+    domain: Optional[str] = None,
+    search: Optional[str] = None,
+    starred: Optional[bool] = None,
+    db: Session = Depends(get_db)
+):
+    """Retrieve universal clips with semantic filters, website domains, and search"""
+    query = db.query(ClipVaultModel)
+    if content_type and content_type != "all":
+        query = query.filter(ClipVaultModel.content_type == content_type)
+    if domain and domain != "all":
+        query = query.filter(ClipVaultModel.source_domain == domain)
+    if starred is True:
+        query = query.filter(ClipVaultModel.is_starred == True)
+
+    clips = query.order_by(ClipVaultModel.created_at.desc()).all()
+    results = [c.to_dict() for c in clips]
+
+    if search and search.strip():
+        q = search.lower()
+        results = [
+            c for c in results
+            if q in (c.get("title") or "").lower()
+            or q in (c.get("content") or "").lower()
+            or q in (c.get("summary") or "").lower()
+            or q in (c.get("sourceDomain") or "").lower()
+            or any(q in t.lower() for t in (c.get("tags") or []))
+        ]
+    return results
+
+
+@app.post("/api/clips/ingest")
+async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
+    """Universal AI clipboard ingest with automatic categorization, entity extraction, and job offer detection"""
+    raw_content = req.content.strip()
+    if not raw_content:
+        raise HTTPException(status_code=400, detail="Clipboard content cannot be empty")
+
+    cfg = db.query(AiConfigModel).filter_by(id="default").first()
+    api_key = (cfg.api_key if cfg else None) or GROQ_API_KEY
+    model = (cfg.model if cfg else None) or DEFAULT_MODEL
+
+    # Run universal AI semantic classification
+    analyzed = await analyze_clip(
+        raw_text=raw_content,
+        source_url=req.sourceUrl,
+        source_domain=req.sourceDomain,
+        api_key=api_key,
+        model=model
+    )
+
+    clip_id = f"clip-{int(datetime.utcnow().timestamp()*1000)}"
+    content_type = analyzed.get("contentType") or "note"
+    title = analyzed.get("title") or raw_content.split("\n")[0][:70] or "Nouveau Clip"
+    summary = analyzed.get("summary") or raw_content[:200]
+    source_domain = analyzed.get("sourceDomain") or req.sourceDomain or "clipboard"
+    tags = analyzed.get("tags") or []
+    entities = analyzed.get("entities") or {}
+
+    clip = ClipVaultModel(
+        id=clip_id,
+        content=raw_content,
+        content_type=content_type,
+        title=title,
+        summary=summary,
+        source_url=req.sourceUrl or "",
+        source_domain=source_domain,
+        source_device=req.sourceDevice or "desktop",
+        tags_json=json.dumps(tags),
+        entities_json=json.dumps(entities),
+        is_starred=False,
+        converted_to_offer=False,
+        copied_at=req.copiedAt or datetime.utcnow().isoformat(),
+        created_at=datetime.utcnow().isoformat(),
+        updated_at=datetime.utcnow().isoformat(),
+    )
+    db.add(clip)
+
+    # If it was identified as a job offer, auto-create the corresponding offer
+    auto_created_offer = None
+    if analyzed.get("isJobOffer") and analyzed.get("jobData"):
+        job_data = analyzed["jobData"]
+        offer_id = f"offer-clip-{int(datetime.utcnow().timestamp()*1000)}"
+        cat_id = job_data.get("category") or "dev-fullstack"
+        
+        db_cat = db.query(CategoryModel).filter_by(id=cat_id).first()
+        cv_tag = db_cat.default_cv_tag if db_cat else "CV - General"
+
+        new_offer = OfferModel(
+            id=offer_id,
+            title=job_data.get("title") or title,
+            company=job_data.get("company") or "",
+            location=job_data.get("location") or "",
+            category=cat_id,
+            category_reasoning=f"Identifié automatiquement depuis le presse-papiers ({source_domain})",
+            channel=job_data.get("channel") or "external",
+            recruiter_email=job_data.get("recruiterEmail") or "",
+            recruiter_name=job_data.get("recruiterName") or "",
+            skills_json=json.dumps(job_data.get("skills") or tags),
+            description=raw_content,
+            source_url=req.sourceUrl or "",
+            status="saved",
+            attached_cv_tag=cv_tag,
+            confidence=0.92,
+            needs_user_review=True,
+            notes=f"Auto-capturé depuis {source_domain} ({req.sourceDevice}) le {datetime.utcnow().strftime('%d/%m/%Y %H:%M')}",
+            created_at=datetime.utcnow().isoformat(),
+            updated_at=datetime.utcnow().isoformat(),
+        )
+        db.add(new_offer)
+        clip.converted_to_offer = True
+        auto_created_offer = new_offer
+
+    db.commit()
+    db.refresh(clip)
+
+    return {
+        "success": True,
+        "clip": clip.to_dict(),
+        "isJobOffer": bool(analyzed.get("isJobOffer")),
+        "offer": auto_created_offer.to_dict() if auto_created_offer else None
+    }
+
+
+@app.post("/api/clips/{clip_id}/convert-to-offer")
+async def convert_clip_to_offer(clip_id: str, db: Session = Depends(get_db)):
+    """Manually promotes any generic clip into a full PFE Hunter job offer"""
+    clip = db.query(ClipVaultModel).filter_by(id=clip_id).first()
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+
+    cfg = db.query(AiConfigModel).filter_by(id="default").first()
+    api_key = (cfg.api_key if cfg else None) or GROQ_API_KEY
+    model = (cfg.model if cfg else None) or DEFAULT_MODEL
+
+    analyzed = await analyze_offer(
+        raw_text=clip.content,
+        api_key=api_key,
+        model=model,
+    )
+
+    offer_id = f"offer-from-clip-{int(datetime.utcnow().timestamp()*1000)}"
+    cat_id = analyzed.get("category") or "dev-fullstack"
+    db_cat = db.query(CategoryModel).filter_by(id=cat_id).first()
+    cv_tag = db_cat.default_cv_tag if db_cat else "CV - General"
+
+    new_offer = OfferModel(
+        id=offer_id,
+        title=analyzed.get("title") or clip.title,
+        company=analyzed.get("company") or "",
+        location=analyzed.get("location") or "",
+        category=cat_id,
+        category_reasoning=analyzed.get("categoryReasoning") or f"Converti depuis le clip #{clip_id[:8]}",
+        channel=analyzed.get("channel") or "external",
+        recruiter_email=analyzed.get("recruiterEmail") or "",
+        recruiter_name=analyzed.get("recruiterName") or "",
+        sharer_json=json.dumps(analyzed.get("sharer") or {}),
+        skills_json=json.dumps(analyzed.get("skills") or []),
+        description=analyzed.get("description") or clip.content,
+        source_url=clip.source_url or analyzed.get("sourceUrl") or "",
+        status="saved",
+        attached_cv_tag=cv_tag,
+        confidence=float(analyzed.get("confidence") or 0.88),
+        needs_user_review=True,
+        linked_in_note=analyzed.get("linkedInNote") or "",
+        whats_app_msg=analyzed.get("whatsAppMsg") or "",
+        notes=f"Converti depuis le presse-papiers ({clip.source_domain})",
+        created_at=datetime.utcnow().isoformat(),
+        updated_at=datetime.utcnow().isoformat(),
+    )
+    clip.converted_to_offer = True
+    db.add(new_offer)
+    db.commit()
+    db.refresh(new_offer)
+
+    return {"success": True, "offer": new_offer.to_dict()}
+
+
+@app.patch("/api/clips/{clip_id}/star")
+def toggle_star_clip(clip_id: str, db: Session = Depends(get_db)):
+    clip = db.query(ClipVaultModel).filter_by(id=clip_id).first()
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    clip.is_starred = not clip.is_starred
+    clip.updated_at = datetime.utcnow().isoformat()
+    db.commit()
+    return {"success": True, "id": clip_id, "isStarred": clip.is_starred}
+
+
+@app.delete("/api/clips/{clip_id}")
+def delete_clip(clip_id: str, db: Session = Depends(get_db)):
+    clip = db.query(ClipVaultModel).filter_by(id=clip_id).first()
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    db.delete(clip)
+    db.commit()
+    return {"success": True, "id": clip_id}
 
 
 # ==============================================================================

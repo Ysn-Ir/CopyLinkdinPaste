@@ -98,3 +98,28 @@ class CategorySchema(BaseModel):
     keywords: Optional[List[str]] = []
     isCustom: Optional[bool] = True
 
+class ClipIngestSchema(BaseModel):
+    content: str
+    sourceUrl: Optional[str] = ""
+    sourceDomain: Optional[str] = ""
+    sourceDevice: Optional[str] = "desktop"
+    copiedAt: Optional[str] = None
+
+class ClipSchema(BaseModel):
+    id: Optional[str] = None
+    content: str
+    contentType: Optional[str] = "note"
+    title: Optional[str] = ""
+    summary: Optional[str] = ""
+    sourceUrl: Optional[str] = ""
+    sourceDomain: Optional[str] = "clipboard"
+    sourceDevice: Optional[str] = "desktop"
+    tags: Optional[List[str]] = []
+    entities: Optional[Dict[str, Any]] = {}
+    isStarred: Optional[bool] = False
+    convertedToOffer: Optional[bool] = False
+    copiedAt: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+

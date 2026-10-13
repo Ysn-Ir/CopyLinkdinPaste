@@ -254,3 +254,66 @@ app.get('/api/scrape', async (req, res) => {
     })
   }
 })
+
+// ==============================================================================
+// UNIVERSAL CLIP VAULT ENDPOINTS
+// ==============================================================================
+
+app.get('/api/clips', (req, res) => {
+  try {
+    const { content_type, domain, search, starred } = req.query
+    const clips = DbService.getClips({
+      contentType: content_type,
+      domain,
+      search,
+      starred: starred === 'true',
+    })
+    res.json(clips)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.post('/api/clips/ingest', async (req, res) => {
+  try {
+    const { content, sourceUrl, sourceDomain, sourceDevice, copiedAt } = req.body
+    if (!content || !content.trim()) {
+      return res.status(400).json({ error: 'Content cannot be empty' })
+    }
+
+    const clip = DbService.saveClip({
+      content: content.trim(),
+      sourceUrl: sourceUrl || '',
+      sourceDomain: sourceDomain || 'clipboard',
+      sourceDevice: sourceDevice || 'desktop',
+      copiedAt: copiedAt || new Date().toISOString(),
+      contentType: 'note',
+      title: content.trim().split('\n')[0].slice(0, 70),
+      summary: content.trim().slice(0, 200),
+    })
+
+    res.json({ success: true, clip, isJobOffer: false, offer: null })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.patch('/api/clips/:id/star', (req, res) => {
+  try {
+    const result = DbService.starClip(req.params.id)
+    if (!result) return res.status(404).json({ error: 'Clip not found' })
+    res.json(result)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.delete('/api/clips/:id', (req, res) => {
+  try {
+    DbService.deleteClip(req.params.id)
+    res.json({ success: true, id: req.params.id })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+

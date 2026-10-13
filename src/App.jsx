@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Command,
   Plus,
@@ -10,6 +10,8 @@ import {
   MessageSquare,
   Globe,
   Sliders,
+  Clipboard,
+  Zap,
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 
@@ -29,9 +31,11 @@ import { ExternalWorkspaceView } from './views/ExternalWorkspaceView.jsx'
 import { PipelineView } from './views/PipelineView.jsx'
 import { AgentConsoleView } from './views/AgentConsoleView.jsx'
 import { SettingsView } from './views/SettingsView.jsx'
+import { ClipVaultView } from './views/ClipVaultView.jsx'
 
 import { StorageService } from './services/storage.js'
 import { AgentOrchestrator } from './services/agentOrchestrator.js'
+import { ClipboardMonitorService } from './services/clipboardMonitor.js'
 
 export default function App() {
   const [activeView, setActiveView] = useState('command-center')
@@ -68,6 +72,11 @@ export default function App() {
   const [dbInfo, setDbInfo] = useState(null)
   const [networkInfo, setNetworkInfo] = useState(null)
 
+  // Clip Vault State
+  const [clips, setClips] = useState([])
+  const [clipMonitorActive, setClipMonitorActive] = useState(true)
+  const [clipToast, setClipToast] = useState(null) // { title, type, isJobOffer }
+
   // Load from PostgreSQL / SQLite Backend + IndexedDB
   useEffect(() => {
     async function loadData() {
@@ -89,6 +98,41 @@ export default function App() {
     }
     loadData()
   }, [])
+
+  // Load Clips
+  const loadClips = useCallback(async () => {
+    const data = await StorageService.getClips()
+    setClips(data)
+  }, [])
+
+  useEffect(() => {
+    loadClips()
+  }, [])
+
+  // Clipboard Monitor Lifecycle
+  useEffect(() => {
+    if (clipMonitorActive) {
+      ClipboardMonitorService.start(async ({ clip, isJobOffer, offer }) => {
+        // Refresh clips list
+        await loadClips()
+        // Refresh offers if a job offer was auto-created
+        if (isJobOffer && offer) {
+          const refreshedOffers = await StorageService.getOffers()
+          setOffers(refreshedOffers)
+        }
+        // Show toast
+        setClipToast({
+          title: clip?.title || 'Nouveau clip capturé',
+          type: clip?.contentType || 'note',
+          isJobOffer: Boolean(isJobOffer),
+        })
+        setTimeout(() => setClipToast(null), 4000)
+      })
+    } else {
+      ClipboardMonitorService.stop()
+    }
+    return () => ClipboardMonitorService.stop()
+  }, [clipMonitorActive, loadClips])
 
   const persistOffers = async (updated) => {
     setOffers(updated)
@@ -241,6 +285,7 @@ export default function App() {
         categories={categories}
         onOpenCategoryManager={() => setIsCategoryModalOpen(true)}
         cvCount={cvList.length}
+        clipCount={clips.length}
         density={density}
         onToggleDensity={() => setDensity(density === 'comfortable' ? 'compact' : 'comfortable')}
         onOpenCommandPalette={setIsCommandOpen}
@@ -462,6 +507,32 @@ export default function App() {
           </div>
         )}
 
+        {activeView === 'clip-vault' && (
+          <ClipVaultView
+            clips={clips}
+            onRefresh={loadClips}
+            onDeleteClip={async (id) => {
+              await StorageService.deleteClip(id)
+              await loadClips()
+            }}
+            onStarClip={async (id) => {
+              await StorageService.starClip(id)
+              await loadClips()
+            }}
+            onConvertToOffer={async (id) => {
+              const result = await StorageService.convertClipToOffer(id)
+              if (result?.offer) {
+                const refreshedOffers = await StorageService.getOffers()
+                setOffers(refreshedOffers)
+                confetti({ particleCount: 30, spread: 40, origin: { y: 0.8 } })
+              }
+              await loadClips()
+            }}
+            clipboardMonitorActive={clipMonitorActive}
+            onToggleMonitor={() => setClipMonitorActive(!clipMonitorActive)}
+          />
+        )}
+
         {activeView === 'agent-console' && (
           <AgentConsoleView
             offers={offers}
@@ -528,6 +599,49 @@ export default function App() {
         isOpen={isMobileModalOpen}
         onClose={() => setIsMobileModalOpen(false)}
       />
+
+      {/* Clip Captured Toast Notification */}
+      {clipToast && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            padding: '12px 20px',
+            borderRadius: '12px',
+            background: clipToast.isJobOffer
+              ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.95), rgba(139, 92, 246, 0.95))'
+              : 'linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(6, 182, 212, 0.95))',
+            color: '#fff',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontSize: '13px',
+            fontWeight: 600,
+            animation: 'slideInRight 0.3s ease-out',
+            cursor: 'pointer',
+            maxWidth: '380px',
+          }}
+          onClick={() => {
+            setClipToast(null)
+            setActiveView('clip-vault')
+          }}
+        >
+          <span style={{ fontSize: '18px' }}>
+            {clipToast.isJobOffer ? '💼' : '📋'}
+          </span>
+          <div>
+            <div style={{ fontSize: '11px', opacity: 0.85, marginBottom: '2px' }}>
+              {clipToast.isJobOffer ? '🎯 Offre d\'emploi détectée & créée !' : '✨ Clip capturé automatiquement'}
+            </div>
+            <div style={{ fontSize: '13px' }}>
+              {clipToast.title}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

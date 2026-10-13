@@ -2,6 +2,7 @@ import React from 'react'
 import {
   Compass,
   Layers,
+  Clipboard,
   Inbox,
   Mail,
   MessageSquare,
@@ -42,6 +43,7 @@ export function Sidebar({
   categories = [],
   onOpenCategoryManager,
   cvCount = 5,
+  clipCount = 0,
   density,
   onToggleDensity,
   onOpenCommandPalette,
@@ -57,6 +59,7 @@ export function Sidebar({
 
   const mainWorkspaces = [
     { id: 'command-center', label: 'Command Center', icon: Layers, count: offers.length },
+    { id: 'clip-vault', label: 'Universal Clip Vault', icon: Clipboard, count: clipCount > 0 ? clipCount : null },
     { id: 'inbox', label: 'Review Queue', icon: Inbox, count: reviewCount > 0 ? reviewCount : null, alert: reviewCount > 0 },
     { id: 'pipeline', label: 'Pipeline Board', icon: Kanban, count: null },
     { id: 'dashboard', label: 'Analytics & KPIs', icon: BarChart3, count: null },

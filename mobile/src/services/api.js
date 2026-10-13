@@ -161,4 +161,98 @@ export const ApiService = {
       return { success: false, profile: null }
     }
   },
+
+  // ==================================================================
+  // UNIVERSAL CLIP VAULT
+  // ==================================================================
+
+  /**
+   * Fetches clips from the universal clipboard vault
+   */
+  async getClips({ contentType, domain, search, starred } = {}) {
+    const params = new URLSearchParams()
+    if (contentType && contentType !== 'all') params.append('content_type', contentType)
+    if (domain && domain !== 'all') params.append('domain', domain)
+    if (search) params.append('search', search)
+    if (starred) params.append('starred', 'true')
+
+    const url = `${currentServerUrl}/api/clips?${params.toString()}`
+    try {
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const clips = await res.json()
+      return { success: true, clips }
+    } catch (err) {
+      return { success: false, clips: [], error: err.message }
+    }
+  },
+
+  /**
+   * Ingests a new clipboard clip for AI classification
+   */
+  async ingestClip({ content, sourceUrl = '', sourceDomain = '', sourceDevice = 'mobile' }) {
+    const url = `${currentServerUrl}/api/clips/ingest`
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content,
+          sourceUrl,
+          sourceDomain,
+          sourceDevice,
+          copiedAt: new Date().toISOString(),
+        }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      return { success: true, clip: data.clip, isJobOffer: data.isJobOffer, offer: data.offer }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  },
+
+  /**
+   * Toggles star status on a clip
+   */
+  async starClip(clipId) {
+    const url = `${currentServerUrl}/api/clips/${clipId}/star`
+    try {
+      const res = await fetch(url, { method: 'PATCH' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      return { success: true, isStarred: data.isStarred }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  },
+
+  /**
+   * Deletes a clip
+   */
+  async deleteClip(clipId) {
+    const url = `${currentServerUrl}/api/clips/${clipId}`
+    try {
+      const res = await fetch(url, { method: 'DELETE' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  },
+
+  /**
+   * Converts a generic clip into a full PFE Hunter job offer
+   */
+  async convertClipToOffer(clipId) {
+    const url = `${currentServerUrl}/api/clips/${clipId}/convert-to-offer`
+    try {
+      const res = await fetch(url, { method: 'POST' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      return { success: true, offer: data.offer }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  },
 }

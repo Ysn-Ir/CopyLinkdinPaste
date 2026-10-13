@@ -102,6 +102,24 @@ db.exec(`
     cost_est TEXT,
     model TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS clip_vault (
+    id TEXT PRIMARY KEY,
+    content TEXT NOT NULL,
+    content_type TEXT DEFAULT 'note',
+    title TEXT,
+    summary TEXT,
+    source_url TEXT,
+    source_domain TEXT DEFAULT 'clipboard',
+    source_device TEXT DEFAULT 'desktop',
+    tags_json TEXT,
+    entities_json TEXT,
+    is_starred INTEGER DEFAULT 0,
+    converted_to_offer INTEGER DEFAULT 0,
+    copied_at TEXT,
+    created_at TEXT,
+    updated_at TEXT
+  );
 `)
 
 // Safe column migrations for existing databases
@@ -463,6 +481,7 @@ export const DbService = {
 
     const offerCount = db.prepare('SELECT count(*) as count FROM offers').get().count
     const cvCount = db.prepare('SELECT count(*) as count FROM cv_vault').get().count
+    const clipCount = db.prepare('SELECT count(*) as count FROM clip_vault').get().count
     const profileExists = Boolean(db.prepare('SELECT id FROM user_profile WHERE id = ?').get('default'))
 
     return {
@@ -471,10 +490,110 @@ export const DbService = {
       counts: {
         offers: offerCount,
         cvs: cvCount,
+        clips: clipCount,
         hasProfile: profileExists,
       },
       journalMode: 'WAL',
       connected: true,
     }
+  },
+
+  getClips({ contentType, domain, search, starred } = {}) {
+    let sql = 'SELECT * FROM clip_vault WHERE 1=1'
+    const params = []
+    if (contentType && contentType !== 'all') {
+      sql += ' AND content_type = ?'
+      params.push(contentType)
+    }
+    if (domain && domain !== 'all') {
+      sql += ' AND source_domain = ?'
+      params.push(domain)
+    }
+    if (starred) {
+      sql += ' AND is_starred = 1'
+    }
+    sql += ' ORDER BY created_at DESC'
+    let rows = db.prepare(sql).all(...params)
+    rows = rows.map((r) => ({
+      ...r,
+      tags: r.tags_json ? JSON.parse(r.tags_json) : [],
+      entities: r.entities_json ? JSON.parse(r.entities_json) : {},
+      isStarred: Boolean(r.is_starred),
+      convertedToOffer: Boolean(r.converted_to_offer),
+      contentType: r.content_type,
+      sourceUrl: r.source_url,
+      sourceDomain: r.source_domain,
+      sourceDevice: r.source_device,
+      copiedAt: r.copied_at,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }))
+    if (search) {
+      const q = search.toLowerCase()
+      rows = rows.filter(
+        (c) =>
+          (c.title || '').toLowerCase().includes(q) ||
+          (c.content || '').toLowerCase().includes(q) ||
+          (c.summary || '').toLowerCase().includes(q) ||
+          (c.sourceDomain || '').toLowerCase().includes(q) ||
+          (c.tags || []).some((t) => t.toLowerCase().includes(q))
+      )
+    }
+    return rows
+  },
+
+  saveClip(clip) {
+    const id = clip.id || `clip-${Date.now()}`
+    const now = new Date().toISOString()
+    db.prepare(`
+      INSERT INTO clip_vault (
+        id, content, content_type, title, summary, source_url, source_domain,
+        source_device, tags_json, entities_json, is_starred, converted_to_offer,
+        copied_at, created_at, updated_at
+      ) VALUES (
+        @id, @content, @contentType, @title, @summary, @sourceUrl, @sourceDomain,
+        @sourceDevice, @tagsJson, @entitiesJson, @isStarred, @convertedToOffer,
+        @copiedAt, @createdAt, @updatedAt
+      )
+      ON CONFLICT(id) DO UPDATE SET
+        content = @content, content_type = @contentType, title = @title,
+        summary = @summary, source_url = @sourceUrl, source_domain = @sourceDomain,
+        source_device = @sourceDevice, tags_json = @tagsJson, entities_json = @entitiesJson,
+        is_starred = @isStarred, converted_to_offer = @convertedToOffer,
+        updated_at = @updatedAt
+    `).run({
+      id,
+      content: clip.content || '',
+      contentType: clip.contentType || 'note',
+      title: clip.title || (clip.content || '').slice(0, 60),
+      summary: clip.summary || (clip.content || '').slice(0, 150),
+      sourceUrl: clip.sourceUrl || '',
+      sourceDomain: clip.sourceDomain || 'clipboard',
+      sourceDevice: clip.sourceDevice || 'desktop',
+      tagsJson: JSON.stringify(clip.tags || []),
+      entitiesJson: JSON.stringify(clip.entities || {}),
+      isStarred: clip.isStarred ? 1 : 0,
+      convertedToOffer: clip.convertedToOffer ? 1 : 0,
+      copiedAt: clip.copiedAt || now,
+      createdAt: clip.createdAt || now,
+      updatedAt: now,
+    })
+    return this.getClips().find((c) => c.id === id)
+  },
+
+  starClip(clipId) {
+    const clip = db.prepare('SELECT is_starred FROM clip_vault WHERE id = ?').get(clipId)
+    if (!clip) return null
+    const newStar = clip.is_starred ? 0 : 1
+    db.prepare('UPDATE clip_vault SET is_starred = ?, updated_at = datetime("now") WHERE id = ?').run(
+      newStar,
+      clipId
+    )
+    return { success: true, id: clipId, isStarred: Boolean(newStar) }
+  },
+
+  deleteClip(clipId) {
+    db.prepare('DELETE FROM clip_vault WHERE id = ?').run(clipId)
+    return { success: true, id: clipId }
   },
 }

@@ -17,6 +17,7 @@ import { CaptureScreen } from './src/screens/CaptureScreen'
 import { OffersListScreen } from './src/screens/OffersListScreen'
 import { OfferDetailScreen } from './src/screens/OfferDetailScreen'
 import { ConnectScreen } from './src/screens/ConnectScreen'
+import { ClipVaultScreen } from './src/screens/ClipVaultScreen'
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard') // 'dashboard' | 'capture' | 'offers' | 'connect'
@@ -91,6 +92,7 @@ export default function App() {
           <CaptureScreen
             onOfferCreated={handleOfferCreated}
             onNavigateOffers={() => setActiveTab('offers')}
+            onNavigateClips={() => setActiveTab('clipvault')}
           />
         )}
 
@@ -98,6 +100,12 @@ export default function App() {
           <OffersListScreen
             onSelectOffer={handleSelectOffer}
             onOpenCapture={() => setActiveTab('capture')}
+          />
+        )}
+
+        {activeTab === 'clipvault' && (
+          <ClipVaultScreen
+            onNavigateTab={setActiveTab}
           />
         )}
 
@@ -140,10 +148,22 @@ export default function App() {
           onPress={() => setActiveTab('offers')}
         >
           <Text style={[styles.navIcon, activeTab === 'offers' && styles.navIconActive]}>
-            📋
+            💼
           </Text>
           <Text style={[styles.navLabel, activeTab === 'offers' && styles.navLabelActive]}>
-            Flux PFE
+            Offres
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.navItem, activeTab === 'clipvault' && styles.navItemActive]}
+          onPress={() => setActiveTab('clipvault')}
+        >
+          <Text style={[styles.navIcon, activeTab === 'clipvault' && styles.navIconActive]}>
+            📋
+          </Text>
+          <Text style={[styles.navLabel, activeTab === 'clipvault' && styles.navLabelActive]}>
+            Clips
           </Text>
         </TouchableOpacity>
 
