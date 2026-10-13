@@ -37,6 +37,7 @@ export function SettingsView({
   onExportBackup,
   onImportBackup,
   offersCount = 0,
+  onOpenMobileConnect,
 }) {
   const [profile, setProfile] = useState({
     fullName: '',
@@ -646,9 +647,30 @@ export function SettingsView({
             <Smartphone size={16} color="#c084fc" />
             <span className="section-title">📱 Android Mobile & Network Access (Tailscale / LAN)</span>
           </div>
-          <span className="skill-tag" style={{ color: '#c084fc', background: 'rgba(192, 132, 252, 0.1)' }}>
-            Mobile Ready PWA
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {onOpenMobileConnect && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{
+                  height: '26px',
+                  padding: '0 10px',
+                  fontSize: '11px',
+                  borderColor: 'rgba(168, 85, 247, 0.4)',
+                  color: '#d8b4fe',
+                  background: 'rgba(168, 85, 247, 0.1)',
+                  fontWeight: 600,
+                }}
+                onClick={onOpenMobileConnect}
+              >
+                <Smartphone size={12} />
+                <span>Ouvrir QR Code Appairage</span>
+              </button>
+            )}
+            <span className="skill-tag" style={{ color: '#c084fc', background: 'rgba(192, 132, 252, 0.1)' }}>
+              React Native & Expo Ready
+            </span>
+          </div>
         </div>
 
         <p style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>

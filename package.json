@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:frontend": "vite",
     "dev:backend": "python -m uvicorn backend.main:app --host 0.0.0.0 --port 8003 --reload",
+    "dev:mobile": "npm --prefix mobile start",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -20,6 +21,7 @@
     "idb-keyval": "^6.3.0",
     "jspdf": "^4.2.1",
     "lucide-react": "^1.55.0",
+    "qrcode": "^1.5.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "recharts": "^3.10.1"

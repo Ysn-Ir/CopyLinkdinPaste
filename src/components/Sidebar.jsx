@@ -48,6 +48,7 @@ export function Sidebar({
   activeCategory = 'all',
   onSelectCategory,
   networkIp,
+  onOpenMobileConnect,
 }) {
   const emailOffersCount = offers.filter((o) => o.channel === 'email').length
   const directOffersCount = offers.filter((o) => o.channel === 'direct_contact').length
@@ -257,24 +258,36 @@ export function Sidebar({
       </div>
 
       {/* Network / Android Live Chip */}
-      {networkIp && (
-        <div
-          className="sidebar-label"
-          style={{
-            padding: '6px 12px',
-            fontSize: '10.5px',
-            color: 'var(--text-tertiary)',
-            borderTop: '1px solid var(--border-subtle)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(255, 255, 255, 0.02)',
-          }}
-        >
-          <Smartphone size={12} color="#60a5fa" />
-          <span style={{ fontFamily: 'var(--font-mono)', color: '#93c5fd' }}>{networkIp}:5174</span>
+      <button
+        onClick={onOpenMobileConnect}
+        className="sidebar-label"
+        style={{
+          width: '100%',
+          padding: '7px 12px',
+          fontSize: '10.5px',
+          color: 'var(--text-tertiary)',
+          borderTop: '1px solid var(--border-subtle)',
+          borderLeft: 'none',
+          borderRight: 'none',
+          borderBottom: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: 'rgba(168, 85, 247, 0.05)',
+          cursor: 'pointer',
+          textAlign: 'left',
+          transition: 'all 0.15s ease',
+        }}
+        title="Ouvrir le menu d'appairage mobile & QR code"
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Smartphone size={13} color="#a855f7" />
+          <span style={{ color: '#d8b4fe', fontWeight: 600 }}>Mobile App</span>
         </div>
-      )}
+        <span style={{ fontFamily: 'var(--font-mono)', color: '#93c5fd', fontSize: '10px' }}>
+          {networkIp || '192.168.1.12'}
+        </span>
+      </button>
 
       {/* Footer Controls */}
       <div

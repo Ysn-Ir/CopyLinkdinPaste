@@ -367,6 +367,45 @@ def get_network_info():
     }
 
 
+@app.get("/api/mobile/pairing")
+def get_mobile_pairing(db: Session = Depends(get_db)):
+    """Zero-config mobile discovery and health handshake"""
+    hostname = socket.gethostname()
+    local_ips = []
+    try:
+        addr_info = socket.getaddrinfo(hostname, None)
+        for item in addr_info:
+            ip = item[4][0]
+            if ":" not in ip and ip != "127.0.0.1" and ip not in local_ips:
+                local_ips.append(ip)
+    except Exception:
+        pass
+
+    # Pick best local LAN IP
+    primary_ip = next((ip for ip in local_ips if ip.startswith("192.168.") or ip.startswith("10.")), local_ips[0] if local_ips else "127.0.0.1")
+
+    offer_count = db.query(OfferModel).count()
+    category_count = db.query(CategoryModel).count()
+    cv_count = db.query(CvVaultModel).count()
+
+    return {
+        "status": "online",
+        "app": "PFE Hunter • Career Command Center",
+        "version": "2.0.0",
+        "hostname": hostname,
+        "primaryIp": primary_ip,
+        "backendPort": PORT,
+        "serverUrl": f"http://{primary_ip}:{PORT}",
+        "localIps": local_ips,
+        "counts": {
+            "offers": offer_count,
+            "categories": category_count,
+            "cvs": cv_count
+        },
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
 # ==============================================================================
 # OFFERS CRUD & SYNC
 # ==============================================================================
@@ -548,6 +587,129 @@ def delete_offer(offer_id: str, db: Session = Depends(get_db)):
     db.delete(existing)
     db.commit()
     return {"success": True, "id": offer_id}
+
+
+@app.patch("/api/offers/{offer_id}/status")
+def update_offer_status(offer_id: str, payload: dict, db: Session = Depends(get_db)):
+    """Fast stage update for mobile UI (e.g. advance stage with 1 tap)"""
+    new_status = payload.get("status")
+    if not new_status:
+        raise HTTPException(status_code=400, detail="Missing status field")
+    existing = db.query(OfferModel).filter_by(id=offer_id).first()
+    if not existing:
+        raise HTTPException(status_code=404, detail="Offer not found")
+    existing.status = new_status
+    existing.updated_at = datetime.utcnow().isoformat()
+    db.commit()
+    db.refresh(existing)
+    return {"success": True, "id": offer_id, "status": existing.status, "offer": existing.to_dict()}
+
+
+@app.post("/api/mobile/ingest")
+async def mobile_ingest_post(payload: dict, db: Session = Depends(get_db)):
+    """Captures a copied LinkedIn post or URL directly from mobile clipboard with LLM classification"""
+    raw_text = (payload.get("rawText") or payload.get("text") or "").strip()
+    source_url = (payload.get("sourceUrl") or payload.get("url") or "").strip()
+
+    if not raw_text and not source_url:
+        raise HTTPException(status_code=400, detail="Either rawText or sourceUrl must be provided")
+
+    # If raw_text is minimal and source_url is provided, scrape metadata
+    if len(raw_text) < 50 and source_url.startswith("http"):
+        try:
+            scraped = await scrape_url_metadata(source_url)
+            if scraped.get("text"):
+                raw_text = scraped["text"]
+            elif scraped.get("title") and not raw_text:
+                raw_text = f"{scraped.get('title')}\n{scraped.get('description', '')}"
+        except Exception as e:
+            logger.warning(f"Mobile scrape failed: {e}")
+
+    # Gather categories for dynamic LLM classification
+    db_cats = db.query(CategoryModel).all()
+    categories_list = [c.to_dict() for c in db_cats] if db_cats else []
+
+    cfg = db.query(AiConfigModel).filter_by(id="default").first()
+    api_key = (cfg.api_key if cfg else None) or GROQ_API_KEY
+    model = (cfg.model if cfg else None) or DEFAULT_MODEL
+
+    analyzed = None
+    if raw_text and api_key:
+        try:
+            analyzed = await analyze_offer(
+                raw_text=raw_text,
+                candidate_profile=None,
+                api_key=api_key,
+                model=model,
+                categories=categories_list
+            )
+        except Exception as err:
+            logger.warning(f"Mobile AI analyze error: {err}")
+
+    # Fallback if AI parsing wasn't executed or failed
+    if not analyzed or not isinstance(analyzed, dict):
+        first_line = raw_text.split("\n")[0][:80] if raw_text else "Nouvelle offre LinkedIn"
+        analyzed = {
+            "title": first_line if first_line else "Stage PFE Ingénieur",
+            "company": "Entreprise (à préciser)",
+            "location": "Hybride / Télétravail",
+            "category": "dev-fullstack",
+            "categoryReasoning": "Catégorisation automatique mobile",
+            "channel": "direct_contact",
+            "recruiterEmail": "",
+            "recruiterName": "",
+            "skills": ["LinkedIn", "Mobile Import"],
+            "description": raw_text[:500] if raw_text else "Importé depuis le mobile",
+            "sourceUrl": source_url or "",
+            "confidence": 0.85,
+            "needsUserReview": True
+        }
+
+    offer_id = f"offer-m-{int(datetime.utcnow().timestamp()*1000)}"
+    sharer = analyzed.get("sharer") or {}
+    skills = analyzed.get("skills") or []
+    top3 = analyzed.get("top3Guesses") or []
+
+    # Map category to default CV tag
+    cat_id = analyzed.get("category", "dev-fullstack")
+    cat_obj = next((c for c in categories_list if c["id"] == cat_id), None)
+    attached_cv_tag = cat_obj.get("default_cv_tag") if cat_obj and cat_obj.get("default_cv_tag") else "CV - General"
+
+    new_offer = OfferModel(
+        id=offer_id,
+        title=analyzed.get("title") or "Offre Ingestée Mobile",
+        company=analyzed.get("company") or "",
+        location=analyzed.get("location") or "",
+        category=cat_id,
+        category_reasoning=analyzed.get("categoryReasoning") or "Import mobile",
+        channel=analyzed.get("channel") or "direct_contact",
+        recruiter_email=analyzed.get("recruiterEmail") or "",
+        recruiter_name=analyzed.get("recruiterName") or "",
+        sharer_json=json.dumps(sharer),
+        skills_json=json.dumps(skills),
+        description=analyzed.get("description") or raw_text,
+        source_url=source_url or analyzed.get("sourceUrl") or "",
+        image_url=analyzed.get("imageUrl") or "",
+        status="saved",
+        attached_cv_tag=attached_cv_tag,
+        confidence=float(analyzed.get("confidence") or 0.9),
+        needs_user_review=True,
+        top3_guesses_json=json.dumps(top3),
+        linked_in_note=analyzed.get("linkedInNote") or "",
+        whats_app_msg=analyzed.get("whatsAppMsg") or "",
+        notes="📱 Ingested from Mobile App clipboard",
+        created_at=datetime.utcnow().isoformat(),
+        updated_at=datetime.utcnow().isoformat(),
+    )
+    db.add(new_offer)
+    db.commit()
+    db.refresh(new_offer)
+
+    return {
+        "success": True,
+        "message": "Offre capturée et analysée avec succès !",
+        "offer": new_offer.to_dict()
+    }
 
 
 # ==============================================================================

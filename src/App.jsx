@@ -18,6 +18,7 @@ import { CommandPalette } from './components/CommandPalette.jsx'
 import { OfferModal } from './components/OfferModal.jsx'
 import { CVManagerModal } from './components/CVManagerModal.jsx'
 import { CategoryManagerModal } from './components/CategoryManagerModal.jsx'
+import { MobileConnectModal } from './components/MobileConnectModal.jsx'
 
 import { CommandCenterView } from './views/CommandCenterView.jsx'
 import { DashboardView } from './views/DashboardView.jsx'
@@ -39,6 +40,7 @@ export default function App() {
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false)
   const [isCvVaultModalOpen, setIsCvVaultModalOpen] = useState(false)
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
+  const [isMobileModalOpen, setIsMobileModalOpen] = useState(false)
   const [isIngesting, setIsIngesting] = useState(false)
 
   // Database State (Backed by PostgreSQL/SQLite & IndexedDB)
@@ -248,6 +250,7 @@ export default function App() {
           setActiveView('command-center')
         }}
         networkIp={networkInfo?.localIps?.[0]}
+        onOpenMobileConnect={() => setIsMobileModalOpen(true)}
       />
 
       {/* Main Workspace Wrapper */}
@@ -299,31 +302,31 @@ export default function App() {
               <span>{dbInfo?.engine === 'postgresql' ? 'PostgreSQL: pfe_hunter (5432)' : 'FastAPI Backend'}</span>
             </div>
 
-            {networkInfo?.localIps?.[0] && (
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(`http://${networkInfo.localIps[0]}:5174`)
-                  alert(`Android / LAN URL copied: http://${networkInfo.localIps[0]}:5174\n\nOpen this link on your Android phone connected to the same Wi-Fi!`)
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  fontSize: '11px',
-                  padding: '3px 8px',
-                  borderRadius: '4px',
-                  background: 'rgba(168, 85, 247, 0.1)',
-                  border: '1px solid rgba(168, 85, 247, 0.3)',
-                  color: '#c084fc',
-                  cursor: 'pointer',
-                  fontWeight: 500,
-                }}
-                title="Click to copy Android LAN link"
-              >
-                <span>📱 {networkInfo.localIps[0]}:5174</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setIsMobileModalOpen(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '11px',
+                padding: '4px 10px',
+                borderRadius: '5px',
+                background: 'rgba(168, 85, 247, 0.15)',
+                border: '1px solid rgba(168, 85, 247, 0.45)',
+                color: '#d8b4fe',
+                cursor: 'pointer',
+                fontWeight: 600,
+                boxShadow: '0 2px 6px rgba(168, 85, 247, 0.15)',
+              }}
+              title="Connecter l'application mobile via QR Code & Réseau local"
+            >
+              <span>📱</span>
+              <span>Appairer Mobile</span>
+              <span style={{ fontSize: '10px', opacity: 0.8, fontFamily: 'monospace' }}>
+                {networkInfo?.localIps?.[0] ? `(${networkInfo.localIps[0]})` : ''}
+              </span>
+            </button>
           </div>
 
           <div className="topbar-right">
@@ -477,6 +480,7 @@ export default function App() {
             onExportBackup={handleExportBackup}
             onImportBackup={handleImportBackup}
             offersCount={offers.length}
+            onOpenMobileConnect={() => setIsMobileModalOpen(true)}
           />
         )}
       </div>
@@ -517,6 +521,12 @@ export default function App() {
         cvList={cvList}
         onAddCategory={handleAddCategory}
         onDeleteCategory={handleDeleteCategory}
+      />
+
+      {/* Mobile Connect & QR Pairing Modal */}
+      <MobileConnectModal
+        isOpen={isMobileModalOpen}
+        onClose={() => setIsMobileModalOpen(false)}
       />
     </div>
   )
