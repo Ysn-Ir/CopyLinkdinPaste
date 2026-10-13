@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   View,
   Text,
@@ -8,22 +8,22 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  AppState,
   ScrollView,
   Linking,
   RefreshControl,
+  Platform,
 } from 'react-native'
-import * as ExpoClipboard from 'expo-clipboard'
 import { THEME } from '../theme'
 import { ApiService } from '../services/api'
+import { ClipboardWatcher } from '../services/clipboardWatcher'
 
 const CONTENT_TYPES = [
   { id: 'all', label: 'All', icon: '📋' },
   { id: 'job_offer', label: 'Job Offers', icon: '💼' },
-  { id: 'code_snippet', label: 'Code', icon: '💻' },
+  { id: 'code_snippet', label: 'Code Snippets', icon: '💻' },
   { id: 'tech_article', label: 'Articles', icon: '📰' },
   { id: 'social_post', label: 'Social', icon: '💬' },
-  { id: 'tool_or_repo', label: 'Repositories', icon: '🔧' },
+  { id: 'tool_or_repo', label: 'Tools & Repos', icon: '🔧' },
   { id: 'note', label: 'Notes', icon: '📝' },
   { id: 'contact', label: 'Contacts', icon: '👤' },
 ]
@@ -79,111 +79,81 @@ function getDomainEmoji(domain) {
 }
 
 export function ClipVaultScreen({ onNavigateTab }) {
-  const [clips, setClips] = useState([])
+  const [allClips, setAllClips] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [isSyncingAll, setIsSyncingAll] = useState(false)
   const [search, setSearch] = useState('')
   const [activeType, setActiveType] = useState('all')
   const [autoCapture, setAutoCapture] = useState(true)
-  const [lastClipHash, setLastClipHash] = useState('')
   const [ingestingClip, setIngestingClip] = useState(false)
-  const appState = useRef(AppState.currentState)
 
   // Load clips
   const loadClips = useCallback(async () => {
-    const res = await ApiService.getClips({
-      contentType: activeType !== 'all' ? activeType : undefined,
-      search: search || undefined,
-    })
+    const res = await ApiService.getClips()
     if (res.success) {
-      setClips(res.clips)
+      setAllClips(res.clips || [])
     }
     setLoading(false)
     setRefreshing(false)
-  }, [activeType, search])
+  }, [])
 
   useEffect(() => {
     loadClips()
   }, [loadClips])
 
-  // Auto-clipboard detection on app resume + active periodic check
+  // Centralized single ClipboardWatcher subscription (eliminates phone repeated clips bug)
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', async (nextState) => {
-      if (
-        appState.current.match(/inactive|background/) &&
-        nextState === 'active' &&
-        autoCapture
-      ) {
-        await checkClipboard()
-      }
-      appState.current = nextState
+    const unsubscribe = ClipboardWatcher.subscribe(() => {
+      loadClips()
     })
+    return () => unsubscribe()
+  }, [loadClips])
 
-    const interval = setInterval(() => {
-      if (appState.current === 'active' && autoCapture) {
-        checkClipboard()
-      }
-    }, 2000)
+  // Real-time counts across all categories
+  const typeCounts = useMemo(() => {
+    const counts = { all: allClips.length }
+    allClips.forEach((c) => {
+      const type = c.contentType || 'note'
+      counts[type] = (counts[type] || 0) + 1
+    })
+    return counts
+  }, [allClips])
 
-    return () => {
-      subscription?.remove()
-      clearInterval(interval)
+  // Responsive client filtering
+  const filteredClips = useMemo(() => {
+    let result = allClips
+    if (activeType !== 'all') {
+      result = result.filter((c) => c.contentType === activeType)
     }
-  }, [autoCapture, lastClipHash])
-
-  const simpleHash = (str) => {
-    let hash = 0
-    for (let i = 0; i < str.length; i++) {
-      const ch = str.charCodeAt(i)
-      hash = ((hash << 5) - hash) + ch
-      hash |= 0
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      result = result.filter(
+        (c) =>
+          (c.title || '').toLowerCase().includes(q) ||
+          (c.content || '').toLowerCase().includes(q) ||
+          (c.summary || '').toLowerCase().includes(q) ||
+          (c.tags || []).some((t) => t.toLowerCase().includes(q))
+      )
     }
-    return hash.toString(36)
-  }
-
-  const checkClipboard = async () => {
-    try {
-      const hasString = await ExpoClipboard.hasStringAsync()
-      if (!hasString) return
-
-      const text = await ExpoClipboard.getStringAsync()
-      if (!text || text.trim().length < 6) return
-
-      const hash = simpleHash(text.trim())
-      if (hash === lastClipHash) return
-      setLastClipHash(hash)
-
-      let sourceDomain = 'clipboard'
-      const urlMatch = text.match(/https?:\/\/([^\s/]+)/)
-      if (urlMatch) sourceDomain = urlMatch[1].replace('www.', '')
-
-      setIngestingClip(true)
-      const res = await ApiService.ingestClip({
-        content: text.trim(),
-        sourceDomain,
-        sourceDevice: 'mobile',
-        sourceUrl: /^https?:\/\/\S+$/i.test(text.trim()) ? text.trim() : '',
-      })
-
-      if (res.success) {
-        await loadClips()
-        const channelMsg = res.channel ? `Routed directly to ${res.channel.toUpperCase()} channel!` : ''
-        Alert.alert(
-          'Clip Captured to Vault',
-          `${res.clip?.title || 'New Clip'}\n${res.isJobOffer ? `Job Offer detected! ${channelMsg}` : ''}`,
-          [{ text: 'OK', style: 'default' }],
-          { cancelable: true }
-        )
-      }
-      setIngestingClip(false)
-    } catch {
-      setIngestingClip(false)
-    }
-  }
+    return result
+  }, [allClips, activeType, search])
 
   const handleManualCapture = async () => {
-    await checkClipboard()
+    setIngestingClip(true)
+    await ClipboardWatcher.checkAndIngest()
+    await loadClips()
+    setIngestingClip(false)
+  }
+
+  const handleToggleAutoCapture = () => {
+    if (autoCapture) {
+      ClipboardWatcher.stop()
+      setAutoCapture(false)
+    } else {
+      ClipboardWatcher.start(2500)
+      setAutoCapture(true)
+    }
   }
 
   const handleSyncAllClipsToOffers = async () => {
@@ -343,7 +313,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
             )}
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setAutoCapture(!autoCapture)}
+            onPress={handleToggleAutoCapture}
             style={[styles.toggleBtn, autoCapture ? styles.toggleBtnOn : styles.toggleBtnOff]}
           >
             <Text style={[styles.toggleBtnText, { color: autoCapture ? THEME.colors.success : THEME.colors.danger }]}>
@@ -361,25 +331,40 @@ export function ClipVaultScreen({ onNavigateTab }) {
           placeholderTextColor={THEME.colors.textMuted}
           value={search}
           onChangeText={setSearch}
-          onEndEditing={loadClips}
         />
       </View>
 
-      {/* Type Filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
-        {CONTENT_TYPES.map((type) => (
-          <TouchableOpacity
-            key={type.id}
-            onPress={() => setActiveType(type.id)}
-            style={[styles.filterPill, activeType === type.id && styles.filterPillActive]}
-          >
-            <Text style={{ fontSize: 12 }}>{type.icon}</Text>
-            <Text style={[styles.filterText, activeType === type.id && styles.filterTextActive]}>
-              {type.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {/* Type Filter Pills with Space & Real-Time Counts */}
+      <View style={styles.filterWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterScrollContent}
+        >
+          {CONTENT_TYPES.map((type) => {
+            const count = typeCounts[type.id] || 0
+            const isActive = activeType === type.id
+            return (
+              <TouchableOpacity
+                key={type.id}
+                onPress={() => setActiveType(type.id)}
+                style={[styles.filterPill, isActive && styles.filterPillActive]}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.filterIcon}>{type.icon}</Text>
+                <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
+                  {type.label}
+                </Text>
+                <View style={[styles.filterCountBadge, isActive && styles.filterCountBadgeActive]}>
+                  <Text style={[styles.filterCountText, isActive && styles.filterCountTextActive]}>
+                    {count}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )
+          })}
+        </ScrollView>
+      </View>
 
       {/* Clips List with Generous Bottom Padding */}
       {loading ? (
@@ -388,7 +373,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
         </View>
       ) : (
         <FlatList
-          data={clips}
+          data={filteredClips}
           keyExtractor={(item) => item.id}
           renderItem={renderClip}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }} // safe bottom padding
@@ -448,22 +433,22 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   syncBtn: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 14,
-    backgroundColor: 'rgba(14, 165, 233, 0.12)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: 'rgba(14, 165, 233, 0.35)',
+    borderColor: '#ffffff',
   },
   syncBtnText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#38bdf8',
+    color: '#09090b',
   },
   toggleBtn: {
-    paddingVertical: 4,
-    paddingHorizontal: 9,
-    borderRadius: 14,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 8,
     borderWidth: 1,
   },
   toggleBtnOn: {
@@ -492,33 +477,61 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: THEME.colors.textPrimary,
   },
-  filterRow: {
-    paddingHorizontal: 12,
-    paddingBottom: 10,
-    maxHeight: 40,
+  filterWrapper: {
+    paddingVertical: 8,
+  },
+  filterScrollContent: {
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   filterPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    borderRadius: 16,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: THEME.colors.border,
+    backgroundColor: THEME.colors.bgSurface,
+    minHeight: 38,
+    gap: 7,
     marginRight: 6,
   },
   filterPillActive: {
-    backgroundColor: 'rgba(14, 165, 233, 0.15)',
-    borderColor: 'rgba(14, 165, 233, 0.45)',
+    backgroundColor: '#ffffff',
+    borderColor: '#ffffff',
+  },
+  filterIcon: {
+    fontSize: 13,
   },
   filterText: {
-    fontSize: 11,
-    color: THEME.colors.textMuted,
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: THEME.colors.textSecondary,
   },
   filterTextActive: {
-    color: '#38bdf8',
+    color: '#09090b',
+  },
+  filterCountBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginLeft: 2,
+  },
+  filterCountBadgeActive: {
+    backgroundColor: 'rgba(0, 0, 0, 0.12)',
+  },
+  filterCountText: {
+    fontSize: 11,
     fontWeight: '700',
+    color: THEME.colors.textMuted,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  filterCountTextActive: {
+    color: '#09090b',
   },
   centerLoader: {
     flex: 1,

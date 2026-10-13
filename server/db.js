@@ -542,6 +542,27 @@ export const DbService = {
     return rows
   },
 
+  findClipByContent(rawContent) {
+    if (!rawContent) return null
+    const trimmed = rawContent.trim()
+    const row = db.prepare('SELECT * FROM clip_vault WHERE trim(content) = ? LIMIT 1').get(trimmed)
+    if (!row) return null
+    return {
+      ...row,
+      tags: row.tags_json ? JSON.parse(row.tags_json) : [],
+      entities: row.entities_json ? JSON.parse(row.entities_json) : {},
+      isStarred: Boolean(row.is_starred),
+      convertedToOffer: Boolean(row.converted_to_offer),
+      contentType: row.content_type,
+      sourceUrl: row.source_url,
+      sourceDomain: row.source_domain,
+      sourceDevice: row.source_device,
+      copiedAt: row.copied_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }
+  },
+
   saveClip(clip) {
     const id = clip.id || `clip-${Date.now()}`
     const now = new Date().toISOString()

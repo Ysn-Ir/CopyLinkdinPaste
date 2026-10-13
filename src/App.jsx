@@ -356,18 +356,18 @@ export default function App() {
                 gap: '6px',
                 fontSize: '11px',
                 padding: '4px 10px',
-                borderRadius: '5px',
-                background: 'rgba(168, 85, 247, 0.15)',
-                border: '1px solid rgba(168, 85, 247, 0.45)',
-                color: '#d8b4fe',
+                borderRadius: '6px',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: '#f4f4f5',
                 cursor: 'pointer',
                 fontWeight: 600,
-                boxShadow: '0 2px 6px rgba(168, 85, 247, 0.15)',
+                transition: 'all 0.15s ease',
               }}
-              title="Connecter l'application mobile via QR Code & Réseau local"
+              title="Pair mobile app via QR Code & local network"
             >
               <span>📱</span>
-              <span>Appairer Mobile</span>
+              <span>Pair Mobile</span>
               <span style={{ fontSize: '10px', opacity: 0.8, fontFamily: 'monospace' }}>
                 {networkInfo?.localIps?.[0] ? `(${networkInfo.localIps[0]})` : ''}
               </span>
@@ -628,19 +628,18 @@ export default function App() {
             position: 'fixed',
             bottom: '24px',
             right: '24px',
-            padding: '12px 20px',
-            borderRadius: '12px',
-            background: clipToast.isJobOffer
-              ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.95), rgba(139, 92, 246, 0.95))'
-              : 'linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(6, 182, 212, 0.95))',
-            color: '#fff',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+            padding: '12px 18px',
+            borderRadius: '10px',
+            background: '#18181b',
+            border: '1px solid #3f3f46',
+            color: '#ffffff',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.6)',
             zIndex: 9999,
             display: 'flex',
             alignItems: 'center',
-            gap: '10px',
+            gap: '12px',
             fontSize: '13px',
-            fontWeight: 600,
+            fontWeight: 500,
             animation: 'slideInRight 0.3s ease-out',
             cursor: 'pointer',
             maxWidth: '380px',
@@ -650,14 +649,27 @@ export default function App() {
             setActiveView('clip-vault')
           }}
         >
-          <span style={{ fontSize: '18px' }}>
-            {clipToast.isJobOffer ? '💼' : '📋'}
-          </span>
-          <div>
-            <div style={{ fontSize: '11px', opacity: 0.85, marginBottom: '2px' }}>
-              {clipToast.isJobOffer ? '🎯 Offre d\'emploi détectée & créée !' : '✨ Clip capturé automatiquement'}
+          <div
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              background: clipToast.isJobOffer ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.08)',
+              border: `1px solid ${clipToast.isJobOffer ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255, 255, 255, 0.12)'}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '16px',
+              flexShrink: 0,
+            }}
+          >
+            {clipToast.isJobOffer ? '🎯' : '📋'}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '11px', color: clipToast.isJobOffer ? '#10b981' : '#a1a1aa', fontWeight: 600, marginBottom: '2px' }}>
+              {clipToast.isJobOffer ? 'Job Offer Detected & Routed' : 'Clip Auto-Captured to Vault'}
             </div>
-            <div style={{ fontSize: '13px' }}>
+            <div style={{ fontSize: '12.5px', color: '#f4f4f5', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {clipToast.title}
             </div>
           </div>

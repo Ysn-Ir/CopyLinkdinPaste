@@ -282,6 +282,18 @@ app.post('/api/clips/ingest', async (req, res) => {
     }
 
     const raw = content.trim()
+
+    // Deduplication Check: Prevent identical clips from being repeatedly ingested
+    const existingClip = DbService.findClipByContent(raw)
+    if (existingClip) {
+      return res.json({
+        success: true,
+        clip: existingClip,
+        isJobOffer: existingClip.contentType === 'job_offer',
+        isDuplicate: true,
+      })
+    }
+
     const isJob = /stage|pfe|recrute|hiring|candidat|poste|cdi|cdd|internship|job offer|apply|engineer|developer/i.test(raw)
     const emails = raw.match(/[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+/g) || []
     const phones = raw.match(/(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}/g) || []
@@ -310,26 +322,36 @@ app.post('/api/clips/ingest', async (req, res) => {
 
     let offer = null
     if (isJob) {
-      offer = DbService.saveOffer({
-        id: `offer-clip-${Date.now()}`,
-        title: clip.title,
-        company: sourceDomain || 'Company',
-        location: 'Remote / Hybride',
-        category,
-        categoryReasoning: `Auto-routed to ${channel.toUpperCase()} channel from clipboard`,
-        channel,
-        recruiterEmail: emails[0] || '',
-        recruiterName: '',
-        skills: ['Software Engineering'],
-        description: raw,
-        sourceUrl: sourceUrl || '',
-        status: 'saved',
-        attachedCvTag: 'CV - General',
-        confidence: 0.92,
-        needsUserReview: true,
-        notes: `Captured from ${sourceDomain} (${sourceDevice})`,
-        createdAt: new Date().toISOString(),
-      })
+      // Check if an offer with this description or sourceUrl already exists
+      const existingOffers = DbService.getOffers()
+      const duplicateOffer = existingOffers.find(
+        (o) => (o.description && o.description.trim() === raw) || (sourceUrl && o.sourceUrl === sourceUrl)
+      )
+
+      if (duplicateOffer) {
+        offer = duplicateOffer
+      } else {
+        offer = DbService.saveOffer({
+          id: `offer-clip-${Date.now()}`,
+          title: clip.title,
+          company: sourceDomain || 'Company',
+          location: 'Remote / Hybride',
+          category,
+          categoryReasoning: `Auto-routed to ${channel.toUpperCase()} channel from clipboard`,
+          channel,
+          recruiterEmail: emails[0] || '',
+          recruiterName: '',
+          skills: ['Software Engineering'],
+          description: raw,
+          sourceUrl: sourceUrl || '',
+          status: 'saved',
+          attachedCvTag: 'CV - General',
+          confidence: 0.92,
+          needsUserReview: true,
+          notes: `Captured from ${sourceDomain} (${sourceDevice})`,
+          createdAt: new Date().toISOString(),
+        })
+      }
     }
 
     res.json({ success: true, clip, isJobOffer: isJob, offer })

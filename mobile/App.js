@@ -24,19 +24,18 @@ import { OffersListScreen } from './src/screens/OffersListScreen'
 import { OfferDetailScreen } from './src/screens/OfferDetailScreen'
 import { ConnectScreen } from './src/screens/ConnectScreen'
 import { ClipVaultScreen } from './src/screens/ClipVaultScreen'
+import { ClipboardWatcher } from './src/services/clipboardWatcher'
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [selectedOffer, setSelectedOffer] = useState(null)
   const [isReady, setIsReady] = useState(false)
 
-  // Global Clipboard Detection State
-  const [detectedClipText, setDetectedClipText] = useState('')
-  const [isAutoIngesting, setIsAutoIngesting] = useState(false)
-  const [lastClipHash, setLastClipHash] = useState('')
+  // Floating Toast State for Automatic Clipboard Capture
+  const [capturedEvent, setCapturedEvent] = useState(null)
   const [bannerVisible, setBannerVisible] = useState(false)
-  const bannerAnim = useRef(new Animated.Value(-100)).current
-  const appStateRef = useRef(AppState.currentState)
+  const bannerAnim = useRef(new Animated.Value(-120)).current
+  const bannerTimerRef = useRef(null)
 
   useEffect(() => {
     initApp()
@@ -44,119 +43,47 @@ export default function App() {
 
   const initApp = async () => {
     await ApiService.init()
+    await ClipboardWatcher.init()
+    ClipboardWatcher.start(2500)
     setIsReady(true)
-    // Initial clipboard check
-    await checkSystemClipboard()
   }
 
-  // Hash helper
-  const computeHash = (str) => {
-    let hash = 0
-    for (let i = 0; i < str.length; i++) {
-      hash = ((hash << 5) - hash) + str.charCodeAt(i)
-      hash |= 0
-    }
-    return hash.toString(36)
-  }
-
-  // Global clipboard check
-  const checkSystemClipboard = async () => {
-    try {
-      const hasStr = await Clipboard.hasStringAsync()
-      if (!hasStr) return
-
-      const text = await Clipboard.getStringAsync()
-      if (!text || text.trim().length < 8) return
-
-      const hash = computeHash(text.trim())
-      if (hash === lastClipHash) return
-
-      setLastClipHash(hash)
-      setDetectedClipText(text.trim())
-      showClipboardBanner()
-    } catch {
-      // ignore
-    }
-  }
-
-  // AppState change listener (e.g., returning from LinkedIn/Chrome)
+  // Subscribe to automatic clipboard ingestion events (strictly non-blocking & deduplicated)
   useEffect(() => {
-    const sub = AppState.addEventListener('change', async (nextState) => {
-      if (appStateRef.current.match(/inactive|background/) && nextState === 'active') {
-        await checkSystemClipboard()
+    const unsubscribe = ClipboardWatcher.subscribe((event) => {
+      if (event && event.success && !event.isDuplicate) {
+        showAutoCapturedToast(event)
       }
-      appStateRef.current = nextState
     })
+    return () => unsubscribe()
+  }, [])
 
-    // Also periodic poll every 2.5s while active
-    const interval = setInterval(() => {
-      if (appStateRef.current === 'active') {
-        checkSystemClipboard()
-      }
-    }, 2500)
-
-    return () => {
-      sub?.remove()
-      clearInterval(interval)
-    }
-  }, [lastClipHash])
-
-  const showClipboardBanner = () => {
+  const showAutoCapturedToast = (event) => {
+    setCapturedEvent(event)
     setBannerVisible(true)
+    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current)
+
     Animated.spring(bannerAnim, {
       toValue: 0,
       useNativeDriver: true,
       bounciness: 4,
     }).start()
+
+    // Smoothly auto-dismiss after 4 seconds
+    bannerTimerRef.current = setTimeout(() => {
+      hideClipboardBanner()
+    }, 4000)
   }
 
   const hideClipboardBanner = () => {
     Animated.timing(bannerAnim, {
       toValue: -120,
-      duration: 200,
+      duration: 250,
       useNativeDriver: true,
-    }).start(() => setBannerVisible(false))
-  }
-
-  const handleQuickIngestDetected = async () => {
-    if (!detectedClipText || isAutoIngesting) return
-    setIsAutoIngesting(true)
-
-    try {
-      let sourceDomain = 'clipboard'
-      const match = detectedClipText.match(/https?:\/\/([^\s/]+)/)
-      if (match) sourceDomain = match[1].replace('www.', '')
-
-      const res = await ApiService.ingestClip({
-        content: detectedClipText,
-        sourceDomain,
-        sourceDevice: 'mobile',
-        sourceUrl: /^https?:\/\/\S+$/i.test(detectedClipText) ? detectedClipText : '',
-      })
-
-      setIsAutoIngesting(false)
-      hideClipboardBanner()
-
-      if (res.success) {
-        if (res.isJobOffer && res.offer) {
-          Alert.alert(
-            'Job Offer Captured & Synced!',
-            `"${res.offer.title || 'New Job Offer'}" was routed to ${res.channel ? res.channel.toUpperCase() : 'OFFER'} channel and synced to your PC!`,
-            [
-              { text: 'View Offer', onPress: () => setSelectedOffer(res.offer) },
-              { text: 'OK', style: 'cancel' },
-            ]
-          )
-        } else {
-          Alert.alert('Saved to Vault', 'Content saved into Universal Clip Vault.')
-        }
-      } else {
-        Alert.alert('Notice', res.error || 'Server connection failed. Check Network tab.')
-      }
-    } catch {
-      setIsAutoIngesting(false)
-      hideClipboardBanner()
-    }
+    }).start(() => {
+      setBannerVisible(false)
+      setCapturedEvent(null)
+    })
   }
 
   const handleSelectOffer = (offer) => {
@@ -205,8 +132,8 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <ExpoStatusBar style="light" />
 
-      {/* Real-time Floating Clipboard Detection Banner */}
-      {bannerVisible && (
+      {/* Non-intrusive Auto-Capture Floating Notification Toast */}
+      {bannerVisible && capturedEvent && (
         <Animated.View
           style={[
             styles.clipboardBanner,
@@ -215,27 +142,31 @@ export default function App() {
         >
           <View style={styles.bannerLeft}>
             <View style={styles.bannerIconBox}>
-              <Text style={{ fontSize: 13 }}>📋</Text>
+              <Text style={{ fontSize: 13 }}>
+                {capturedEvent.isJobOffer ? '🎯' : '📋'}
+              </Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.bannerTitle}>New Copied Content Detected</Text>
+              <Text style={styles.bannerTitle} numberOfLines={1}>
+                {capturedEvent.isJobOffer ? 'Job Offer Auto-Captured!' : 'Clip Auto-Captured to Vault'}
+              </Text>
               <Text style={styles.bannerSnippet} numberOfLines={1}>
-                {detectedClipText}
+                {capturedEvent.clip?.title || (capturedEvent.rawText?.slice(0, 45) + '...') || 'Item synced to vault'}
               </Text>
             </View>
           </View>
           <View style={styles.bannerActions}>
-            <TouchableOpacity
-              style={styles.bannerActionBtn}
-              onPress={handleQuickIngestDetected}
-              disabled={isAutoIngesting}
-            >
-              {isAutoIngesting ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Text style={styles.bannerActionText}>⚡ Ingest</Text>
-              )}
-            </TouchableOpacity>
+            {capturedEvent.isJobOffer && capturedEvent.offer && (
+              <TouchableOpacity
+                style={styles.bannerActionBtn}
+                onPress={() => {
+                  hideClipboardBanner()
+                  setSelectedOffer(capturedEvent.offer)
+                }}
+              >
+                <Text style={styles.bannerActionText}>View</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={styles.bannerCloseBtn}
               onPress={hideClipboardBanner}
@@ -413,7 +344,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 8,
-    backgroundColor: 'rgba(14, 165, 233, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -433,13 +364,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   bannerActionBtn: {
-    backgroundColor: '#0284c7',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 7,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 6,
   },
   bannerActionText: {
-    color: '#ffffff',
+    color: '#09090b',
     fontSize: 11,
     fontWeight: '700',
   },

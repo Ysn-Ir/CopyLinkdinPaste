@@ -998,6 +998,30 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
     if not raw_content:
         raise HTTPException(status_code=400, detail="Clipboard content cannot be empty")
 
+    # Deduplication: return existing clip if identical content was already ingested
+    existing_clip = db.query(ClipVaultModel).filter_by(content=raw_content).first()
+    if existing_clip:
+        return {
+            "success": True,
+            "clip": {
+                "id": existing_clip.id,
+                "content": existing_clip.content,
+                "contentType": existing_clip.content_type,
+                "title": existing_clip.title,
+                "summary": existing_clip.summary,
+                "sourceUrl": existing_clip.source_url,
+                "sourceDomain": existing_clip.source_domain,
+                "sourceDevice": existing_clip.source_device,
+                "tags": json.loads(existing_clip.tags_json) if existing_clip.tags_json else [],
+                "entities": json.loads(existing_clip.entities_json) if existing_clip.entities_json else {},
+                "isStarred": existing_clip.is_starred,
+                "convertedToOffer": existing_clip.converted_to_offer,
+                "createdAt": existing_clip.created_at,
+            },
+            "isJobOffer": existing_clip.content_type in ["job_offer", "job"],
+            "isDuplicate": True,
+        }
+
     cfg = db.query(AiConfigModel).filter_by(id="default").first()
     api_key = (cfg.api_key if cfg else None) or GROQ_API_KEY
     model = (cfg.model if cfg else None) or DEFAULT_MODEL

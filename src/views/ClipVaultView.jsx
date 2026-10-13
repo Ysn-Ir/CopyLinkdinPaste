@@ -70,7 +70,7 @@ function detectClipChannel(clip) {
   if (/(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}/.test(text) || /whatsapp|linkedin\.com\/in/i.test(text)) {
     return { id: 'direct_contact', label: 'Direct DM / WA', color: '#2dd4bf' }
   }
-  return { id: 'external', label: 'ATS Portal', color: '#38bdf8' }
+  return { id: 'external', label: 'ATS Portal', color: '#94a3b8' }
 }
 
 export function ClipVaultView({
@@ -226,8 +226,18 @@ export function ClipVaultView({
         </div>
       </div>
 
-      {/* Type Filter Pills */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', overflowX: 'auto', paddingBottom: '4px' }}>
+      {/* Type Filter Pills with Generous Space and Distinct Badges */}
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '8px',
+          marginBottom: '16px',
+          flexShrink: 0,
+          minHeight: '44px',
+          alignItems: 'center',
+        }}
+      >
         {CONTENT_TYPES.map((type) => {
           const count = typeCounts[type.id] || 0
           const isActive = activeType === type.id
@@ -236,42 +246,53 @@ export function ClipVaultView({
               key={type.id}
               onClick={() => setActiveType(type.id)}
               style={{
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
-                padding: '5px 12px',
-                borderRadius: '20px',
-                border: `1px solid ${isActive ? type.color + '80' : 'var(--border-default)'}`,
-                background: isActive ? type.color + '20' : 'transparent',
-                color: isActive ? type.color : 'var(--text-secondary)',
+                gap: '8px',
+                padding: '7px 15px',
+                borderRadius: '8px',
+                border: isActive ? '1px solid #ffffff' : '1px solid var(--border-default)',
+                background: isActive ? '#27272a' : 'var(--bg-surface)',
+                color: isActive ? '#ffffff' : 'var(--text-secondary)',
                 cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: isActive ? 600 : 400,
-                whiteSpace: 'nowrap',
-                transition: 'all 0.2s ease',
+                fontSize: '12.5px',
+                fontWeight: isActive ? 600 : 500,
+                minHeight: '38px',
+                flexShrink: 0,
+                transition: 'all 0.15s ease',
+                boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.3)' : 'none',
               }}
             >
-              <span>{type.icon}</span>
+              <span style={{ fontSize: '14px', lineHeight: 1 }}>{type.icon}</span>
               <span>{type.label}</span>
-              {count > 0 && (
-                <span style={{
-                  fontSize: '10px',
-                  padding: '1px 5px',
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                  padding: '2px 7px',
                   borderRadius: '10px',
-                  background: isActive ? type.color + '30' : 'var(--bg-elevated)',
-                  color: isActive ? type.color : 'var(--text-tertiary)',
+                  background: isActive
+                    ? 'rgba(255, 255, 255, 0.18)'
+                    : count > 0
+                    ? 'rgba(255, 255, 255, 0.08)'
+                    : 'rgba(255, 255, 255, 0.03)',
+                  color: isActive
+                    ? '#ffffff'
+                    : count > 0
+                    ? 'var(--text-primary)'
+                    : 'var(--text-tertiary)',
                   fontWeight: 600,
-                }}>
-                  {count}
-                </span>
-              )}
+                }}
+              >
+                {count}
+              </span>
             </button>
           )
         })}
       </div>
 
       {/* Search + Domain Filter + Starred */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '18px', alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', alignItems: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
         <div style={{
           position: 'relative',
           flex: '1 1 280px',
@@ -358,6 +379,7 @@ export function ClipVaultView({
         fontSize: '12px',
         color: 'var(--text-secondary)',
         flexWrap: 'wrap',
+        flexShrink: 0,
       }}>
         <span><strong style={{ color: '#ffffff' }}>{clips.length}</strong> total clips</span>
         <span><strong style={{ color: '#f59e0b' }}>{clips.filter((c) => c.isStarred).length}</strong> favorites</span>
