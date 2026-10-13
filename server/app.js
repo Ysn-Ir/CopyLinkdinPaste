@@ -183,6 +183,67 @@ app.post('/api/ai/complete', async (req, res) => {
   }
 })
 
+// Conversational AI Agent endpoint (Groq proxy eliminating deterministic fallback)
+app.post('/api/ai/chat', async (req, res) => {
+  try {
+    const { messages = [], candidateProfile = {}, offers = [], model } = req.body
+    const aiConfig = DbService.getAiConfig()
+    const activeKey = aiConfig.apiKey || process.env.GROQ_API_KEY || ''
+    if (!activeKey) {
+      return res.status(500).json({ error: 'Groq API key not configured on server' })
+    }
+
+    const offersSummary = offers.slice(0, 8).map(
+      (o) => `- [${(o.channel || 'external').toUpperCase()}] ${o.title} at ${o.company || 'Unknown'} (Category: ${o.category}, Status: ${o.status})`
+    ).join('\n')
+
+    const systemPrompt = `You are the Autonomous Career Agent & PFE Copilot for OmniHunt, powered by Groq.
+You are sharp, candid, strategic, and knowledgeable. Answer user questions dynamically and intelligently.
+
+Candidate: ${candidateProfile.fullName || 'Candidate'} (${candidateProfile.headline || candidateProfile.degree || 'Engineer'})
+Skills: ${candidateProfile.skills || 'AI, Software, Cloud'}
+Target Roles: ${candidateProfile.projects || 'Graduation Internship / PFE'}
+
+Pipeline Context (${offers.length} active offers):
+${offersSummary || 'No offers tracked yet.'}
+
+Provide strategic, specific, non-canned answers. Always output strictly in English. Never use French.`
+
+    const apiMessages = [
+      { role: 'system', content: systemPrompt },
+      ...messages.filter((m) => m.content).map((m) => ({ role: m.role, content: m.content })),
+    ]
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${activeKey}`,
+      },
+      body: JSON.stringify({
+        model: model || 'llama-3.3-70b-versatile',
+        messages: apiMessages,
+        temperature: 0.5,
+      }),
+    })
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      return res.status(response.status).json({ error: err.error?.message || `HTTP ${response.status}` })
+    }
+
+    const data = await response.json()
+    res.json({
+      role: 'assistant',
+      content: data.choices?.[0]?.message?.content || '',
+      model: data.model,
+      usage: data.usage,
+    })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // URL Scraper Endpoint (handles OpenGraph & images)
 app.get('/api/scrape', async (req, res) => {
   const targetUrl = req.query.url

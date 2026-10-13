@@ -122,4 +122,18 @@ class ClipSchema(BaseModel):
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
 
+class AiChatRequest(BaseModel):
+    messages: List[Dict[str, Any]]
+    candidateProfile: Optional[Dict[str, Any]] = None
+    offers: Optional[List[Dict[str, Any]]] = None
+    model: Optional[str] = None
+    temperature: Optional[float] = 0.5
+    apiKey: Optional[str] = None
+
+class ClipOcrRequest(BaseModel):
+    imageBase64: str
+    sourceUrl: Optional[str] = ""
+    sourceDevice: Optional[str] = "mobile"
+
+
 

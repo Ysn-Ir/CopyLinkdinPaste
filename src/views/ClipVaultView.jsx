@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Clipboard,
   Star,
@@ -20,11 +20,14 @@ import {
   Monitor,
   Zap,
   RefreshCw,
+  Camera,
 } from 'lucide-react'
+import { StorageService } from '../services/storage.js'
 
 const CONTENT_TYPES = [
   { id: 'all', label: 'All', icon: '📋', color: '#94a3b8' },
   { id: 'job_offer', label: 'Job Offers', icon: '💼', color: '#10b981' },
+  { id: 'educational_video', label: 'Videos & Shorts', icon: '🎬', color: '#f59e0b' },
   { id: 'code_snippet', label: 'Code Snippets', icon: '💻', color: '#e2e8f0' },
   { id: 'tech_article', label: 'Articles', icon: '📰', color: '#f59e0b' },
   { id: 'social_post', label: 'Social', icon: '💬', color: '#14b8a6' },
@@ -57,7 +60,9 @@ function getDomainIcon(domain) {
   if (d.includes('stackoverflow')) return '📚'
   if (d.includes('medium')) return '📖'
   if (d.includes('reddit')) return '🟠'
-  if (d.includes('youtube')) return '▶️'
+  if (d.includes('youtube') || d.includes('youtu.be')) return '🎬'
+  if (d.includes('tiktok')) return '🎵'
+  if (d.includes('instagram')) return '📸'
   if (d.includes('indeed') || d.includes('glassdoor')) return '💼'
   return '🌐'
 }
@@ -88,6 +93,36 @@ export function ClipVaultView({
   const [activeDomain, setActiveDomain] = useState('all')
   const [showStarredOnly, setShowStarredOnly] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
+  const [isOcrProcessing, setIsOcrProcessing] = useState(false)
+  const fileInputRef = useRef(null)
+
+  const handleScreenshotUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsOcrProcessing(true)
+    try {
+      const reader = new FileReader()
+      reader.onload = async () => {
+        try {
+          const base64 = reader.result.split(',')[1]
+          await StorageService.ocrIngestClip({
+            imageBase64: base64,
+            sourceDevice: 'desktop',
+          })
+          if (onRefresh) await onRefresh()
+        } catch (err) {
+          console.error('OCR ingest failed:', err)
+        } finally {
+          setIsOcrProcessing(false)
+          if (fileInputRef.current) fileInputRef.current.value = ''
+        }
+      }
+      reader.readAsDataURL(file)
+    } catch (err) {
+      console.error('Screenshot read failed:', err)
+      setIsOcrProcessing(false)
+    }
+  }
 
   // Derive unique domains from clips
   const domains = useMemo(() => {
@@ -203,6 +238,35 @@ export function ClipVaultView({
           >
             <Zap size={13} />
             {clipboardMonitorActive ? 'Auto-Capture Active' : 'Auto-Capture Paused'}
+          </button>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handleScreenshotUpload}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isOcrProcessing}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              border: '1px solid var(--border-default)',
+              background: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 500,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Camera size={13} style={{ color: '#10b981' }} />
+            <span>{isOcrProcessing ? 'Extracting OCR...' : 'Screenshot OCR'}</span>
           </button>
 
           <button
@@ -565,6 +629,56 @@ export function ClipVaultView({
                 }}>
                   {clip.summary || clip.content?.slice(0, 200)}
                 </p>
+
+                {/* Educational Video Breakdown & Key Takeaways */}
+                {(clip.contentType === 'educational_video' || clip.entities?.videoData) && (
+                  <div style={{
+                    marginTop: '8px',
+                    marginBottom: '12px',
+                    padding: '12px 14px',
+                    background: 'rgba(245, 158, 11, 0.05)',
+                    border: '1px solid rgba(245, 158, 11, 0.22)',
+                    borderRadius: '8px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span>🎬</span> Video Takeaways & Key Insights
+                      </span>
+                      {clip.entities?.videoData?.creator && (
+                        <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                          By {clip.entities.videoData.creator}
+                        </span>
+                      )}
+                    </div>
+                    {clip.entities?.videoData?.coreConcept && (
+                      <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
+                        Core Concept: {clip.entities.videoData.coreConcept}
+                      </div>
+                    )}
+                    {Array.isArray(clip.entities?.videoData?.keyTakeaways) && clip.entities.videoData.keyTakeaways.length > 0 && (
+                      <ul style={{ margin: '0 0 6px 0', paddingLeft: '18px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                        {clip.entities.videoData.keyTakeaways.map((point, idx) => (
+                          <li key={idx} style={{ marginBottom: '3px' }}>{point}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {Array.isArray(clip.entities?.videoData?.toolsMentioned) && clip.entities.videoData.toolsMentioned.length > 0 && (
+                      <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center', marginTop: '6px' }}>
+                        <span style={{ fontSize: '10.5px', color: 'var(--text-tertiary)' }}>Tools:</span>
+                        {clip.entities.videoData.toolsMentioned.map((t, idx) => (
+                          <span key={idx} style={{
+                            fontSize: '10px',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            background: 'rgba(255, 255, 255, 0.06)',
+                            color: 'var(--text-primary)',
+                            border: '1px solid var(--border-default)',
+                          }}>{t}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Meta row */}
                 <div style={{

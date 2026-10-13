@@ -260,27 +260,49 @@ Respond ONLY with the JSON object.`
   },
 
   /**
-   * Chat assistant using Groq with full candidate awareness
+   * Chat assistant using Groq with full candidate awareness & backend proxy
    */
   async chatAssistant(messages, candidateProfile, offers, config = {}) {
-    const apiKey = (config.apiKey || ENV_GROQ_KEY || '').trim()
     const model = (config.model && config.model !== 'llama-3.3-70b-versatile') ? config.model : DEFAULT_MODEL
 
+    // 1. Try backend /api/ai/chat proxy (uses server GROQ_API_KEY, no client key required)
+    try {
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages,
+          candidateProfile,
+          offers,
+          model,
+          temperature: typeof config.temperature === 'number' ? config.temperature : 0.5,
+          apiKey: config.apiKey || undefined,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.content) return data.content
+      }
+    } catch (e) {
+      console.warn('Backend /api/ai/chat proxy error:', e)
+    }
+
+    // 2. Fallback to direct Groq client call if client has an API key configured
+    const apiKey = (config.apiKey || ENV_GROQ_KEY || '').trim()
     if (!apiKey) {
       return null
     }
 
-    const userDirective = config.customSystemPrompt || candidateProfile.customInstructions || ''
+    const userDirective = config.customSystemPrompt || candidateProfile?.customInstructions || ''
 
-    const systemPrompt = `You are PFE Hunter Assistant, an autonomous career copilot with complete freedom.
+    const systemPrompt = `You are OmniHunt Career Agent, an autonomous career copilot with complete freedom.
 ${userDirective ? `USER MASTER INSTRUCTIONS:\n${userDirective}\n` : ''}
-You have access to the user's active offer database:
-Offers count: ${offers.length}
-Candidate: ${candidateProfile.fullName} (${candidateProfile.headline || candidateProfile.degree})
-Key Skills: ${candidateProfile.skills || 'AI, Software Engineering'}
+Offers in pipeline: ${(offers || []).length}
+Candidate: ${candidateProfile?.fullName || 'Candidate'} (${candidateProfile?.headline || candidateProfile?.degree || ''})
+Key Skills: ${candidateProfile?.skills || 'AI, Software Engineering'}
 
 Recent Offers Overview:
-${offers.slice(0, 7).map((o) => `- [${o.channel.toUpperCase()}] ${o.title} at ${o.company} (Category: ${o.category}, Recruiter: ${o.sharer?.name || o.recruiterEmail || 'N/A'}, Status: ${o.status})`).join('\n')}
+${(offers || []).slice(0, 7).map((o) => `- [${(o.channel || 'external').toUpperCase()}] ${o.title} at ${o.company} (Category: ${o.category}, Recruiter: ${o.sharer?.name || o.recruiterEmail || 'N/A'}, Status: ${o.status})`).join('\n')}
 
 Answer directly, concisely, and with high technical precision. Adapt to the language of the user (French or English).`
 
@@ -298,7 +320,7 @@ Answer directly, concisely, and with high technical precision. Adapt to the lang
       body: JSON.stringify({
         model,
         messages: apiMessages,
-        temperature: typeof config.temperature === 'number' ? config.temperature : 0.3,
+        temperature: typeof config.temperature === 'number' ? config.temperature : 0.4,
       }),
     })
 

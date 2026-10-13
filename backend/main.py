@@ -21,8 +21,10 @@ from .schemas import (
     CategorySchema,
     ClipSchema,
     ClipIngestSchema,
+    AiChatRequest,
+    ClipOcrRequest,
 )
-from .ai_service import call_groq_chat, analyze_offer, analyze_clip
+from .ai_service import call_groq_chat, analyze_offer, analyze_clip, call_groq_vision
 from .scraper_service import scrape_url_metadata
 
 logging.basicConfig(level=logging.INFO)
@@ -1026,22 +1028,54 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
     api_key = (cfg.api_key if cfg else None) or GROQ_API_KEY
     model = (cfg.model if cfg else None) or DEFAULT_MODEL
 
-    # Run universal AI semantic classification
+    # Deep URL Scraping: If content is or contains a URL, fetch the real HTML & metadata first!
+    import re
+    url_match = re.search(r'https?://[^\s]+', raw_content)
+    target_url = req.sourceUrl or (url_match.group(0) if url_match else None)
+
+    scraped_meta = None
+    rich_text = raw_content
+
+    if target_url:
+        try:
+            scraped_meta = await scrape_url_metadata(target_url)
+            if scraped_meta.get("bodyText"):
+                rich_text = f"TITLE: {scraped_meta.get('title', '')}\nSITE: {scraped_meta.get('siteName', '')}\nDESCRIPTION: {scraped_meta.get('description', '')}\n\nPAGE CONTENT:\n{scraped_meta.get('bodyText', '')}"
+            elif scraped_meta.get("title"):
+                rich_text = f"TITLE: {scraped_meta.get('title', '')}\nDESCRIPTION: {scraped_meta.get('description', '')}\nURL: {target_url}"
+        except Exception as e:
+            logger.warning(f"Error scraping URL {target_url}: {e}")
+
+    # Run universal AI semantic classification with rich scraped content
     analyzed = await analyze_clip(
-        raw_text=raw_content,
-        source_url=req.sourceUrl,
-        source_domain=req.sourceDomain,
+        raw_text=rich_text,
+        source_url=target_url or req.sourceUrl,
+        source_domain=req.sourceDomain or (scraped_meta.get("siteName") if scraped_meta else None),
         api_key=api_key,
         model=model
     )
 
     clip_id = f"clip-{int(datetime.utcnow().timestamp()*1000)}"
     content_type = analyzed.get("contentType") or "note"
-    title = analyzed.get("title") or raw_content.split("\n")[0][:70] or "Nouveau Clip"
-    summary = analyzed.get("summary") or raw_content[:200]
-    source_domain = analyzed.get("sourceDomain") or req.sourceDomain or "clipboard"
+    if scraped_meta and (scraped_meta.get("isVideo") or scraped_meta.get("isEducationalVideo")):
+        content_type = "educational_video"
+
+    title = (scraped_meta.get("title") if scraped_meta and scraped_meta.get("title") and len(scraped_meta["title"]) > 10 else None) or analyzed.get("title") or raw_content.split("\n")[0][:70] or "New Clip"
+    summary = analyzed.get("summary") or (scraped_meta.get("description") if scraped_meta else None) or raw_content[:200]
+    source_domain = analyzed.get("sourceDomain") or (scraped_meta.get("siteName") if scraped_meta else None) or req.sourceDomain or "clipboard"
     tags = analyzed.get("tags") or []
     entities = analyzed.get("entities") or {}
+
+    # Store videoData or educational takeaways if available
+    if analyzed.get("videoData"):
+        entities["videoData"] = analyzed["videoData"]
+    elif scraped_meta and scraped_meta.get("isVideo"):
+        entities["videoData"] = {
+            "coreConcept": title,
+            "keyTakeaways": [summary, f"Educational video from {source_domain}"],
+            "toolsMentioned": tags,
+            "creator": scraped_meta.get("author") or source_domain,
+        }
 
     clip = ClipVaultModel(
         id=clip_id,
@@ -1049,7 +1083,7 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
         content_type=content_type,
         title=title,
         summary=summary,
-        source_url=req.sourceUrl or "",
+        source_url=target_url or req.sourceUrl or "",
         source_domain=source_domain,
         source_device=req.sourceDevice or "desktop",
         tags_json=json.dumps(tags),
@@ -1067,7 +1101,7 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
     is_job = bool(
         analyzed.get("isJobOffer")
         or content_type in ["job_offer", "job"]
-        or any(w in raw_content.lower() for w in [
+        or any(w in rich_text.lower() for w in [
             "stage", "pfe", "internship", "intern", "hiring", "recrute", "recrutement",
             "candidat", "poste", "cdi", "cdd", "job offer", "we are hiring", "apply now", "postuler"
         ])
@@ -1075,15 +1109,14 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
 
     if is_job:
         job_data = analyzed.get("jobData") or {}
-        import re
-        emails = re.findall(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', raw_content)
-        phones = re.findall(r'(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}', raw_content)
+        emails = re.findall(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', rich_text)
+        phones = re.findall(r'(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}', rich_text)
         
         detected_channel = job_data.get("channel")
         if not detected_channel or detected_channel not in ["email", "direct_contact", "external"]:
             if emails:
                 detected_channel = "email"
-            elif phones or "whatsapp" in raw_content.lower() or "linkedin.com/in" in raw_content.lower() or "mp" in raw_content.lower() or "dm" in raw_content.lower():
+            elif phones or "whatsapp" in rich_text.lower() or "linkedin.com/in" in rich_text.lower() or "mp" in rich_text.lower() or "dm" in rich_text.lower():
                 detected_channel = "direct_contact"
             else:
                 detected_channel = "external"
@@ -1091,13 +1124,13 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
         offer_id = f"offer-clip-{int(datetime.utcnow().timestamp()*1000)}"
         cat_id = job_data.get("category")
         if not cat_id:
-            if any(w in raw_content.lower() for w in ["ai", "ia", "nlp", "llm", "machine learning", "deep learning", "vision"]):
+            if any(w in rich_text.lower() for w in ["ai", "ia", "nlp", "llm", "machine learning", "deep learning", "vision"]):
                 cat_id = "ai-ml"
-            elif any(w in raw_content.lower() for w in ["data", "sql", "spark", "bi", "analytics"]):
+            elif any(w in rich_text.lower() for w in ["data", "sql", "spark", "bi", "analytics"]):
                 cat_id = "data"
-            elif any(w in raw_content.lower() for w in ["devops", "cloud", "aws", "docker", "kubernetes"]):
+            elif any(w in rich_text.lower() for w in ["devops", "cloud", "aws", "docker", "kubernetes"]):
                 cat_id = "devops-cloud"
-            elif any(w in raw_content.lower() for w in ["cyber", "security", "pentest"]):
+            elif any(w in rich_text.lower() for w in ["cyber", "security", "pentest"]):
                 cat_id = "cybersecurity"
             else:
                 cat_id = "dev-fullstack"
@@ -1109,15 +1142,15 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
             id=offer_id,
             title=job_data.get("title") or title,
             company=job_data.get("company") or source_domain or "Company",
-            location=job_data.get("location") or "Hybride / Télétravail",
+            location=job_data.get("location") or "Remote / Hybrid",
             category=cat_id,
             category_reasoning=f"Auto-routed to {detected_channel.upper()} channel from clipboard ({source_domain})",
             channel=detected_channel,
             recruiter_email=job_data.get("recruiterEmail") or (emails[0] if emails else ""),
             recruiter_name=job_data.get("recruiterName") or "",
             skills_json=json.dumps(job_data.get("skills") or tags),
-            description=raw_content,
-            source_url=req.sourceUrl or "",
+            description=rich_text,
+            source_url=target_url or req.sourceUrl or "",
             status="saved",
             attached_cv_tag=cv_tag,
             confidence=0.94,
@@ -1140,6 +1173,109 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
         "isJobOffer": bool(is_job),
         "offer": auto_created_offer.to_dict() if auto_created_offer else None
     }
+
+
+@app.post("/api/clips/ocr-ingest")
+async def ocr_ingest_clip(req: ClipOcrRequest, db: Session = Depends(get_db)):
+    """Extracts OCR text from mobile screenshot via Groq Vision, then performs semantic classification"""
+    cfg = db.query(AiConfigModel).filter_by(id="default").first()
+    api_key = (cfg.api_key if cfg else None) or GROQ_API_KEY
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Groq API key not configured for Vision OCR")
+
+    try:
+        extracted_text = await call_groq_vision(
+            image_base64=req.imageBase64,
+            prompt="Extract all text from this screenshot. If this is a recruiter post, WhatsApp message, or job flyer, extract the full job description, company name, requirements, and recruiter contact info verbatim. Return only the extracted text.",
+            api_key=api_key
+        )
+    except Exception as e:
+        logger.error(f"Groq Vision OCR failed: {e}")
+        raise HTTPException(status_code=500, detail=f"OCR failed: {str(e)}")
+
+    if not extracted_text or len(extracted_text.strip()) < 10:
+        raise HTTPException(status_code=400, detail="Could not detect readable text in screenshot")
+
+    # Ingest the extracted text as a clip
+    ingest_payload = ClipIngestSchema(
+        content=extracted_text.strip(),
+        sourceUrl=req.sourceUrl or "",
+        sourceDomain="screenshot_ocr",
+        sourceDevice=req.sourceDevice or "mobile",
+        copiedAt=datetime.utcnow().isoformat()
+    )
+    return await ingest_clip(ingest_payload, db)
+
+
+@app.post("/api/ai/chat")
+async def chat_agent_endpoint(req: AiChatRequest, db: Session = Depends(get_db)):
+    """Grounded conversational AI Career Agent powered by Groq LLM without deterministic fallbacks"""
+    cfg = db.query(AiConfigModel).filter_by(id="default").first()
+    api_key = req.apiKey or (cfg.api_key if cfg else None) or GROQ_API_KEY
+    model = req.model or (cfg.model if cfg else None) or "llama-3.3-70b-versatile"
+
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Groq API key is not configured")
+
+    # Gather live pipeline context
+    offers = req.offers
+    if offers is None:
+        db_offers = db.query(OfferModel).order_by(OfferModel.updated_at.desc()).limit(15).all()
+        offers = [o.to_dict() for o in db_offers]
+
+    prof = req.candidateProfile
+    if prof is None:
+        db_prof = db.query(UserProfileModel).filter_by(id="default").first()
+        prof = db_prof.to_dict() if db_prof else {}
+
+    offers_summary = "\n".join([
+        f"- [{o.get('channel', 'external').upper()}] {o.get('title')} at {o.get('company', 'Unknown')} (Category: {o.get('category')}, Status: {o.get('status')}, Recruiter: {o.get('recruiterName') or o.get('recruiterEmail') or 'N/A'})"
+        for o in (offers or [])[:10]
+    ])
+
+    system_prompt = f"""You are the Autonomous Career Agent & PFE Copilot for OmniHunt, powered by Groq.
+You are dynamic, sharp, candid, and highly strategic. Answer open-ended questions intelligently without rigid canned responses.
+
+Candidate Profile:
+- Name: {prof.get('fullName', 'Candidate')}
+- Headline: {prof.get('headline', 'Software & AI Engineer')}
+- Degree: {prof.get('degree', 'Engineering Degree / Master')}
+- Skills: {prof.get('skills', 'AI, NLP, Fullstack, Cloud')}
+- Tone: {prof.get('tonePreference', 'Direct, confident, high-agency')}
+
+Active Pipeline Snapshot ({len(offers or [])} offers):
+{offers_summary or 'No offers in pipeline yet.'}
+
+Instructions:
+1. Provide thoughtful, actionable, and non-generic advice tailored to the candidate's exact stack and target roles.
+2. If asked to write outreach (email, LinkedIn note, WhatsApp), generate polished, personalized copy ready to send.
+3. If asked about pipeline stats or strategy, provide concrete insights based on the active offers above.
+4. Always respond strictly in English. Never use French."""
+
+    api_messages = [{"role": "system", "content": system_prompt}]
+    for m in req.messages:
+        role = m.get("role", "user")
+        content = m.get("content", "")
+        if role in ["user", "assistant"] and content:
+            api_messages.append({"role": role, "content": content})
+
+    try:
+        res = await call_groq_chat(
+            messages=api_messages,
+            api_key=api_key,
+            model=model,
+            temperature=req.temperature or 0.5,
+            max_tokens=1600
+        )
+        return {
+            "role": "assistant",
+            "content": res["content"],
+            "model": res.get("model", model),
+            "usage": res.get("usage", {})
+        }
+    except Exception as e:
+        logger.error(f"Groq chat error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/clips/sync-all")

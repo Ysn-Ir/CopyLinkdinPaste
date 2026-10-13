@@ -281,4 +281,27 @@ export const ApiService = {
       return { success: false, error: err.message, syncedCount: 0 }
     }
   },
+
+  /**
+   * Ingests a screenshot via Groq Vision OCR
+   */
+  async ocrIngestClip({ imageBase64, sourceUrl = '', sourceDevice = 'mobile' }) {
+    const url = `${currentServerUrl}/api/clips/ocr-ingest`
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64,
+          sourceUrl,
+          sourceDevice,
+        }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      return { success: true, clip: data.clip, isJobOffer: data.isJobOffer, offer: data.offer }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  },
 }

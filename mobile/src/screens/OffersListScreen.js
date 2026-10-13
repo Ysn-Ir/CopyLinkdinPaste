@@ -346,8 +346,8 @@ const styles = StyleSheet.create({
     borderColor: THEME.colors.border,
   },
   channelChipActive: {
-    backgroundColor: 'rgba(14, 165, 233, 0.15)',
-    borderColor: 'rgba(14, 165, 233, 0.45)',
+    backgroundColor: '#ffffff',
+    borderColor: '#ffffff',
   },
   channelChipText: {
     fontSize: 10.5,
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   channelChipTextActive: {
-    color: '#38bdf8',
+    color: '#09090b',
     fontWeight: '700',
   },
   filtersScroll: {
@@ -372,21 +372,21 @@ const styles = StyleSheet.create({
     borderColor: THEME.colors.border,
   },
   filterChipActive: {
-    backgroundColor: 'rgba(14, 165, 233, 0.15)',
-    borderColor: 'rgba(14, 165, 233, 0.45)',
+    backgroundColor: '#ffffff',
+    borderColor: '#ffffff',
   },
   filterChipText: {
     fontSize: 11,
     color: THEME.colors.textMuted,
   },
   filterChipTextActive: {
-    color: '#38bdf8',
+    color: '#09090b',
     fontWeight: '700',
   },
   listContent: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 120, // generous bottom padding to prevent buttons from being eaten out
+    paddingBottom: 160, // generous bottom padding to prevent buttons from being eaten out
     gap: 12,
   },
   card: {

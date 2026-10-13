@@ -41,6 +41,43 @@ async def call_groq_chat(messages, api_key=None, model=None, temperature=0.25, m
             "usage": data.get("usage", {})
         }
 
+async def call_groq_vision(image_base64: str, prompt: str = "Extract all text and job/educational details from this screenshot", api_key: str = None):
+    """Uses Groq Vision (llama-3.2-11b-vision-preview) to extract OCR text from phone screenshots"""
+    key = (api_key or GROQ_API_KEY or "").strip()
+    if not key:
+        raise ValueError("Groq API key is not configured")
+
+    image_url = image_base64 if image_base64.startswith("data:image") else f"data:image/jpeg;base64,{image_base64}"
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": image_url}}
+            ]
+        }
+    ]
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.post(
+            GROQ_API_URL,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {key}",
+            },
+            json={
+                "model": "llama-3.2-11b-vision-preview",
+                "messages": messages,
+                "temperature": 0.2,
+                "max_tokens": 1500,
+            }
+        )
+        if resp.status_code != 200:
+            err = resp.text
+            raise RuntimeError(f"Groq Vision Error: {err}")
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
+
 async def analyze_offer(raw_text: str, candidate_profile: dict = None, api_key: str = None, model: str = None, categories: list = None):
     profile = candidate_profile or {}
 
@@ -161,20 +198,32 @@ async def analyze_clip(raw_text: str, source_url: str = None, source_domain: str
                 extracted_domain = dom
                 break
     if not extracted_domain:
-        extracted_domain = "Presse-papiers Local"
+        extracted_domain = "Local Clipboard"
 
     system_prompt = f"""You are OmniMemory, a high-precision universal semantic clipboard analysis engine.
 Analyze the user's copied text and extract structured metadata in strict JSON.
 
 Determine:
-1. "contentType": one of ["job_offer", "code_snippet", "tech_article", "social_post", "tool_or_repo", "note", "contact"]
+1. "contentType": one of ["job_offer", "educational_video", "code_snippet", "tech_article", "social_post", "tool_or_repo", "note", "contact"]
+   * Use "educational_video" for YouTube shorts/videos, TikTok tutorials, Instagram reels, educational demos, tech breakdowns.
+   * Use "job_offer" if it represents an internship, PFE, hiring post, job listing.
+   * Use "code_snippet" for programming code, scripts, configs, commands.
+   * Use "tech_article" for documentation, guides, blog posts, whitepapers.
+   * Use "social_post" for general LinkedIn/Twitter discussions or news.
 2. "title": concise, professional title (max 70 chars)
-3. "summary": 2-3 clear sentences summarizing the core idea, key takeaways or purpose
+3. "summary": 2-3 clear sentences summarizing the core idea, mission or learning objective
 4. "tags": 3-6 relevant keywords/topics/technologies
 5. "entities": object containing recognized items (e.g. {{"technologies": [...], "companies": [...], "people": [...], "links": [...]}})
 6. "isJobOffer": boolean (true if it represents a stage, PFE, job listing, hiring post)
-7. "detectedLanguage": "fr" | "en" | "other"
-8. If "isJobOffer" is true, also include "jobData":
+7. "isEducationalVideo": boolean (true if it is a video tutorial, short, reel, or educational clip)
+8. If "isEducationalVideo" is true, include "videoData":
+   {{
+      "coreConcept": "Main lesson or concept taught (e.g. LoRA Fine-Tuning in 60s)",
+      "keyTakeaways": ["Actionable takeaway or bullet point 1", "Key point 2", "Key point 3"],
+      "toolsMentioned": ["PyTorch", "HuggingFace", "Unsloth"],
+      "creator": "Creator name/handle if known or empty"
+   }}
+9. If "isJobOffer" is true, include "jobData":
    {{
       "title": job title,
       "company": company name,
@@ -230,9 +279,11 @@ Output ONLY valid JSON. No markdown fences.
         is_job = any(w in raw_text.lower() for w in [
             "stage", "pfe", "recrute", "hiring", "candidat", "poste", "cdi", "cdd", "internship", "job offer", "apply", "engineer", "ingénieur", "developer", "recrutement"
         ])
+        is_video = any(d in (source_url or "").lower() or d in raw_text.lower() for d in ["youtube.com", "youtu.be", "tiktok.com", "instagram.com/reel", "shorts/"])
         is_code = any(w in raw_text for w in ["def ", "class ", "import ", "const ", "function", "return ", "npm ", "git ", "{", "};", "<div", "export "])
-        content_type = "job_offer" if is_job else ("code_snippet" if is_code else "note")
-        first_line = raw_text.split("\n")[0][:70].strip() or "Clipboard Note"
+        
+        content_type = "job_offer" if is_job else ("educational_video" if is_video else ("code_snippet" if is_code else "note"))
+        first_line = raw_text.split("\n")[0][:70].strip() or "Clipboard Item"
 
         emails = re.findall(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', raw_text)
         phones = re.findall(r'(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}', raw_text)
@@ -244,7 +295,7 @@ Output ONLY valid JSON. No markdown fences.
             job_data = {
                 "title": first_line,
                 "company": extracted_domain or "Recruiter Post",
-                "location": "Hybride / Télétravail" if "hybride" in raw_text.lower() or "remote" in raw_text.lower() else "Paris / France",
+                "location": "Remote / Hybrid" if "hybride" in raw_text.lower() or "remote" in raw_text.lower() else "Tech Hub",
                 "category": cat,
                 "recruiterEmail": emails[0] if emails else "",
                 "recruiterName": "",
@@ -252,14 +303,25 @@ Output ONLY valid JSON. No markdown fences.
                 "channel": channel
             }
 
+        video_data = None
+        if is_video:
+            video_data = {
+                "coreConcept": first_line,
+                "keyTakeaways": [first_line, "Saved from educational short / video"],
+                "toolsMentioned": [],
+                "creator": extracted_domain,
+            }
+
         return {
             "contentType": content_type,
             "title": first_line,
             "summary": raw_text[:200] + ("..." if len(raw_text) > 200 else ""),
-            "tags": ["Clipboard", extracted_domain] if extracted_domain else ["Clipboard"],
+            "tags": ["Video" if is_video else "Clipboard", extracted_domain] if extracted_domain else ["Clipboard"],
             "entities": {},
             "isJobOffer": is_job,
+            "isEducationalVideo": is_video,
             "jobData": job_data,
+            "videoData": video_data,
             "sourceDomain": extracted_domain,
             "detectedLanguage": "en"
         }

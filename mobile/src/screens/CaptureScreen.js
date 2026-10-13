@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
+import * as ImagePicker from 'expo-image-picker'
 import { ApiService } from '../services/api'
 import { THEME } from '../theme'
 
@@ -19,9 +20,61 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
   const [clipboardContent, setClipboardContent] = useState('')
   const [isIngesting, setIsIngesting] = useState(false)
   const [isReadingClipboard, setIsReadingClipboard] = useState(false)
+  const [isProcessingOcr, setIsProcessingOcr] = useState(false)
   const [captureMode, setCaptureMode] = useState('auto') // 'auto' | 'offer' | 'clip'
   const [lastCreatedOffer, setLastCreatedOffer] = useState(null)
   const [lastCreatedClip, setLastCreatedClip] = useState(null)
+
+  const handlePickScreenshotOcr = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (!permission.granted) {
+        Alert.alert('Permission Needed', 'Photo library permission is needed to analyze screenshots.')
+        return
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        base64: true,
+        quality: 0.85,
+      })
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0]
+        if (!asset.base64) {
+          Alert.alert('Error', 'Could not read image data.')
+          return
+        }
+
+        setIsProcessingOcr(true)
+        const res = await ApiService.ocrIngestClip({
+          imageBase64: asset.base64,
+          sourceDevice: 'mobile',
+        })
+        setIsProcessingOcr(false)
+
+        if (res.success) {
+          setLastCreatedClip(res.clip)
+          if (res.isJobOffer && res.offer) {
+            setLastCreatedOffer(res.offer)
+            Alert.alert(
+              'Job Offer Extracted!',
+              `"${res.offer.title}" was extracted via Groq Vision OCR and routed to channels!`
+            )
+            if (onOfferCreated) onOfferCreated(res.offer)
+          } else {
+            Alert.alert('Screenshot Ingested', 'Text extracted and categorized into vault.')
+          }
+        } else {
+          Alert.alert('OCR Notice', res.error || 'Could not parse text from screenshot.')
+        }
+      }
+    } catch (err) {
+      setIsProcessingOcr(false)
+      Alert.alert('OCR Error', err.message || 'Failed to select image.')
+    }
+  }
 
   // Continuously check clipboard every 1.5s while on this screen
   useEffect(() => {
@@ -152,15 +205,26 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
             <View style={styles.liveDot} />
             <Text style={styles.clipboardLiveText}>CLIPBOARD LISTENER ACTIVE</Text>
           </View>
-          <TouchableOpacity
-            style={styles.pasteActionBtn}
-            onPress={handlePasteFromClipboard}
-            disabled={isReadingClipboard}
-          >
-            <Text style={styles.pasteActionBtnText}>
-              {isReadingClipboard ? 'Reading...' : '📋 Paste Text'}
-            </Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            <TouchableOpacity
+              style={styles.pasteActionBtn}
+              onPress={handlePickScreenshotOcr}
+              disabled={isProcessingOcr}
+            >
+              <Text style={styles.pasteActionBtnText}>
+                {isProcessingOcr ? 'Analyzing OCR...' : '📸 Screenshot OCR'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.pasteActionBtn}
+              onPress={handlePasteFromClipboard}
+              disabled={isReadingClipboard}
+            >
+              <Text style={styles.pasteActionBtnText}>
+                {isReadingClipboard ? 'Reading...' : '📋 Paste'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {clipboardContent ? (
@@ -293,7 +357,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 120, // generous bottom padding so buttons are never eaten out
+    paddingBottom: 160, // generous bottom padding so buttons are never eaten out
   },
   headerRow: {
     marginBottom: 14,
@@ -313,7 +377,7 @@ const styles = StyleSheet.create({
   clipboardLiveCard: {
     backgroundColor: THEME.colors.bgCard,
     borderWidth: 1,
-    borderColor: 'rgba(14, 165, 233, 0.35)',
+    borderColor: THEME.colors.border,
     borderRadius: 14,
     padding: 14,
     marginBottom: 14,
@@ -452,16 +516,16 @@ const styles = StyleSheet.create({
     color: THEME.colors.textPrimary,
   },
   ingestBtn: {
-    backgroundColor: '#0284c7',
+    backgroundColor: '#ffffff',
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 16,
   },
   ingestBtnText: {
-    color: '#ffffff',
+    color: '#09090b',
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 
   // Result Card
@@ -504,9 +568,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   viewOfferBtn: {
-    backgroundColor: 'rgba(14, 165, 233, 0.15)',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(14, 165, 233, 0.35)',
+    borderColor: 'rgba(16, 185, 129, 0.35)',
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 8,
@@ -514,6 +578,6 @@ const styles = StyleSheet.create({
   viewOfferText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#38bdf8',
+    color: '#10b981',
   },
 })

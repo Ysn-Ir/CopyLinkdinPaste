@@ -423,6 +423,20 @@ export const StorageService = {
     return null
   },
 
+  async ocrIngestClip({ imageBase64, sourceUrl = '', sourceDevice = 'desktop' }) {
+    try {
+      const res = await fetch('/api/clips/ocr-ingest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64, sourceUrl, sourceDevice }),
+      })
+      if (res.ok) return await res.json()
+    } catch (e) {
+      console.error('OCR ingest failed:', e)
+    }
+    return null
+  },
+
   async starClip(clipId) {
     try {
       const res = await fetch(`/api/clips/${clipId}/star`, { method: 'PATCH' })

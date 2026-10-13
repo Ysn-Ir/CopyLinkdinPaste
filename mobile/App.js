@@ -14,6 +14,7 @@ import {
 } from 'react-native'
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar'
 import * as Clipboard from 'expo-clipboard'
+import * as Linking from 'expo-linking'
 
 import { ApiService } from './src/services/api'
 import { THEME } from './src/theme'
@@ -47,6 +48,33 @@ export default function App() {
     ClipboardWatcher.start(2500)
     setIsReady(true)
   }
+
+  // Handle incoming Android share intents and deep links
+  useEffect(() => {
+    const handleIncomingUrl = async (url) => {
+      if (!url) return
+      try {
+        const parsed = Linking.parse(url)
+        const rawContent = parsed.queryParams?.text || parsed.queryParams?.url || (url.startsWith('http') ? url : null)
+        if (rawContent && rawContent.length > 5) {
+          const res = await ApiService.ingestClip({
+            content: rawContent,
+            sourceUrl: rawContent.startsWith('http') ? rawContent : '',
+            sourceDevice: 'mobile',
+          })
+          if (res && res.success) {
+            showAutoCapturedToast(res)
+          }
+        }
+      } catch (err) {
+        console.warn('Failed handling incoming shared URL:', err)
+      }
+    }
+
+    Linking.getInitialURL().then(handleIncomingUrl)
+    const subscription = Linking.addEventListener('url', (e) => handleIncomingUrl(e.url))
+    return () => subscription.remove()
+  }, [])
 
   // Subscribe to automatic clipboard ingestion events (strictly non-blocking & deduplicated)
   useEffect(() => {

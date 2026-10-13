@@ -16,10 +16,12 @@ import {
 import { THEME } from '../theme'
 import { ApiService } from '../services/api'
 import { ClipboardWatcher } from '../services/clipboardWatcher'
+import * as ImagePicker from 'expo-image-picker'
 
 const CONTENT_TYPES = [
   { id: 'all', label: 'All', icon: '📋' },
   { id: 'job_offer', label: 'Job Offers', icon: '💼' },
+  { id: 'educational_video', label: 'Videos & Shorts', icon: '🎬' },
   { id: 'code_snippet', label: 'Code Snippets', icon: '💻' },
   { id: 'tech_article', label: 'Articles', icon: '📰' },
   { id: 'social_post', label: 'Social', icon: '💬' },
@@ -31,6 +33,7 @@ const CONTENT_TYPES = [
 function getTypeColor(typeId) {
   const map = {
     job_offer: '#10b981',
+    educational_video: '#f59e0b',
     code_snippet: '#cbd5e1',
     tech_article: '#f59e0b',
     social_post: '#14b8a6',
@@ -75,6 +78,9 @@ function getDomainEmoji(domain) {
   if (d.includes('stackoverflow')) return '📚'
   if (d.includes('medium')) return '📖'
   if (d.includes('reddit')) return '🟠'
+  if (d.includes('youtube') || d.includes('youtu.be')) return '🎬'
+  if (d.includes('tiktok')) return '🎵'
+  if (d.includes('instagram')) return '📸'
   return '🌐'
 }
 
@@ -87,6 +93,54 @@ export function ClipVaultScreen({ onNavigateTab }) {
   const [activeType, setActiveType] = useState('all')
   const [autoCapture, setAutoCapture] = useState(true)
   const [ingestingClip, setIngestingClip] = useState(false)
+  const [isProcessingOcr, setIsProcessingOcr] = useState(false)
+
+  const handlePickScreenshotOcr = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (!permission.granted) {
+        Alert.alert('Permission Needed', 'Media library permission is required to analyze screenshots.')
+        return
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        base64: true,
+        quality: 0.85,
+      })
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0]
+        if (!asset.base64) {
+          Alert.alert('Error', 'Unable to retrieve screenshot image data.')
+          return
+        }
+
+        setIsProcessingOcr(true)
+        const res = await ApiService.ocrIngestClip({
+          imageBase64: asset.base64,
+          sourceDevice: 'mobile',
+        })
+        setIsProcessingOcr(false)
+
+        if (res.success) {
+          Alert.alert(
+            res.isJobOffer ? 'Job Offer Extracted!' : 'Screenshot Ingested',
+            res.isJobOffer
+              ? `"${res.offer?.title || 'Offer'}" extracted and routed to application channels!`
+              : 'Screenshot text extracted and organized into Clip Vault.'
+          )
+          await loadClips()
+        } else {
+          Alert.alert('OCR Failed', res.error || 'Failed to extract text from screenshot.')
+        }
+      }
+    } catch (err) {
+      setIsProcessingOcr(false)
+      Alert.alert('OCR Error', err.message || 'Image selection error.')
+    }
+  }
 
   // Load clips
   const loadClips = useCallback(async () => {
@@ -176,7 +230,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
   const handleStar = async (clipId) => {
     const res = await ApiService.starClip(clipId)
     if (res.success) {
-      setClips((prev) =>
+      setAllClips((prev) =>
         prev.map((c) => (c.id === clipId ? { ...c, isStarred: res.isStarred } : c))
       )
     }
@@ -190,7 +244,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
         style: 'destructive',
         onPress: async () => {
           await ApiService.deleteClip(clipId)
-          setClips((prev) => prev.filter((c) => c.id !== clipId))
+          setAllClips((prev) => prev.filter((c) => c.id !== clipId))
         },
       },
     ])
@@ -236,6 +290,38 @@ export function ClipVaultScreen({ onNavigateTab }) {
         <Text style={styles.clipSummary} numberOfLines={3}>
           {clip.summary || clip.content?.slice(0, 180)}
         </Text>
+
+        {/* Educational Video Breakdown & Key Takeaways */}
+        {(clip.contentType === 'educational_video' || clip.entities?.videoData) && (
+          <View style={styles.eduBox}>
+            <View style={styles.eduHeader}>
+              <Text style={styles.eduHeaderTitle}>🎬 Video Key Takeaways</Text>
+              {clip.entities?.videoData?.creator ? (
+                <Text style={styles.eduCreator}>By {clip.entities.videoData.creator}</Text>
+              ) : null}
+            </View>
+            {clip.entities?.videoData?.coreConcept ? (
+              <Text style={styles.eduConcept}>Concept: {clip.entities.videoData.coreConcept}</Text>
+            ) : null}
+            {Array.isArray(clip.entities?.videoData?.keyTakeaways) && clip.entities.videoData.keyTakeaways.length > 0 ? (
+              <View style={styles.takeawaysList}>
+                {clip.entities.videoData.keyTakeaways.map((point, idx) => (
+                  <Text key={idx} style={styles.takeawayItem}>• {point}</Text>
+                ))}
+              </View>
+            ) : null}
+            {Array.isArray(clip.entities?.videoData?.toolsMentioned) && clip.entities.videoData.toolsMentioned.length > 0 ? (
+              <View style={styles.toolsRow}>
+                <Text style={styles.toolsLabel}>Tools:</Text>
+                {clip.entities.videoData.toolsMentioned.map((t, idx) => (
+                  <View key={idx} style={styles.toolTag}>
+                    <Text style={styles.toolTagText}>{t}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        )}
 
         {/* Tags */}
         {clip.tags && clip.tags.length > 0 && (
@@ -323,15 +409,26 @@ export function ClipVaultScreen({ onNavigateTab }) {
         </View>
       </View>
 
-      {/* Search */}
-      <View style={styles.searchContainer}>
+      {/* Search + OCR row */}
+      <View style={styles.searchRow}>
         <TextInput
-          style={styles.searchInput}
+          style={styles.searchInputFlex}
           placeholder="Search vault clips..."
           placeholderTextColor={THEME.colors.textMuted}
           value={search}
           onChangeText={setSearch}
         />
+        <TouchableOpacity
+          onPress={handlePickScreenshotOcr}
+          disabled={isProcessingOcr}
+          style={styles.ocrSearchBtn}
+        >
+          {isProcessingOcr ? (
+            <ActivityIndicator size="small" color="#10b981" />
+          ) : (
+            <Text style={styles.ocrSearchBtnText}>📸 OCR</Text>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Type Filter Pills with Space & Real-Time Counts */}
@@ -376,7 +473,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
           data={filteredClips}
           keyExtractor={(item) => item.id}
           renderItem={renderClip}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }} // safe bottom padding
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 160 }} // safe bottom padding
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -640,14 +737,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   convertBtn: {
-    backgroundColor: 'rgba(14, 165, 233, 0.15)',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(14, 165, 233, 0.4)',
+    borderColor: 'rgba(16, 185, 129, 0.35)',
   },
   convertBtnText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#38bdf8',
+    color: '#10b981',
   },
   convertedBadge: {
     paddingVertical: 2,
@@ -683,5 +780,101 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     maxWidth: 260,
     lineHeight: 18,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    gap: 8,
+  },
+  searchInputFlex: {
+    flex: 1,
+    backgroundColor: THEME.colors.bgSurface,
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 13,
+    color: THEME.colors.textPrimary,
+  },
+  ocrSearchBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 8,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ocrSearchBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#10b981',
+  },
+  eduBox: {
+    backgroundColor: 'rgba(245, 158, 11, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.25)',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+  },
+  eduHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  eduHeaderTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#f59e0b',
+    textTransform: 'uppercase',
+  },
+  eduCreator: {
+    fontSize: 10,
+    color: THEME.colors.textMuted,
+  },
+  eduConcept: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: THEME.colors.textPrimary,
+    marginBottom: 4,
+  },
+  takeawaysList: {
+    marginBottom: 4,
+  },
+  takeawayItem: {
+    fontSize: 11,
+    color: THEME.colors.textSecondary,
+    lineHeight: 16,
+    marginBottom: 2,
+  },
+  toolsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  toolsLabel: {
+    fontSize: 10,
+    color: THEME.colors.textMuted,
+    marginRight: 2,
+  },
+  toolTag: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  toolTagText: {
+    fontSize: 9.5,
+    color: THEME.colors.textPrimary,
   },
 })

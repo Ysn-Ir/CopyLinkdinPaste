@@ -330,64 +330,39 @@ export const AgentOrchestrator = {
   },
 
   /**
-   * Conversational Assistant: Handles user queries in the Chat Panel
+   * Conversational Assistant: Handles user queries in the Chat Panel with full dynamic Groq LLM
    */
   async chat(userMessage, conversationHistory, context) {
-    const hasAiKey = Boolean(context.aiConfig?.apiKey?.trim())
     const toolCalls = []
 
-    if (hasAiKey) {
-      try {
-        const aiReply = await AiService.chatAssistant(
-          [...conversationHistory, { role: 'user', content: userMessage }],
-          context.candidateProfile,
-          context.offers,
-          context.aiConfig
-        )
-        if (aiReply) {
-          return {
-            role: 'assistant',
-            content: aiReply,
-            toolCalls: [{ name: 'groq_llm_inference', duration: 180 }],
-            timestamp: new Date().toLocaleTimeString(),
-          }
+    try {
+      const aiReply = await AiService.chatAssistant(
+        [...conversationHistory, { role: 'user', content: userMessage }],
+        context.candidateProfile,
+        context.offers,
+        context.aiConfig || {}
+      )
+      if (aiReply) {
+        return {
+          role: 'assistant',
+          content: aiReply,
+          toolCalls: [{ name: 'groq_llm_inference', duration: 180 }],
+          timestamp: new Date().toLocaleTimeString(),
         }
-      } catch (err) {
-        console.warn('Groq chat failed, falling back to tool rules:', err)
       }
-    }
-
-    // Local tool search fallback
-    const lower = userMessage.toLowerCase().trim()
-    let reply = ''
-
-    if (lower.includes('email offer') || (lower.includes('email') && lower.includes('show'))) {
-      const tool = await this.callTool('search_offers', { channel: 'email', offers: context.offers }, context)
-      toolCalls.push(tool)
-      const list = tool.result
-      reply = `Found **${list.length} direct email offers** in your pipeline.\n\n` +
-        list.slice(0, 3).map((o) => `• **${o.title}** at **${o.company}** → \`${o.recruiterEmail}\` (Sharer: ${o.sharer?.name || 'N/A'}, CV: ${o.attachedCvTag})`).join('\n')
-    } else if (lower.includes('dm') || lower.includes('contact') || lower.includes('whatsapp') || lower.includes('linkedin')) {
-      const tool = await this.callTool('search_offers', { channel: 'direct_contact', offers: context.offers }, context)
-      toolCalls.push(tool)
-      const list = tool.result
-      reply = `Found **${list.length} direct contact / DM offers** (LinkedIn / WhatsApp):\n\n` +
-        list.map((o) => `• **${o.title}** at **${o.company}** → Contact: **${o.sharer?.name}** (${o.sharer?.phone || o.sharer?.profileUrl || 'LinkedIn DM'})`).join('\n')
-    } else if (lower.includes('cv') && (lower.includes('data') || lower.includes('ai') || lower.includes('dev'))) {
-      const cat = lower.includes('ai') ? 'ai-ml' : lower.includes('data') ? 'data' : 'dev-fullstack'
-      const matchedCv = context.cvList.find((c) => c.category === cat)
-      reply = `For **${cat.toUpperCase()}** roles, your primary CV variant is **"${matchedCv?.name || 'CV - AI & Machine Learning'}"**.\n\nThis variant is automatically attached whenever an offer is classified under ${cat}.`
-    } else if (lower.includes('interview') || lower.includes('pipeline') || lower.includes('status')) {
-      const interviews = context.offers.filter((o) => o.status === 'interview')
-      const applied = context.offers.filter((o) => o.status === 'applied')
-      reply = `Current Pipeline Status:\n• **${interviews.length} active interviews**\n• **${applied.length} pending applications**\n• **${context.offers.length} total tracked offers**.`
-    } else {
-      reply = `I can help you analyze offers, draft custom cold outreach emails, check recruiter profiles, or query your pipeline.\n\nTry asking:\n- *"Show direct contact offers with WhatsApp or LinkedIn DM"*\n- *"Show email offers about AI from this week"*\n- *"Which CV is assigned to Data roles?"*`
+    } catch (err) {
+      console.warn('Groq agent chat failed:', err)
+      return {
+        role: 'assistant',
+        content: `Error connecting to Groq AI Assistant: ${err.message}. Please check backend connection.`,
+        toolCalls: [],
+        timestamp: new Date().toLocaleTimeString(),
+      }
     }
 
     return {
       role: 'assistant',
-      content: reply,
+      content: "I'm ready to help analyze your pipeline, draft custom outreach, or evaluate career opportunities. Ask me anything!",
       toolCalls,
       timestamp: new Date().toLocaleTimeString(),
     }
