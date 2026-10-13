@@ -76,9 +76,9 @@ export function OfferCard({
             <span
               className="badge-channel"
               style={{
-                background: 'rgba(168, 85, 247, 0.1)',
-                color: '#c084fc',
-                border: '1px solid rgba(168, 85, 247, 0.25)',
+                background: 'rgba(245, 158, 11, 0.1)',
+                color: '#f59e0b',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
               }}
               title="LinkedIn DM or WhatsApp outreach"
             >
@@ -128,7 +128,7 @@ export function OfferCard({
         <div
           style={{
             fontSize: '11px',
-            color: '#c084fc',
+            color: '#f59e0b',
             background: '#121215',
             padding: '4px 8px',
             borderRadius: '4px',
@@ -205,7 +205,7 @@ export function OfferCard({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <FileText size={12} color="#3b82f6" />
+          <FileText size={12} color="#ffffff" />
           <span>{offer.attachedCvTag || 'CV - General'}</span>
         </div>
         <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Auto-Matched</span>
@@ -245,7 +245,7 @@ export function OfferCard({
           {offer.channel === 'direct_contact' && (
             <button
               className="btn btn-primary"
-              style={{ flex: 1, background: '#a855f7', borderColor: '#a855f7', color: '#fff' }}
+              style={{ flex: 1, background: '#ffffff', borderColor: '#ffffff', color: '#09090b' }}
               onClick={() => onOpenDirectContact ? onOpenDirectContact(offer) : onOpenEmailStudio(offer)}
             >
               <MessageSquare size={12} />

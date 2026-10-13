@@ -189,10 +189,10 @@ export function SettingsView({
       <div className="kpi-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <div className="section-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Sparkles size={16} color="#3b82f6" />
+            <Sparkles size={16} color="#ffffff" />
             <span className="section-title">AI Engine Settings (Groq API / Llama 3.3 — No Restraints)</span>
           </div>
-          <span className="skill-tag" style={{ color: '#60a5fa' }}>LLM Agent Copilot</span>
+          <span className="skill-tag" style={{ color: '#10b981' }}>LLM Agent Copilot</span>
         </div>
 
         <p style={{ fontSize: '11.5px', color: 'var(--text-tertiary)' }}>
@@ -207,7 +207,7 @@ export function SettingsView({
                 href="https://console.groq.com/keys"
                 target="_blank"
                 rel="noreferrer"
-                style={{ fontSize: '10.5px', color: '#60a5fa', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '3px' }}
+                style={{ fontSize: '10.5px', color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '3px' }}
               >
                 <span>Get free key</span>
                 <ExternalLink size={10} />
@@ -271,7 +271,7 @@ export function SettingsView({
         <div className="form-group">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
             <label className="form-label" style={{ margin: 0 }}>
-              Temperature (Creativity & Flexibility): <strong style={{ color: '#60a5fa' }}>{ai.temperature ?? 0.25}</strong>
+              Temperature (Creativity & Flexibility): <strong style={{ color: '#ffffff' }}>{ai.temperature ?? 0.25}</strong>
             </label>
             <span style={{ fontSize: '10.5px', color: 'var(--text-tertiary)' }}>
               {ai.temperature < 0.2 ? 'Deterministic & strict' : ai.temperature > 0.7 ? 'Highly creative & freeform' : 'Balanced precision'}
@@ -284,7 +284,7 @@ export function SettingsView({
             step="0.05"
             value={ai.temperature ?? 0.25}
             onChange={(e) => handleAiChange('temperature', parseFloat(e.target.value))}
-            style={{ width: '100%', cursor: 'pointer', accentColor: '#3b82f6' }}
+            style={{ width: '100%', cursor: 'pointer', accentColor: '#ffffff' }}
           />
         </div>
 
@@ -328,7 +328,7 @@ export function SettingsView({
       <div className="kpi-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <div className="section-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <User size={16} color="#3b82f6" />
+            <User size={16} color="#ffffff" />
             <span className="section-title">Candidate Profile & Grounded Experience (Complete Freedom)</span>
           </div>
           <span className="skill-tag" style={{ color: '#34d399' }}>Synced in SQLite</span>
@@ -558,14 +558,14 @@ export function SettingsView({
       <div className="kpi-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <div className="section-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Database size={16} color="#3b82f6" />
+            <Database size={16} color="#ffffff" />
             <span className="section-title">Database Storage & FastAPI Backend</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span
               className="skill-tag"
               style={{
-                color: dbStats?.engine === 'postgresql' ? '#34d399' : '#fbbf24',
+                color: dbStats?.engine === 'postgresql' ? '#10b981' : '#f59e0b',
                 background: dbStats?.engine === 'postgresql' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
                 border: `1px solid ${dbStats?.engine === 'postgresql' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
                 fontWeight: 600,
@@ -586,14 +586,14 @@ export function SettingsView({
         </div>
 
         <p style={{ fontSize: '11.5px', color: 'var(--text-tertiary)' }}>
-          Connected via SQLAlchemy to PostgreSQL (<span style={{ fontFamily: 'var(--font-mono)', color: '#93c5fd' }}>postgresql://postgres:root@localhost:5432/pfe_hunter</span>). All tables (offers, cv_vault, user_profile, ai_config) are auto-migrated on startup with seamless SQLite fallback if PostgreSQL is offline.
+          Connected via SQLAlchemy to PostgreSQL (<span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>postgresql://postgres:root@localhost:5432/pfe_hunter</span>). All tables (offers, cv_vault, user_profile, ai_config) are auto-migrated on startup with seamless SQLite fallback if PostgreSQL is offline.
         </p>
 
         {/* Database Metrics Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
           <div style={{ background: 'var(--bg-app)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
             <div style={{ fontSize: '10.5px', color: 'var(--text-tertiary)' }}>Database Engine</div>
-            <div style={{ fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-mono)', marginTop: '2px', color: '#60a5fa' }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, fontFamily: 'var(--font-mono)', marginTop: '2px', color: 'var(--text-primary)' }}>
               {dbStats?.engine === 'postgresql' ? 'PostgreSQL 16' : 'SQLite WAL'}
             </div>
           </div>
@@ -644,7 +644,7 @@ export function SettingsView({
       <div className="kpi-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <div className="section-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Smartphone size={16} color="#c084fc" />
+            <Smartphone size={16} color="#10b981" />
             <span className="section-title">📱 Android Mobile & Network Access (Tailscale / LAN)</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -656,18 +656,18 @@ export function SettingsView({
                   height: '26px',
                   padding: '0 10px',
                   fontSize: '11px',
-                  borderColor: 'rgba(168, 85, 247, 0.4)',
-                  color: '#d8b4fe',
-                  background: 'rgba(168, 85, 247, 0.1)',
+                  borderColor: 'var(--border-default)',
+                  color: 'var(--text-primary)',
+                  background: 'var(--bg-app)',
                   fontWeight: 600,
                 }}
                 onClick={onOpenMobileConnect}
               >
                 <Smartphone size={12} />
-                <span>Ouvrir QR Code Appairage</span>
+                <span>Open Pairing QR Code</span>
               </button>
             )}
-            <span className="skill-tag" style={{ color: '#c084fc', background: 'rgba(192, 132, 252, 0.1)' }}>
+            <span className="skill-tag" style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.1)' }}>
               React Native & Expo Ready
             </span>
           </div>
@@ -681,7 +681,7 @@ export function SettingsView({
           {/* LAN Wi-Fi Link Card */}
           <div style={{ background: 'var(--bg-app)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-default)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: '#60a5fa' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: '#10b981' }}>
                 <Wifi size={14} />
                 <span>Local Wi-Fi Network (LAN)</span>
               </div>
@@ -703,7 +703,7 @@ export function SettingsView({
                   padding: '4px 8px',
                   fontSize: '12px',
                   fontFamily: 'var(--font-mono)',
-                  color: '#93c5fd',
+                  color: 'var(--text-primary)',
                 }}
               />
               <button
@@ -717,7 +717,7 @@ export function SettingsView({
                   setTimeout(() => setCopiedLink(null), 1800)
                 }}
               >
-                {copiedLink === 'lan' ? <Check size={13} color="#4ade80" /> : <Copy size={13} />}
+                {copiedLink === 'lan' ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
                 <span>{copiedLink === 'lan' ? 'Copied' : 'Copy'}</span>
               </button>
             </div>
@@ -726,7 +726,7 @@ export function SettingsView({
           {/* Tailscale Remote VPN Card */}
           <div style={{ background: 'var(--bg-app)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-default)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: '#c084fc' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: '#f59e0b' }}>
                 <Server size={14} />
                 <span>Tailscale Mesh VPN</span>
               </div>
@@ -748,7 +748,7 @@ export function SettingsView({
                   padding: '4px 8px',
                   fontSize: '12px',
                   fontFamily: 'var(--font-mono)',
-                  color: '#e9d5ff',
+                  color: 'var(--text-primary)',
                 }}
               />
               <button
@@ -768,8 +768,8 @@ export function SettingsView({
         {/* Android PWA tip banner */}
         <div
           style={{
-            background: 'rgba(59, 130, 246, 0.05)',
-            border: '1px solid rgba(59, 130, 246, 0.2)',
+            background: 'var(--bg-app)',
+            border: '1px solid var(--border-default)',
             borderRadius: '6px',
             padding: '10px 14px',
             display: 'flex',
@@ -777,7 +777,7 @@ export function SettingsView({
             gap: '4px',
           }}
         >
-          <div style={{ fontSize: '12px', fontWeight: 600, color: '#60a5fa' }}>
+          <div style={{ fontSize: '12px', fontWeight: 600, color: '#ffffff' }}>
             📱 Install as Android App (Add to Home Screen):
           </div>
           <ol style={{ fontSize: '11.5px', color: 'var(--text-secondary)', paddingLeft: '18px', lineHeight: 1.6 }}>

@@ -301,13 +301,13 @@ export function OfferModal({
                     ? 'rgba(239, 68, 68, 0.15)'
                     : statusMessage.type === 'success'
                     ? 'rgba(16, 185, 129, 0.15)'
-                    : 'rgba(99, 102, 241, 0.15)',
+                    : 'rgba(14, 165, 233, 0.15)',
                 color:
                   statusMessage.type === 'error'
                     ? '#f87171'
                     : statusMessage.type === 'success'
                     ? '#34d399'
-                    : '#a5b4fc',
+                    : '#38bdf8',
                 border: '1px solid currentColor',
               }}
             >
@@ -355,7 +355,7 @@ export function OfferModal({
                   <label className="form-label">Domain / Category</label>
                   <button
                     type="button"
-                    style={{ background: 'none', border: 'none', color: '#60a5fa', fontSize: '10.5px', cursor: 'pointer', padding: 0 }}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: '10.5px', cursor: 'pointer', padding: 0 }}
                     onClick={() => setIsCustomCategory(!isCustomCategory)}
                   >
                     {isCustomCategory ? 'Pick standard' : 'Custom category'}
@@ -448,7 +448,7 @@ export function OfferModal({
                     gap: '0.5rem',
                     cursor: 'pointer',
                     fontSize: '0.88rem',
-                    color: formData.channel === 'direct_contact' ? '#c084fc' : 'var(--text-muted)',
+                    color: formData.channel === 'direct_contact' ? '#f59e0b' : 'var(--text-muted)',
                     fontWeight: 600,
                   }}
                 >
@@ -470,7 +470,7 @@ export function OfferModal({
                     gap: '0.5rem',
                     cursor: 'pointer',
                     fontSize: '0.88rem',
-                    color: formData.channel === 'external' ? '#60a5fa' : 'var(--text-muted)',
+                    color: formData.channel === 'external' ? '#ffffff' : 'var(--text-muted)',
                     fontWeight: 600,
                   }}
                 >

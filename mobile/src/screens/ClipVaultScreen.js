@@ -30,13 +30,13 @@ const CONTENT_TYPES = [
 
 function getTypeColor(typeId) {
   const map = {
-    job_offer: '#818cf8',
-    code_snippet: '#38bdf8',
-    tech_article: '#60a5fa',
-    social_post: '#fbbf24',
-    tool_or_repo: '#34d399',
-    note: '#a78bfa',
-    contact: '#fb7185',
+    job_offer: '#10b981',
+    code_snippet: '#cbd5e1',
+    tech_article: '#f59e0b',
+    social_post: '#14b8a6',
+    tool_or_repo: '#10b981',
+    note: '#a1a1aa',
+    contact: '#f43f5e',
   }
   return map[typeId] || '#94a3b8'
 }
@@ -44,13 +44,13 @@ function getTypeColor(typeId) {
 function getChannelBadge(clip) {
   const channel = clip.channel || (clip.jobData && clip.jobData.channel)
   if (channel === 'email' || (clip.content && clip.content.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/))) {
-    return { label: 'Email Channel', color: '#818cf8', bg: 'rgba(129, 140, 248, 0.12)' }
+    return { label: 'Email Channel', color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' }
   }
   if (channel === 'direct_contact' || (clip.content && clip.content.match(/(?:wa\.me|\+?[0-9]{9,15})/i))) {
-    return { label: 'Direct DM', color: '#2dd4bf', bg: 'rgba(45, 212, 191, 0.12)' }
+    return { label: 'Direct DM', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' }
   }
   if (clip.contentType === 'job_offer') {
-    return { label: 'ATS Portal', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.12)' }
+    return { label: 'ATS Portal', color: '#ffffff', bg: 'rgba(255, 255, 255, 0.08)' }
   }
   return null
 }
@@ -107,7 +107,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
     loadClips()
   }, [loadClips])
 
-  // Auto-clipboard detection on app resume
+  // Auto-clipboard detection on app resume + active periodic check
   useEffect(() => {
     const subscription = AppState.addEventListener('change', async (nextState) => {
       if (
@@ -119,7 +119,17 @@ export function ClipVaultScreen({ onNavigateTab }) {
       }
       appState.current = nextState
     })
-    return () => subscription?.remove()
+
+    const interval = setInterval(() => {
+      if (appState.current === 'active' && autoCapture) {
+        checkClipboard()
+      }
+    }, 2000)
+
+    return () => {
+      subscription?.remove()
+      clearInterval(interval)
+    }
   }, [autoCapture, lastClipHash])
 
   const simpleHash = (str) => {
@@ -138,7 +148,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
       if (!hasString) return
 
       const text = await ExpoClipboard.getStringAsync()
-      if (!text || text.trim().length < 5) return
+      if (!text || text.trim().length < 6) return
 
       const hash = simpleHash(text.trim())
       if (hash === lastClipHash) return
@@ -160,14 +170,14 @@ export function ClipVaultScreen({ onNavigateTab }) {
         await loadClips()
         const channelMsg = res.channel ? `Routed directly to ${res.channel.toUpperCase()} channel!` : ''
         Alert.alert(
-          'Clip Captured',
+          'Clip Captured to Vault',
           `${res.clip?.title || 'New Clip'}\n${res.isJobOffer ? `Job Offer detected! ${channelMsg}` : ''}`,
           [{ text: 'OK', style: 'default' }],
           { cancelable: true }
         )
       }
       setIngestingClip(false)
-    } catch (err) {
+    } catch {
       setIngestingClip(false)
     }
   }
@@ -184,7 +194,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
       Alert.alert(
         'Channels Synchronized',
         res.count > 0
-          ? `Successfully routed ${res.count} vault clips into target offer channels!`
+          ? `Successfully routed ${res.count} unrouted vault clips into target offer channels!`
           : 'All eligible clips are already synchronized to offer channels.'
       )
       await loadClips()
@@ -320,14 +330,14 @@ export function ClipVaultScreen({ onNavigateTab }) {
           <Text style={styles.headerSubtitle}>Cross-device clipboard hub</Text>
         </View>
         <View style={styles.headerActions}>
-          {ingestingClip && <ActivityIndicator size="small" color={THEME.colors.accent} />}
+          {ingestingClip && <ActivityIndicator size="small" color="#ffffff" />}
           <TouchableOpacity
             onPress={handleSyncAllClipsToOffers}
             style={styles.syncBtn}
             disabled={isSyncingAll}
           >
             {isSyncingAll ? (
-              <ActivityIndicator size="small" color="#818cf8" />
+              <ActivityIndicator size="small" color="#ffffff" />
             ) : (
               <Text style={styles.syncBtnText}>🔄 Sync Channels</Text>
             )}
@@ -371,17 +381,17 @@ export function ClipVaultScreen({ onNavigateTab }) {
         ))}
       </ScrollView>
 
-      {/* Clips List */}
+      {/* Clips List with Generous Bottom Padding */}
       {loading ? (
         <View style={styles.centerLoader}>
-          <ActivityIndicator size="large" color={THEME.colors.accent} />
+          <ActivityIndicator size="large" color="#ffffff" />
         </View>
       ) : (
         <FlatList
           data={clips}
           keyExtractor={(item) => item.id}
           renderItem={renderClip}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }} // safe bottom padding
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -390,7 +400,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
                 setRefreshing(true)
                 loadClips()
               }}
-              tintColor={THEME.colors.accent}
+              tintColor="#ffffff"
             />
           }
           ListEmptyComponent={
@@ -424,7 +434,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
     color: THEME.colors.textPrimary,
   },
   headerSubtitle: {
@@ -441,14 +451,14 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: 14,
-    backgroundColor: 'rgba(129, 140, 248, 0.12)',
+    backgroundColor: 'rgba(14, 165, 233, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(129, 140, 248, 0.3)',
+    borderColor: 'rgba(14, 165, 233, 0.35)',
   },
   syncBtnText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#818cf8',
+    fontWeight: '700',
+    color: '#38bdf8',
   },
   toggleBtn: {
     paddingVertical: 4,
@@ -499,16 +509,16 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   filterPillActive: {
-    backgroundColor: THEME.colors.accentLight,
-    borderColor: THEME.colors.accentBorder,
+    backgroundColor: 'rgba(14, 165, 233, 0.15)',
+    borderColor: 'rgba(14, 165, 233, 0.45)',
   },
   filterText: {
     fontSize: 11,
     color: THEME.colors.textMuted,
   },
   filterTextActive: {
-    color: '#818cf8',
-    fontWeight: '600',
+    color: '#38bdf8',
+    fontWeight: '700',
   },
   centerLoader: {
     flex: 1,
@@ -563,7 +573,7 @@ const styles = StyleSheet.create({
   },
   clipTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     color: THEME.colors.textPrimary,
     marginBottom: 4,
   },
@@ -617,14 +627,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   convertBtn: {
-    backgroundColor: 'rgba(129, 140, 248, 0.12)',
+    backgroundColor: 'rgba(14, 165, 233, 0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(129, 140, 248, 0.3)',
+    borderColor: 'rgba(14, 165, 233, 0.4)',
   },
   convertBtnText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#818cf8',
+    color: '#38bdf8',
   },
   convertedBadge: {
     paddingVertical: 2,

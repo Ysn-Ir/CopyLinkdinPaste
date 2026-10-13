@@ -337,13 +337,13 @@ export default function App() {
                 fontSize: '11px',
                 padding: '3px 8px',
                 borderRadius: '4px',
-                background: 'rgba(59, 130, 246, 0.1)',
-                border: '1px solid rgba(59, 130, 246, 0.3)',
-                color: '#60a5fa',
+                background: 'rgba(16, 185, 129, 0.1)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                color: '#10b981',
                 fontWeight: 500,
               }}
             >
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#3b82f6' }} />
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
               <span>{dbInfo?.engine === 'postgresql' ? 'PostgreSQL: pfe_hunter (5432)' : 'FastAPI Backend'}</span>
             </div>
 

@@ -13,9 +13,9 @@ import { ApiService } from '../services/api'
 import { THEME, getStageMeta } from '../theme'
 
 function getChannelMeta(channel) {
-  if (channel === 'email') return { label: 'Email Channel', icon: '✉️', color: '#818cf8', bg: 'rgba(129, 140, 248, 0.12)' }
-  if (channel === 'direct_contact') return { label: 'Direct DM / WA', icon: '💬', color: '#2dd4bf', bg: 'rgba(45, 212, 191, 0.12)' }
-  return { label: 'ATS / External Portal', icon: '🌐', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.12)' }
+  if (channel === 'email') return { label: 'Email Channel', icon: '✉️', color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' }
+  if (channel === 'direct_contact') return { label: 'Direct DM / WA', icon: '💬', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' }
+  return { label: 'ATS / External Portal', icon: '🌐', color: '#ffffff', bg: 'rgba(255, 255, 255, 0.08)' }
 }
 
 export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
@@ -76,7 +76,7 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
       {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Text style={styles.backButtonText}>← Back</Text>
+          <Text style={styles.backButtonText}>← Back to Offers</Text>
         </TouchableOpacity>
         <View style={styles.topRightBadges}>
           <View style={[styles.channelBadge, { backgroundColor: channelMeta.bg, borderColor: channelMeta.color + '40' }]}>
@@ -92,29 +92,54 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Title & Company */}
-        <Text style={styles.title}>{currentOffer.title}</Text>
-        <Text style={styles.company}>
-          🏢 {currentOffer.company || 'Direct Organization'} • 📍 {currentOffer.location || 'Remote / Hybrid'}
-        </Text>
-
-        {currentOffer.createdAt && (
-          <Text style={styles.createdAtText}>
-            Added {new Date(currentOffer.createdAt).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Title & Organization Header */}
+        <View style={styles.heroSection}>
+          <Text style={styles.title}>{currentOffer.title}</Text>
+          <Text style={styles.company}>
+            🏢 {currentOffer.company || 'Direct Organization'} • 📍 {currentOffer.location || 'Remote / Hybrid'}
           </Text>
-        )}
 
-        {/* Domain & AI Analysis */}
+          {currentOffer.createdAt && (
+            <Text style={styles.createdAtText}>
+              Added {new Date(currentOffer.createdAt).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+            </Text>
+          )}
+        </View>
+
+        {/* Action Buttons Row: Styled cleanly with full touch-targets */}
+        <View style={styles.actionsContainer}>
+          {currentOffer.recruiterEmail ? (
+            <TouchableOpacity style={styles.emailActionBtn} onPress={handleOpenEmail} activeOpacity={0.8}>
+              <Text style={styles.actionBtnText}>✉️ Send Direct Email</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          <TouchableOpacity style={styles.waActionBtn} onPress={handleOpenWhatsApp} activeOpacity={0.8}>
+            <Text style={styles.actionBtnText}>💬 WhatsApp Outreach</Text>
+          </TouchableOpacity>
+
+          {currentOffer.sourceUrl ? (
+            <TouchableOpacity
+              style={styles.sourceActionBtn}
+              onPress={() => handleOpenUrl(currentOffer.sourceUrl)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.actionBtnText}>🔗 Open Source Job Post</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        {/* AI Role Intelligence Card */}
         <View style={styles.domainCard}>
           <View style={styles.domainHeader}>
             <Text style={styles.domainTitle}>AI Role Intelligence</Text>
             <Text style={styles.confidenceText}>
-              Confidence: {Math.round((currentOffer.confidence || 0.9) * 100)}%
+              Match: {Math.round((currentOffer.confidence || 0.92) * 100)}%
             </Text>
           </View>
           <View style={styles.categoryRow}>
@@ -127,9 +152,9 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
           ) : null}
         </View>
 
-        {/* Pipeline Stage Selector */}
+        {/* Pipeline Stage Progression */}
         <View style={styles.pipelineCard}>
-          <Text style={styles.sectionTitle}>Pipeline Status (Synced with PC)</Text>
+          <Text style={styles.sectionTitle}>Pipeline Stage (Synced with PC)</Text>
           <View style={styles.stageButtonsGrid}>
             {THEME.stages.map((st) => {
               const isActive = currentOffer.status === st.id
@@ -157,32 +182,10 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
           </View>
         </View>
 
-        {/* Quick Action Buttons */}
-        <View style={styles.actionsRow}>
-          {currentOffer.recruiterEmail ? (
-            <TouchableOpacity style={styles.emailActionBtn} onPress={handleOpenEmail}>
-              <Text style={styles.actionBtnText}>✉️ Send Email</Text>
-            </TouchableOpacity>
-          ) : null}
-
-          <TouchableOpacity style={styles.waActionBtn} onPress={handleOpenWhatsApp}>
-            <Text style={styles.actionBtnText}>💬 WhatsApp DM</Text>
-          </TouchableOpacity>
-
-          {currentOffer.sourceUrl ? (
-            <TouchableOpacity
-              style={styles.sourceActionBtn}
-              onPress={() => handleOpenUrl(currentOffer.sourceUrl)}
-            >
-              <Text style={styles.actionBtnText}>🔗 Open Source</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
         {/* Recruiter Details */}
         {(currentOffer.recruiterName || currentOffer.sharer?.name) && (
           <View style={styles.infoCard}>
-            <Text style={styles.sectionTitle}>Recruiter / Contact Profile</Text>
+            <Text style={styles.sectionTitle}>Recruiter / Poster Contact</Text>
             <Text style={styles.recruiterName}>
               👤 {currentOffer.recruiterName || currentOffer.sharer?.name}
             </Text>
@@ -190,15 +193,19 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
               <Text style={styles.recruiterTitle}>{currentOffer.sharer.title}</Text>
             ) : null}
             {currentOffer.recruiterEmail ? (
-              <Text style={styles.recruiterDetail}>✉️ {currentOffer.recruiterEmail}</Text>
+              <TouchableOpacity onPress={() => handleCopyText(currentOffer.recruiterEmail, 'Email')}>
+                <Text style={styles.recruiterDetail}>✉️ {currentOffer.recruiterEmail} (Tap to copy)</Text>
+              </TouchableOpacity>
             ) : null}
             {currentOffer.sharer?.phone ? (
-              <Text style={styles.recruiterDetail}>📞 {currentOffer.sharer.phone}</Text>
+              <TouchableOpacity onPress={() => handleCopyText(currentOffer.sharer.phone, 'Phone')}>
+                <Text style={styles.recruiterDetail}>📞 {currentOffer.sharer.phone} (Tap to copy)</Text>
+              </TouchableOpacity>
             ) : null}
           </View>
         )}
 
-        {/* WhatsApp Template */}
+        {/* WhatsApp Outreach Note */}
         {currentOffer.whatsAppMsg ? (
           <View style={styles.infoCard}>
             <View style={styles.cardHeaderWithCopy}>
@@ -228,10 +235,10 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
           </View>
         ) : null}
 
-        {/* Job Description */}
+        {/* Full Job Specification */}
         {currentOffer.description ? (
           <View style={styles.infoCard}>
-            <Text style={styles.sectionTitle}>Job Specification</Text>
+            <Text style={styles.sectionTitle}>Job Specification & Notes</Text>
             <Text style={styles.descText}>{currentOffer.description}</Text>
           </View>
         ) : null}
@@ -260,9 +267,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   backButtonText: {
-    color: '#818cf8',
+    color: '#ffffff',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   topRightBadges: {
     flexDirection: 'row',
@@ -290,13 +297,16 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 60,
+    paddingBottom: 120, // generous bottom padding so all cards and buttons can be scrolled comfortably
+  },
+  heroSection: {
+    marginBottom: 16,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 21,
+    fontWeight: '800',
     color: THEME.colors.textPrimary,
-    lineHeight: 26,
+    lineHeight: 28,
     marginBottom: 6,
   },
   company: {
@@ -307,8 +317,44 @@ const styles = StyleSheet.create({
   createdAtText: {
     fontSize: 11,
     color: THEME.colors.textMuted,
-    marginBottom: 16,
   },
+
+  // Action Buttons: Stacked cleanly so buttons are never squished
+  actionsContainer: {
+    flexDirection: 'column',
+    gap: 8,
+    marginBottom: 18,
+  },
+  emailActionBtn: {
+    backgroundColor: '#065f46',
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.4)',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  waActionBtn: {
+    backgroundColor: '#0f766e',
+    borderWidth: 1,
+    borderColor: 'rgba(45, 212, 191, 0.4)',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  sourceActionBtn: {
+    backgroundColor: '#0369a1',
+    borderWidth: 1,
+    borderColor: 'rgba(14, 165, 233, 0.4)',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  actionBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
   domainCard: {
     backgroundColor: THEME.colors.bgCard,
     borderRadius: 12,
@@ -330,7 +376,8 @@ const styles = StyleSheet.create({
   },
   confidenceText: {
     fontSize: 11,
-    color: THEME.colors.textMuted,
+    color: '#10b981',
+    fontWeight: '700',
   },
   categoryRow: {
     marginBottom: 6,
@@ -338,8 +385,8 @@ const styles = StyleSheet.create({
   categoryBadge: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#818cf8',
-    backgroundColor: 'rgba(129, 140, 248, 0.12)',
+    color: '#ffffff',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -372,56 +419,18 @@ const styles = StyleSheet.create({
   },
   stageBtn: {
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: 8,
     backgroundColor: THEME.colors.bgElevated,
     borderWidth: 1,
     borderColor: THEME.colors.border,
+    minHeight: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   stageBtnText: {
     fontSize: 11,
     color: THEME.colors.textSecondary,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
-  },
-  emailActionBtn: {
-    flex: 1,
-    minWidth: 110,
-    backgroundColor: '#065f46',
-    borderWidth: 1,
-    borderColor: 'rgba(52, 211, 153, 0.3)',
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  waActionBtn: {
-    flex: 1,
-    minWidth: 110,
-    backgroundColor: '#0f766e',
-    borderWidth: 1,
-    borderColor: 'rgba(45, 212, 191, 0.3)',
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  sourceActionBtn: {
-    flex: 1,
-    minWidth: 110,
-    backgroundColor: '#312e81',
-    borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.3)',
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  actionBtnText: {
-    color: '#f8fafc',
-    fontSize: 12,
-    fontWeight: '600',
   },
   infoCard: {
     backgroundColor: THEME.colors.bgCard,
@@ -444,8 +453,8 @@ const styles = StyleSheet.create({
   },
   recruiterDetail: {
     fontSize: 12,
-    color: THEME.colors.textMuted,
-    marginTop: 2,
+    color: '#10b981',
+    marginTop: 4,
   },
   cardHeaderWithCopy: {
     flexDirection: 'row',
@@ -455,12 +464,12 @@ const styles = StyleSheet.create({
   },
   copyLink: {
     fontSize: 11,
-    color: '#818cf8',
+    color: '#10b981',
     fontWeight: '700',
   },
   msgPreview: {
     backgroundColor: THEME.colors.bgElevated,
-    padding: 10,
+    padding: 12,
     borderRadius: 8,
     color: THEME.colors.textSecondary,
     fontSize: 12,

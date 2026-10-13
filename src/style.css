@@ -2,7 +2,7 @@
    Job Application Command Center • Linear / Raycast / Attio Tool Aesthetic
    - Neutral zinc scale (#09090b, #18181b, #27272a)
    - 1px crisp borders, 8px grid
-   - Single clean accent (#3b82f6 / #ffffff)
+   - Single clean accent (#ffffff monochrome / #10b981 emerald)
    - Zero emojis, zero glow, zero blur glassmorphism
    - Density toggle (comfortable / compact)
    - Command Palette (⌘K) & Tool Traces
@@ -21,27 +21,27 @@
   --bg-input: #0d1017;
   --bg-subtle: #141822;
 
-  --border-subtle: #181d29;
-  --border-default: #222838;
-  --border-focus: #4f46e5;
+  --border-subtle: #1c1f26;
+  --border-default: #282c37;
+  --border-focus: #ffffff;
 
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-tertiary: #64748b;
-  --text-disabled: #475569;
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #71717a;
+  --text-disabled: #52525b;
 
-  --accent-primary: #4f46e5;
-  --accent-primary-hover: #4338ca;
-  --accent-foreground: #ffffff;
+  --accent-primary: #ffffff;
+  --accent-primary-hover: #e4e4e7;
+  --accent-foreground: #09090b;
 
-  /* Sophisticated, Desaturated Muted Category Palette */
-  --cat-ai: #818cf8;
-  --cat-data: #38bdf8;
-  --cat-dev: #60a5fa;
-  --cat-cloud: #34d399;
-  --cat-cyber: #fb7185;
-  --cat-embedded: #fbbf24;
-  --cat-other: #94a3b8;
+  /* Executive Professional Muted Category Palette (Zero Blue, Zero Purple) */
+  --cat-ai: #10b981;
+  --cat-data: #14b8a6;
+  --cat-dev: #cbd5e1;
+  --cat-cloud: #059669;
+  --cat-cyber: #f43f5e;
+  --cat-embedded: #f59e0b;
+  --cat-other: #71717a;
 
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -358,6 +358,85 @@ body {
   padding: 0;
 }
 
+/* Channel & Type Filter Pills */
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+.pill-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+  border-color: #3f3f46;
+}
+.pill-btn.active {
+  background: #ffffff;
+  color: #09090b;
+  border-color: #ffffff;
+  font-weight: 600;
+}
+
+.badge-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: inherit;
+  line-height: 1.3;
+}
+.pill-btn.active .badge-pill {
+  background: #18181b;
+  color: #fafafa;
+}
+
+/* Outreach Hub Navigation Tabs */
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-top: 1px solid transparent;
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: all 0.12s ease;
+}
+.tab-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface-hover);
+}
+.tab-btn.active {
+  color: #ffffff;
+  border-bottom-color: #ffffff;
+  background: var(--bg-surface);
+  font-weight: 600;
+}
+
 /* Scrollable Workspace View */
 .workspace-view {
   flex: 1;
@@ -562,9 +641,9 @@ body {
   border: 1px solid rgba(16, 185, 129, 0.2);
 }
 .badge-channel.external {
-  background: rgba(59, 130, 246, 0.1);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(161, 161, 170, 0.1);
+  color: #d4d4d8;
+  border: 1px solid rgba(161, 161, 170, 0.2);
 }
 
 .badge-category {

@@ -183,11 +183,11 @@ export function EmailStudioModal({
                 alignItems: 'center',
                 gap: '0.4rem',
                 fontSize: '0.82rem',
-                color: '#a5b4fc',
-                background: 'rgba(99, 102, 241, 0.12)',
+                color: '#38bdf8',
+                background: 'rgba(14, 165, 233, 0.12)',
                 padding: '0.35rem 0.75rem',
                 borderRadius: '6px',
-                border: '1px solid rgba(99, 102, 241, 0.3)',
+                border: '1px solid rgba(14, 165, 233, 0.3)',
               }}
             >
               <FileText size={14} />

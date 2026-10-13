@@ -101,7 +101,7 @@ export function CommandPalette({
           {query.trim().length > 3 && (
             <button className="cmd-item" onClick={handleIngestNow}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <PlusCircle size={15} color="#3b82f6" />
+                <PlusCircle size={15} color="#ffffff" />
                 <span>
                   <strong>Ingest Offer:</strong> "{query.slice(0, 45)}..."
                 </span>

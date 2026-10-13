@@ -21,8 +21,8 @@ export function StatCards({ offers = [] }) {
       label: 'Total Saved',
       value: total,
       icon: Briefcase,
-      color: '#6366f1',
-      bg: 'rgba(99, 102, 241, 0.15)',
+      color: '#ffffff',
+      bg: 'rgba(255, 255, 255, 0.08)',
     },
     {
       label: 'Direct Email',
@@ -35,8 +35,8 @@ export function StatCards({ offers = [] }) {
       label: 'External Portals',
       value: externalOffers,
       icon: Globe,
-      color: '#3b82f6',
-      bg: 'rgba(59, 130, 246, 0.15)',
+      color: '#a1a1aa',
+      bg: 'rgba(161, 161, 170, 0.12)',
     },
     {
       label: 'Active Pipeline',

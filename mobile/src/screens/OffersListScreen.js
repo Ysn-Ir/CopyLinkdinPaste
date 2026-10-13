@@ -73,20 +73,25 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
     }
   }
 
-  // Filter offers by channel locally if selected
   const displayedOffers = selectedChannel === 'all'
     ? offers
     : offers.filter((o) => o.channel === selectedChannel)
+
+  const getCompanyInitial = (company) => {
+    if (!company) return '🏢'
+    return company.trim().charAt(0).toUpperCase()
+  }
 
   const renderOfferItem = ({ item }) => {
     const stageMeta = getStageMeta(item.status)
     const cat = categories.find((c) => c.id === item.category)
     const createdDate = item.createdAt
       ? new Date(item.createdAt).toLocaleDateString('en-US', {
-          day: '2-digit',
+          day: 'numeric',
           month: 'short',
         })
       : ''
+    const matchScore = Math.round((item.confidence || 0.92) * 100)
 
     return (
       <TouchableOpacity
@@ -94,22 +99,18 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
         activeOpacity={0.7}
         onPress={() => onSelectOffer(item)}
       >
+        {/* Top Header: Domain + Confidence + Date + Stage */}
         <View style={styles.cardHeader}>
-          <View style={styles.domainBadge}>
-            <View
-              style={[
-                styles.domainDot,
-                { backgroundColor: cat?.color || '#818cf8' },
-              ]}
-            />
-            <Text
-              style={[
-                styles.domainText,
-                { color: cat?.color || '#818cf8' },
-              ]}
-            >
-              {cat?.short_label || cat?.label || item.category || 'General'}
-            </Text>
+          <View style={styles.headerLeft}>
+            <View style={styles.companyAvatar}>
+              <Text style={styles.companyAvatarText}>{getCompanyInitial(item.company)}</Text>
+            </View>
+            <View>
+              <Text style={styles.domainText} numberOfLines={1}>
+                {cat?.label || item.category?.toUpperCase() || 'GENERAL'}
+              </Text>
+              <Text style={styles.matchText}>{matchScore}% Match</Text>
+            </View>
           </View>
 
           <View style={styles.headerRight}>
@@ -119,7 +120,7 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
             <View
               style={[
                 styles.stageBadge,
-                { backgroundColor: stageMeta.bg, borderColor: stageMeta.color },
+                { backgroundColor: stageMeta.bg, borderColor: stageMeta.color + '60' },
               ]}
             >
               <Text style={[styles.stageText, { color: stageMeta.color }]}>
@@ -129,29 +130,42 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
           </View>
         </View>
 
+        {/* Title & Company */}
         <Text style={styles.cardTitle} numberOfLines={2}>
           {item.title}
         </Text>
 
         <Text style={styles.companyText}>
-          🏢 {item.company || 'Company'} • 📍 {item.location || 'Remote / Hybrid'}
+          {item.company || 'Direct Organization'} • 📍 {item.location || 'Remote / Hybrid'}
         </Text>
 
+        {/* Recruiter info if available */}
+        {(item.recruiterName || item.sharer?.name) && (
+          <View style={styles.recruiterRow}>
+            <Text style={styles.recruiterText}>
+              👤 {item.recruiterName || item.sharer?.name}
+              {item.recruiterEmail ? ` • ${item.recruiterEmail}` : ''}
+            </Text>
+          </View>
+        )}
+
+        {/* Tech Stack / Skills Pills */}
         {item.skills && item.skills.length > 0 ? (
           <View style={styles.skillsRow}>
-            {item.skills.slice(0, 3).map((s, idx) => (
+            {item.skills.slice(0, 4).map((s, idx) => (
               <View key={idx} style={styles.skillChip}>
                 <Text style={styles.skillText}>{s}</Text>
               </View>
             ))}
-            {item.skills.length > 3 && (
-              <Text style={styles.moreSkills}>+{item.skills.length - 3}</Text>
+            {item.skills.length > 4 && (
+              <Text style={styles.moreSkills}>+{item.skills.length - 4}</Text>
             )}
           </View>
         ) : null}
 
+        {/* Card Footer: Channel Badge & Non-Squished Advance Action */}
         <View style={styles.cardFooter}>
-          <View style={styles.channelPill}>
+          <View style={styles.channelBadge}>
             <Text style={styles.channelLabel}>
               {item.channel === 'email'
                 ? '✉️ Email Outreach'
@@ -164,8 +178,9 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
           <TouchableOpacity
             style={styles.advanceButton}
             onPress={() => handleQuickAdvance(item)}
+            activeOpacity={0.8}
           >
-            <Text style={styles.advanceButtonText}>Advance Stage →</Text>
+            <Text style={styles.advanceButtonText}>Advance →</Text>
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -181,88 +196,78 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
 
   return (
     <View style={styles.container}>
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search offers, company, skills..."
-          placeholderTextColor="#64748b"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onSubmitEditing={handleSearchSubmit}
-          returnKeyType="search"
-        />
-      </View>
+      {/* Search Header */}
+      <View style={styles.header}>
+        <View style={styles.searchBar}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search offers, skills, company..."
+            placeholderTextColor={THEME.colors.textMuted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onSubmitEditing={handleSearchSubmit}
+            returnKeyType="search"
+          />
+        </View>
 
-      {/* Channel Filters */}
-      <View style={styles.channelFilterRow}>
-        {CHANNELS.map((ch) => {
-          const isSelected = selectedChannel === ch.id
-          return (
+        {/* Channel Filter Tabs */}
+        <View style={styles.channelFilterRow}>
+          {CHANNELS.map((ch) => (
             <TouchableOpacity
               key={ch.id}
-              style={[styles.channelChip, isSelected && styles.channelChipActive]}
+              style={[
+                styles.channelChip,
+                selectedChannel === ch.id && styles.channelChipActive,
+              ]}
               onPress={() => setSelectedChannel(ch.id)}
             >
-              <Text style={[styles.channelChipText, isSelected && styles.channelChipTextActive]}>
+              <Text
+                style={[
+                  styles.channelChipText,
+                  selectedChannel === ch.id && styles.channelChipTextActive,
+                ]}
+              >
                 {ch.label}
               </Text>
             </TouchableOpacity>
-          )
-        })}
-      </View>
+          ))}
+        </View>
 
-      {/* Domain Category Filters */}
-      <View style={styles.filtersScroll}>
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={[{ id: 'all', label: 'All Domains' }, ...categories]}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
-          renderItem={({ item }) => {
-            const isSelected = selectedCategory === item.id
-            return (
+        {/* Category Domain Filter Pills */}
+        {categories.length > 0 && (
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={[{ id: 'all', label: 'All Roles' }, ...categories]}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.filtersScroll}
+            renderItem={({ item }) => (
               <TouchableOpacity
                 style={[
                   styles.filterChip,
-                  isSelected && styles.filterChipActive,
+                  selectedCategory === item.id && styles.filterChipActive,
                 ]}
                 onPress={() => setSelectedCategory(item.id)}
               >
                 <Text
                   style={[
                     styles.filterChipText,
-                    isSelected && styles.filterChipTextActive,
+                    selectedCategory === item.id && styles.filterChipTextActive,
                   ]}
                 >
                   {item.short_label || item.label}
                 </Text>
               </TouchableOpacity>
-            )
-          }}
-        />
+            )}
+          />
+        )}
       </View>
 
-      {/* Main Stream List */}
+      {/* Offer List */}
       {isLoading ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator color={THEME.colors.accent} size="large" />
-          <Text style={styles.loadingText}>Syncing offers stream...</Text>
-        </View>
-      ) : displayedOffers.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>📭</Text>
-          <Text style={styles.emptyTitle}>No offers found</Text>
-          <Text style={styles.emptyText}>
-            Capture a job link from your phone or change your filter above.
-          </Text>
-          <TouchableOpacity
-            style={styles.emptyButton}
-            onPress={onOpenCapture}
-          >
-            <Text style={styles.emptyButtonText}>+ Capture New Offer</Text>
-          </TouchableOpacity>
+          <ActivityIndicator size="large" color="#ffffff" />
+          <Text style={styles.loadingText}>Loading applications...</Text>
         </View>
       ) : (
         <FlatList
@@ -270,12 +275,30 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
           keyExtractor={(item) => item.id}
           renderItem={renderOfferItem}
           contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={handleRefresh}
-              tintColor={THEME.colors.accent}
+              tintColor="#ffffff"
             />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyIcon}>💼</Text>
+              <Text style={styles.emptyTitle}>No applications found</Text>
+              <Text style={styles.emptyText}>
+                Capture an offer from LinkedIn or browser to begin tracking.
+              </Text>
+              {onOpenCapture && (
+                <TouchableOpacity
+                  style={styles.emptyButton}
+                  onPress={onOpenCapture}
+                >
+                  <Text style={styles.emptyButtonText}>+ Capture First Offer</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           }
         />
       )}
@@ -288,15 +311,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: THEME.colors.bgDark,
   },
-  searchContainer: {
+  header: {
+    paddingTop: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: THEME.colors.border,
+  },
+  searchBar: {
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+    marginBottom: 8,
   },
   searchInput: {
-    height: 42,
+    height: 38,
     backgroundColor: THEME.colors.bgCard,
-    borderRadius: 10,
+    borderRadius: 9,
     borderWidth: 1,
     borderColor: THEME.colors.border,
     paddingHorizontal: 14,
@@ -311,7 +338,7 @@ const styles = StyleSheet.create({
   },
   channelChip: {
     flex: 1,
-    paddingVertical: 6,
+    paddingVertical: 7,
     alignItems: 'center',
     borderRadius: 8,
     backgroundColor: THEME.colors.bgCard,
@@ -319,8 +346,8 @@ const styles = StyleSheet.create({
     borderColor: THEME.colors.border,
   },
   channelChipActive: {
-    backgroundColor: 'rgba(79, 70, 229, 0.15)',
-    borderColor: 'rgba(99, 102, 241, 0.4)',
+    backgroundColor: 'rgba(14, 165, 233, 0.15)',
+    borderColor: 'rgba(14, 165, 233, 0.45)',
   },
   channelChipText: {
     fontSize: 10.5,
@@ -328,11 +355,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   channelChipTextActive: {
-    color: '#c7d2fe',
+    color: '#38bdf8',
     fontWeight: '700',
   },
   filtersScroll: {
-    marginBottom: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    gap: 6,
   },
   filterChip: {
     paddingHorizontal: 12,
@@ -343,25 +372,26 @@ const styles = StyleSheet.create({
     borderColor: THEME.colors.border,
   },
   filterChipActive: {
-    backgroundColor: 'rgba(79, 70, 229, 0.15)',
-    borderColor: 'rgba(99, 102, 241, 0.4)',
+    backgroundColor: 'rgba(14, 165, 233, 0.15)',
+    borderColor: 'rgba(14, 165, 233, 0.45)',
   },
   filterChipText: {
     fontSize: 11,
     color: THEME.colors.textMuted,
   },
   filterChipTextActive: {
-    color: '#ffffff',
-    fontWeight: '600',
+    color: '#38bdf8',
+    fontWeight: '700',
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 70,
+    paddingTop: 12,
+    paddingBottom: 120, // generous bottom padding to prevent buttons from being eaten out
     gap: 12,
   },
   card: {
     backgroundColor: THEME.colors.bgCard,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: THEME.colors.border,
     padding: 14,
@@ -372,19 +402,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  domainBadge: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 8,
   },
-  domainDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  companyAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 7,
+    backgroundColor: THEME.colors.bgElevated,
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  companyAvatarText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#ffffff',
   },
   domainText: {
     fontSize: 11,
     fontWeight: '700',
+    color: '#ffffff',
+  },
+  matchText: {
+    fontSize: 9.5,
+    color: '#10b981',
+    fontWeight: '600',
   },
   headerRight: {
     flexDirection: 'row',
@@ -396,9 +442,9 @@ const styles = StyleSheet.create({
     color: THEME.colors.textMuted,
   },
   stageBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 5,
     borderWidth: 1,
   },
   stageText: {
@@ -406,22 +452,33 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   cardTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: THEME.colors.textPrimary,
-    lineHeight: 18,
-    marginBottom: 4,
+    lineHeight: 20,
+    marginBottom: 3,
   },
   companyText: {
     fontSize: 12,
     color: THEME.colors.textSecondary,
-    marginBottom: 10,
+    marginBottom: 8,
+  },
+  recruiterRow: {
+    backgroundColor: THEME.colors.bgElevated,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  recruiterText: {
+    fontSize: 10.5,
+    color: THEME.colors.textSecondary,
   },
   skillsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 12,
+    marginBottom: 10,
     flexWrap: 'wrap',
   },
   skillChip: {
@@ -447,30 +504,38 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.05)',
+    gap: 8,
   },
-  channelPill: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  channelBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    flexShrink: 1,
   },
   channelLabel: {
     fontSize: 10,
-    color: THEME.colors.textMuted,
-    fontWeight: '500',
+    color: THEME.colors.textSecondary,
+    fontWeight: '600',
   },
   advanceButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    backgroundColor: 'rgba(79, 70, 229, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 7,
+    backgroundColor: 'rgba(14, 165, 233, 0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.3)',
+    borderColor: 'rgba(14, 165, 233, 0.4)',
+    flexShrink: 0,
+    minHeight: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   advanceButtonText: {
     fontSize: 11,
-    color: '#c7d2fe',
-    fontWeight: '600',
+    color: '#38bdf8',
+    fontWeight: '700',
   },
   centerContainer: {
     flex: 1,
@@ -511,7 +576,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: THEME.colors.accent,
+    backgroundColor: '#0284c7',
   },
   emptyButtonText: {
     fontSize: 12,

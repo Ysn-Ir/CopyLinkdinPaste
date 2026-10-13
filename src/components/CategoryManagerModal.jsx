@@ -13,13 +13,12 @@ import {
 } from 'lucide-react'
 
 const PRESET_COLORS = [
-  { name: 'Purple', hex: '#a855f7', bg: 'rgba(168, 85, 247, 0.12)', border: 'rgba(168, 85, 247, 0.35)' },
-  { name: 'Cyan', hex: '#06b6d4', bg: 'rgba(6, 182, 212, 0.12)', border: 'rgba(6, 182, 212, 0.35)' },
-  { name: 'Blue', hex: '#3b82f6', bg: 'rgba(59, 130, 246, 0.12)', border: 'rgba(59, 130, 246, 0.35)' },
+  { name: 'Titanium', hex: '#cbd5e1', bg: 'rgba(203, 213, 225, 0.12)', border: 'rgba(203, 213, 225, 0.35)' },
+  { name: 'Zinc Slate', hex: '#a1a1aa', bg: 'rgba(161, 161, 170, 0.12)', border: 'rgba(161, 161, 170, 0.35)' },
   { name: 'Emerald', hex: '#10b981', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.35)' },
   { name: 'Rose', hex: '#f43f5e', bg: 'rgba(244, 63, 94, 0.12)', border: 'rgba(244, 63, 94, 0.35)' },
   { name: 'Amber', hex: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.35)' },
-  { name: 'Indigo', hex: '#6366f1', bg: 'rgba(99, 102, 241, 0.12)', border: 'rgba(99, 102, 241, 0.35)' },
+  { name: 'Teal', hex: '#14b8a6', bg: 'rgba(20, 184, 166, 0.12)', border: 'rgba(20, 184, 166, 0.35)' },
   { name: 'Orange', hex: '#f97316', bg: 'rgba(249, 115, 22, 0.12)', border: 'rgba(249, 115, 22, 0.35)' },
 ]
 
@@ -96,11 +95,11 @@ export function CategoryManagerModal({
                 width: 28,
                 height: 28,
                 borderRadius: '6px',
-                background: 'rgba(168, 85, 247, 0.15)',
+                background: 'rgba(255, 255, 255, 0.08)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#c084fc',
+                color: '#ffffff',
               }}
             >
               <Layers size={16} />
@@ -229,7 +228,7 @@ export function CategoryManagerModal({
               gap: '12px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#c084fc', fontSize: '12.5px', fontWeight: 700 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ffffff', fontSize: '12.5px', fontWeight: 700 }}>
               <Plus size={14} />
               <span>Add New Domain Field</span>
             </div>

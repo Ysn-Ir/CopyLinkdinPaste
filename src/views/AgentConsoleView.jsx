@@ -23,13 +23,13 @@ export function AgentConsoleView({
     {
       role: 'assistant',
       content:
-        'Hello! I am your PFE & Career Agent Orchestrator. I automatically parse incoming offers, classify roles, pick the right CV variant, and draft emails grounded in your experience.\n\nAsk me anything about your current pipeline or offers:',
+        'Hello! I am your PFE & Career Agent Orchestrator powered by Groq. I automatically parse incoming offers, classify roles, select candidate CV variants, and draft targeted outreach.\n\nAsk me anything about your current pipeline, offers, or career strategy:',
       timestamp: new Date().toLocaleTimeString(),
     },
   ])
   const [inputMsg, setInputMsg] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
-  const [selectedModel, setSelectedModel] = useState('claude-3-7-sonnet')
+  const [selectedModel, setSelectedModel] = useState('llama-3.3-70b-versatile')
   const [selectedTrace, setSelectedTrace] = useState(AgentOrchestrator.traces[0] || null)
 
   const handleSendMessage = async (e) => {
@@ -51,6 +51,7 @@ export function AgentConsoleView({
         offers,
         cvList,
         candidateProfile,
+        aiConfig: { ...(aiConfig || {}), model: selectedModel, provider: 'groq' },
       })
 
       setMessages((prev) => [...prev, response])
@@ -76,26 +77,27 @@ export function AgentConsoleView({
           {/* Header */}
           <div className="section-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Bot size={18} color="#3b82f6" />
+              <Bot size={18} color="#ffffff" />
               <div>
-                <h2 style={{ fontSize: '14px', fontWeight: 600 }}>Autonomous Career Assistant</h2>
+                <h2 style={{ fontSize: '14px', fontWeight: 600 }}>Autonomous Career Agent</h2>
                 <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                  Tool-use loop with grounding verification
+                  Groq High-Speed Tool Loop • Grounded Pipeline Execution
                 </span>
               </div>
             </div>
 
             {/* Model Selector */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Zap size={13} color="#eab308" />
+              <Zap size={13} color="#f59e0b" />
               <select
                 className="form-select"
                 style={{ width: 'auto', height: '26px', fontSize: '11px' }}
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
               >
-                <option value="claude-3-7-sonnet">Claude 3.7 Sonnet (Default)</option>
-                <option value="claude-3-5-haiku">Claude 3.5 Haiku (Fast)</option>
+                <option value="llama-3.3-70b-versatile">Groq Llama 3.3 70B (Default)</option>
+                <option value="llama-3.1-8b-instant">Groq Llama 3.1 8B (Ultra-Fast)</option>
+                <option value="mixtral-8x7b-32768">Groq Mixtral 8x7B (Long Context)</option>
               </select>
             </div>
           </div>
@@ -135,7 +137,7 @@ export function AgentConsoleView({
                 {m.toolCalls && m.toolCalls.length > 0 && (
                   <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                     {m.toolCalls.map((t, i) => (
-                      <span key={i} className="skill-tag" style={{ color: '#60a5fa' }}>
+                      <span key={i} className="skill-tag" style={{ color: '#10b981' }}>
                         ⚙️ {t.name} ({t.duration}ms)
                       </span>
                     ))}

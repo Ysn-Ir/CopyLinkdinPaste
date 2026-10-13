@@ -19,6 +19,9 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
     applied: 0,
     interview: 0,
     offer: 0,
+    email: 0,
+    direct: 0,
+    external: 0,
   })
   const [recentOffers, setRecentOffers] = useState([])
   const [serverInfo, setServerInfo] = useState(null)
@@ -38,7 +41,7 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
 
     if (offersRes.success) {
       const all = offersRes.offers || []
-      setRecentOffers(all.slice(0, 4))
+      setRecentOffers(all.slice(0, 5))
       setStats({
         total: all.length,
         saved: all.filter((o) => o.status === 'saved').length,
@@ -46,6 +49,9 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
         applied: all.filter((o) => o.status === 'applied').length,
         interview: all.filter((o) => o.status === 'interview').length,
         offer: all.filter((o) => o.status === 'offer').length,
+        email: all.filter((o) => o.channel === 'email').length,
+        direct: all.filter((o) => o.channel === 'direct_contact').length,
+        external: all.filter((o) => o.channel === 'external').length,
       })
     }
 
@@ -66,11 +72,12 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
           refreshing={isRefreshing}
           onRefresh={handleRefresh}
-          tintColor={THEME.colors.accent}
+          tintColor="#ffffff"
         />
       }
     >
@@ -78,7 +85,7 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
       <View style={styles.header}>
         <Text style={styles.title}>OmniHunt</Text>
         <Text style={styles.subtitle}>
-          Mobile Career & Clip Sync • Connected to PC
+          Executive Career Command • Cross-Device Sync
         </Text>
       </View>
 
@@ -86,45 +93,74 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
       <TouchableOpacity
         style={styles.serverCard}
         onPress={() => onNavigateTab('connect')}
+        activeOpacity={0.8}
       >
         <View style={styles.serverStatusDot} />
         <View style={{ flex: 1 }}>
           <Text style={styles.serverTitle}>
-            {serverInfo ? `Connected to ${serverInfo.hostname || 'PC'}` : 'Scanning LAN...'}
+            {serverInfo ? `Connected to ${serverInfo.hostname || 'PC Server'}` : 'Scanning LAN & Wi-Fi...'}
           </Text>
           <Text style={styles.serverUrl}>{ApiService.getServerUrl()}</Text>
         </View>
         <Text style={styles.serverAction}>Settings →</Text>
       </TouchableOpacity>
 
-      {/* Primary KPI Grid */}
+      {/* Primary KPI Grid (Zero Purple, Electric Ice & Cyan) */}
       <View style={styles.kpiGrid}>
-        <View style={[styles.kpiCard, { borderColor: THEME.colors.accentBorder }]}>
-          <Text style={[styles.kpiNumber, { color: '#c7d2fe' }]}>
+        <View style={[styles.kpiCard, styles.kpiCardAccent]}>
+          <Text style={[styles.kpiNumber, { color: '#f8fafc' }]}>
             {stats.total}
           </Text>
-          <Text style={styles.kpiLabel}>Total Offers</Text>
+          <Text style={styles.kpiLabel}>Total Tracked</Text>
         </View>
 
         <View style={styles.kpiCard}>
-          <Text style={[styles.kpiNumber, { color: '#60a5fa' }]}>
+          <Text style={[styles.kpiNumber, { color: '#ffffff' }]}>
             {stats.ready}
           </Text>
-          <Text style={styles.kpiLabel}>Ready</Text>
+          <Text style={styles.kpiLabel}>Ready to Apply</Text>
         </View>
 
         <View style={styles.kpiCard}>
-          <Text style={[styles.kpiNumber, { color: '#818cf8' }]}>
+          <Text style={[styles.kpiNumber, { color: '#10b981' }]}>
             {stats.applied}
           </Text>
-          <Text style={styles.kpiLabel}>Applied</Text>
+          <Text style={styles.kpiLabel}>Applications Sent</Text>
         </View>
 
         <View style={styles.kpiCard}>
-          <Text style={[styles.kpiNumber, { color: '#fbbf24' }]}>
+          <Text style={[styles.kpiNumber, { color: '#f59e0b' }]}>
             {stats.interview}
           </Text>
           <Text style={styles.kpiLabel}>Interviews</Text>
+        </View>
+
+        <View style={styles.kpiCard}>
+          <Text style={[styles.kpiNumber, { color: '#10b981' }]}>
+            {stats.offer}
+          </Text>
+          <Text style={styles.kpiLabel}>Offers Received</Text>
+        </View>
+      </View>
+
+      {/* Channel Breakdown Card */}
+      <View style={styles.channelBreakdownCard}>
+        <Text style={styles.channelSectionTitle}>Channel Distribution</Text>
+        <View style={styles.channelRow}>
+          <View style={styles.channelStatItem}>
+            <Text style={styles.channelStatVal}>{stats.email}</Text>
+            <Text style={styles.channelStatLabel}>✉️ Direct Email</Text>
+          </View>
+          <View style={styles.channelStatDivider} />
+          <View style={styles.channelStatItem}>
+            <Text style={styles.channelStatVal}>{stats.direct}</Text>
+            <Text style={styles.channelStatLabel}>💬 WhatsApp / DM</Text>
+          </View>
+          <View style={styles.channelStatDivider} />
+          <View style={styles.channelStatItem}>
+            <Text style={styles.channelStatVal}>{stats.external}</Text>
+            <Text style={styles.channelStatLabel}>🌐 ATS Portals</Text>
+          </View>
         </View>
       </View>
 
@@ -132,6 +168,7 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
       <TouchableOpacity
         style={styles.ctaBanner}
         onPress={() => onNavigateTab('capture')}
+        activeOpacity={0.8}
       >
         <View style={styles.ctaIconBox}>
           <Text style={styles.ctaIcon}>⚡</Text>
@@ -139,7 +176,7 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
         <View style={{ flex: 1 }}>
           <Text style={styles.ctaTitle}>Capture Clipboard Post</Text>
           <Text style={styles.ctaSubtitle}>
-            Copy any LinkedIn post, job listing, or URL to ingest with AI instantly.
+            Copy any LinkedIn post, job alert, or ATS URL — OmniHunt ingests and routes it automatically.
           </Text>
         </View>
         <Text style={styles.ctaArrow}>→</Text>
@@ -147,17 +184,17 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
 
       {/* Recent Offers Section */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Recent Synced Offers</Text>
+        <Text style={styles.sectionTitle}>Recent Synced Applications</Text>
         <TouchableOpacity onPress={() => onNavigateTab('offers')}>
           <Text style={styles.viewAllText}>View All ({stats.total}) →</Text>
         </TouchableOpacity>
       </View>
 
       {isLoading ? (
-        <ActivityIndicator color={THEME.colors.accent} style={{ marginTop: 20 }} />
+        <ActivityIndicator color="#ffffff" style={{ marginTop: 20 }} />
       ) : recentOffers.length === 0 ? (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>No synced offers yet. Capture or sync from PC.</Text>
+          <Text style={styles.emptyText}>No synced applications yet. Capture or sync from PC.</Text>
         </View>
       ) : (
         <View style={styles.recentList}>
@@ -166,13 +203,14 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
               key={o.id}
               style={styles.recentItem}
               onPress={() => onSelectOffer(o)}
+              activeOpacity={0.8}
             >
               <View style={{ flex: 1 }}>
                 <Text style={styles.recentTitle} numberOfLines={1}>
                   {o.title}
                 </Text>
                 <Text style={styles.recentMeta}>
-                  {o.company || 'Company'} • {o.category || 'General'} • {o.channel === 'email' ? 'Email' : o.channel === 'direct_contact' ? 'Direct DM' : 'ATS'}
+                  {o.company || 'Direct Organization'} • {o.category?.toUpperCase() || 'GENERAL'} • {o.channel === 'email' ? '✉️ Email' : o.channel === 'direct_contact' ? '💬 WhatsApp' : '🌐 ATS'}
                 </Text>
               </View>
               <View style={styles.recentStatusBadge}>
@@ -193,22 +231,20 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingTop: 28,
-    paddingBottom: 60,
+    paddingBottom: 120, // generous bottom padding to keep all buttons and items safe from clipping
   },
   header: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   title: {
     fontSize: 22,
     fontWeight: '800',
     color: THEME.colors.textPrimary,
-    letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: 12,
     color: THEME.colors.textSecondary,
-    marginTop: 4,
+    marginTop: 2,
   },
   serverCard: {
     flexDirection: 'row',
@@ -218,14 +254,14 @@ const styles = StyleSheet.create({
     borderColor: THEME.colors.border,
     borderRadius: 12,
     padding: 12,
-    marginBottom: 16,
+    marginBottom: 14,
     gap: 10,
   },
   serverStatusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: THEME.colors.success,
+    backgroundColor: '#10b981',
   },
   serverTitle: {
     fontSize: 12,
@@ -235,19 +271,20 @@ const styles = StyleSheet.create({
   serverUrl: {
     fontSize: 10,
     color: THEME.colors.textMuted,
-    fontFamily: 'monospace',
     marginTop: 1,
   },
   serverAction: {
     fontSize: 11,
-    color: '#a5b4fc',
-    fontWeight: '600',
+    color: '#ffffff',
+    fontWeight: '700',
   },
+
+  // KPI Grid
   kpiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 16,
+    gap: 8,
+    marginBottom: 14,
   },
   kpiCard: {
     flex: 1,
@@ -256,34 +293,83 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: THEME.colors.border,
     borderRadius: 12,
-    padding: 14,
+    padding: 12,
+  },
+  kpiCardAccent: {
+    borderColor: 'rgba(14, 165, 233, 0.4)',
+    backgroundColor: 'rgba(14, 165, 233, 0.08)',
   },
   kpiNumber: {
     fontSize: 22,
     fontWeight: '800',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   kpiLabel: {
     fontSize: 11,
     color: THEME.colors.textMuted,
-    fontWeight: '500',
+    fontWeight: '600',
   },
+
+  // Channel Breakdown
+  channelBreakdownCard: {
+    backgroundColor: THEME.colors.bgCard,
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+  },
+  channelSectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: THEME.colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  channelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+  },
+  channelStatItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  channelStatVal: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#f8fafc',
+    marginBottom: 2,
+  },
+  channelStatLabel: {
+    fontSize: 9.5,
+    color: THEME.colors.textSecondary,
+    fontWeight: '600',
+  },
+  channelStatDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: THEME.colors.border,
+  },
+
+  // CTA Banner
   ctaBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+    backgroundColor: 'rgba(14, 165, 233, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.3)',
+    borderColor: 'rgba(14, 165, 233, 0.3)',
     borderRadius: 12,
     padding: 14,
-    marginBottom: 20,
+    marginBottom: 18,
     gap: 12,
   },
   ctaIconBox: {
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: 'rgba(79, 70, 229, 0.2)',
+    backgroundColor: 'rgba(14, 165, 233, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -303,14 +389,16 @@ const styles = StyleSheet.create({
   },
   ctaArrow: {
     fontSize: 16,
-    color: '#c7d2fe',
+    color: '#38bdf8',
     fontWeight: '700',
   },
+
+  // Recent Section
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   sectionTitle: {
     fontSize: 13,
@@ -319,8 +407,8 @@ const styles = StyleSheet.create({
   },
   viewAllText: {
     fontSize: 11,
-    color: '#a5b4fc',
-    fontWeight: '600',
+    color: '#ffffff',
+    fontWeight: '700',
   },
   emptyCard: {
     backgroundColor: THEME.colors.bgCard,
@@ -350,7 +438,7 @@ const styles = StyleSheet.create({
   },
   recentTitle: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     color: THEME.colors.textPrimary,
     marginBottom: 3,
   },
@@ -370,6 +458,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: THEME.colors.textSecondary,
     textTransform: 'capitalize',
-    fontWeight: '600',
+    fontWeight: '700',
   },
 })

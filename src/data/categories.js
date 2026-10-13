@@ -13,9 +13,9 @@ export const CATEGORIES = [
     label: 'AI & Machine Learning',
     shortLabel: 'AI / ML',
     icon: 'Brain',
-    color: '#a855f7',
-    bgColor: 'rgba(168, 85, 247, 0.12)',
-    borderColor: 'rgba(168, 85, 247, 0.35)',
+    color: '#0ea5e9',
+    bgColor: 'rgba(14, 165, 233, 0.12)',
+    borderColor: 'rgba(14, 165, 233, 0.35)',
     defaultCvTag: 'CV - AI & Machine Learning',
     keywords: [
       'ai', 'ia', 'machine learning', 'deep learning', 'nlp', 'llm', 'computer vision',

@@ -67,8 +67,8 @@ export function Sidebar({
 
   const channelWorkspaces = [
     { id: 'email-workspace', label: 'Direct Email Studio', icon: Mail, count: emailOffersCount, color: '#10b981' },
-    { id: 'direct-contact', label: 'Direct DM & WhatsApp', icon: MessageSquare, count: directOffersCount, color: '#c084fc' },
-    { id: 'external-workspace', label: 'External Portals & ATS', icon: Globe, count: externalOffersCount, color: '#60a5fa' },
+    { id: 'direct-contact', label: 'Direct DM & WhatsApp', icon: MessageSquare, count: directOffersCount, color: '#f59e0b' },
+    { id: 'external-workspace', label: 'External Portals & ATS', icon: Globe, count: externalOffersCount, color: '#a1a1aa' },
   ]
 
   const toolViews = [
@@ -276,18 +276,18 @@ export function Sidebar({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: 'rgba(168, 85, 247, 0.05)',
+          background: 'var(--bg-app)',
           cursor: 'pointer',
           textAlign: 'left',
           transition: 'all 0.15s ease',
         }}
-        title="Ouvrir le menu d'appairage mobile & QR code"
+        title="Open OmniHunt mobile pairing & QR code"
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Smartphone size={13} color="#a855f7" />
-          <span style={{ color: '#d8b4fe', fontWeight: 600 }}>Mobile App</span>
+          <Smartphone size={13} color="#10b981" />
+          <span style={{ color: '#ffffff', fontWeight: 600 }}>OmniHunt App</span>
         </div>
-        <span style={{ fontFamily: 'var(--font-mono)', color: '#93c5fd', fontSize: '10px' }}>
+        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontSize: '10px' }}>
           {networkIp || '192.168.1.12'}
         </span>
       </button>

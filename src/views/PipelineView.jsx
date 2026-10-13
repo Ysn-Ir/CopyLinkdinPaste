@@ -24,10 +24,10 @@ import { EMAIL_TEMPLATES } from '../data/defaultTemplates.js'
 
 const PIPELINE_COLUMNS = [
   { id: 'saved', label: 'Saved', color: '#71717a' },
-  { id: 'ready', label: 'Ready', color: '#3b82f6' },
-  { id: 'applied', label: 'Applied', color: '#60a5fa' },
-  { id: 'replied', label: 'Replied', color: '#ec4899' },
-  { id: 'interview', label: 'Interview', color: '#a855f7' },
+  { id: 'ready', label: 'Ready', color: '#ffffff' },
+  { id: 'applied', label: 'Applied', color: '#10b981' },
+  { id: 'replied', label: 'Replied', color: '#14b8a6' },
+  { id: 'interview', label: 'Interview', color: '#f59e0b' },
   { id: 'offer', label: 'Offer', color: '#10b981' },
   { id: 'rejected', label: 'Rejected', color: '#52525b' },
 ]
@@ -481,8 +481,8 @@ export function PipelineView({
                                   height: '24px',
                                   fontSize: '10px',
                                   padding: '0 6px',
-                                  color: '#c084fc',
-                                  borderColor: 'rgba(192, 132, 252, 0.3)',
+                                  color: '#f59e0b',
+                                  borderColor: 'rgba(245, 158, 11, 0.3)',
                                   justifyContent: 'center',
                                 }}
                                 onClick={() => handleQuickDirectOutreach(offer)}
@@ -502,8 +502,8 @@ export function PipelineView({
                                   height: '24px',
                                   fontSize: '10px',
                                   padding: '0 6px',
-                                  color: '#60a5fa',
-                                  borderColor: 'rgba(96, 165, 250, 0.3)',
+                                  color: 'var(--text-primary)',
+                                  borderColor: 'var(--border-subtle)',
                                   textDecoration: 'none',
                                   display: 'flex',
                                   alignItems: 'center',

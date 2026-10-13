@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingTop: 36,
-    paddingBottom: 60,
+    paddingBottom: 120,
   },
   header: {
     alignItems: 'center',
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   presetTextActive: {
-    color: '#c7d2fe',
+    color: '#38bdf8',
     fontWeight: '700',
   },
   buttonRow: {

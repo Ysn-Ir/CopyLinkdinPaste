@@ -177,7 +177,7 @@ Output ONLY the email body text without the Subject line or placeholder brackets
                 style={{
                   padding: '10px 12px',
                   borderRadius: '4px',
-                  border: isSelected ? '1px solid #3b82f6' : '1px solid var(--border-subtle)',
+                  border: isSelected ? '1px solid #ffffff' : '1px solid var(--border-subtle)',
                   background: isSelected ? 'var(--bg-surface-hover)' : 'var(--bg-app)',
                   cursor: 'pointer',
                   display: 'flex',
@@ -214,7 +214,7 @@ Output ONLY the email body text without the Subject line or placeholder brackets
                     Target: {currentOffer.company}
                   </span>
                   {currentOffer.sharer?.name && (
-                    <span style={{ fontSize: '11px', color: '#c084fc', background: 'rgba(168, 85, 247, 0.1)', padding: '1px 6px', borderRadius: '4px' }}>
+                    <span style={{ fontSize: '11px', color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', padding: '1px 6px', borderRadius: '4px' }}>
                       Shared by: <strong>{currentOffer.sharer.name}</strong> ({currentOffer.sharer.title || 'Recruiter'})
                     </span>
                   )}
@@ -223,7 +223,7 @@ Output ONLY the email body text without the Subject line or placeholder brackets
                       href={currentOffer.sourceUrl}
                       target="_blank"
                       rel="noreferrer"
-                      style={{ fontSize: '11px', color: '#60a5fa', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '2px' }}
+                      style={{ fontSize: '11px', color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '2px' }}
                     >
                       <span>Original Link</span>
                       <ExternalLink size={10} />
@@ -315,7 +315,7 @@ Output ONLY the email body text without the Subject line or placeholder brackets
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <FileText size={15} color="#3b82f6" />
+                <FileText size={15} color="#ffffff" />
                 <span style={{ fontSize: '12px' }}>
                   Attached CV: <strong>{currentOffer.attachedCvTag}</strong>
                 </span>
@@ -351,7 +351,7 @@ Output ONLY the email body text without the Subject line or placeholder brackets
                 borderRadius: '4px',
               }}
             >
-              <Sparkles size={14} color="#3b82f6" />
+              <Sparkles size={14} color="#ffffff" />
               <input
                 type="text"
                 className="form-input"
@@ -368,7 +368,7 @@ Output ONLY the email body text without the Subject line or placeholder brackets
                 onClick={() => handleRunAiCopilot()}
                 disabled={isAiLoading}
               >
-                {isAiLoading ? <Loader2 size={12} className="pulse-glow" /> : <Zap size={12} color="#3b82f6" />}
+                {isAiLoading ? <Loader2 size={12} className="pulse-glow" /> : <Zap size={12} color="#f59e0b" />}
                 <span>{isAiLoading ? 'Drafting...' : 'Run AI'}</span>
               </button>
             </div>
@@ -417,7 +417,7 @@ Output ONLY the email body text without the Subject line or placeholder brackets
                     href={currentOffer.sourceUrl}
                     target="_blank"
                     rel="noreferrer"
-                    style={{ fontSize: '11px', color: '#60a5fa', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '3px' }}
+                    style={{ fontSize: '11px', color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '3px' }}
                   >
                     <span>View Link</span>
                     <ExternalLink size={11} />

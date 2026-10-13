@@ -86,8 +86,8 @@ export function CVManagerModal({
                 width: 36,
                 height: 36,
                 borderRadius: '8px',
-                background: 'rgba(168, 85, 247, 0.15)',
-                color: '#c084fc',
+                background: 'rgba(255, 255, 255, 0.08)',
+                color: '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -203,8 +203,8 @@ export function CVManagerModal({
                       style={{
                         padding: '0.4rem',
                         borderRadius: '6px',
-                        background: 'rgba(99, 102, 241, 0.15)',
-                        color: '#818cf8',
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        color: '#ffffff',
                       }}
                     >
                       <FileText size={18} />

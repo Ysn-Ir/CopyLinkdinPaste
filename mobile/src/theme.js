@@ -1,39 +1,46 @@
 export const THEME = {
   colors: {
-    bgDark: '#080a0f',
+    // Executive Obsidian & Slate Titanium
+    bgDark: '#08090d',
     bgCard: '#11141c',
     bgElevated: '#171b26',
     border: '#1f2638',
-    borderFocus: '#4f46e5',
+    borderFocus: '#ffffff',
 
     textPrimary: '#f8fafc',
     textSecondary: '#94a3b8',
     textMuted: '#64748b',
 
-    accent: '#4f46e5',
-    accentLight: 'rgba(79, 70, 229, 0.12)',
-    accentBorder: 'rgba(79, 70, 229, 0.3)',
+    // Executive Monochrome Accent (Zero Blue, Zero Purple)
+    accent: '#ffffff',
+    accentDark: '#e4e4e7',
+    accentLight: 'rgba(255, 255, 255, 0.08)',
+    accentBorder: 'rgba(255, 255, 255, 0.25)',
 
     success: '#10b981',
     successLight: 'rgba(16, 185, 129, 0.12)',
+    successBorder: 'rgba(16, 185, 129, 0.35)',
 
     warning: '#f59e0b',
     warningLight: 'rgba(245, 158, 11, 0.12)',
+    warningBorder: 'rgba(245, 158, 11, 0.35)',
 
-    info: '#38bdf8',
-    infoLight: 'rgba(56, 189, 248, 0.12)',
+    info: '#10b981',
+    infoLight: 'rgba(16, 185, 129, 0.12)',
+    infoBorder: 'rgba(16, 185, 129, 0.35)',
 
     danger: '#f43f5e',
     dangerLight: 'rgba(244, 63, 94, 0.12)',
+    dangerBorder: 'rgba(244, 63, 94, 0.35)',
   },
 
   stages: [
     { id: 'saved', label: 'Saved', color: '#94a3b8', bg: '#171b26' },
-    { id: 'ready', label: 'Ready', color: '#60a5fa', bg: 'rgba(96, 165, 250, 0.12)' },
-    { id: 'applied', label: 'Applied', color: '#818cf8', bg: 'rgba(129, 140, 248, 0.12)' },
-    { id: 'interview', label: 'Interview', color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.12)' },
-    { id: 'offer', label: 'Offer Received', color: '#34d399', bg: 'rgba(52, 211, 153, 0.12)' },
-    { id: 'rejected', label: 'Archived', color: '#f87171', bg: 'rgba(248, 113, 113, 0.12)' },
+    { id: 'ready', label: 'Ready', color: '#ffffff', bg: 'rgba(255, 255, 255, 0.08)' },
+    { id: 'applied', label: 'Applied', color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' },
+    { id: 'interview', label: 'Interview', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' },
+    { id: 'offer', label: 'Offer Received', color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' },
+    { id: 'rejected', label: 'Archived', color: '#64748b', bg: 'rgba(100, 116, 139, 0.12)' },
   ],
 }
 

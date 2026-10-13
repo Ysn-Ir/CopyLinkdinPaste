@@ -39,7 +39,7 @@ export function InboxView({
       <div className="kpi-card" style={{ padding: '16px' }}>
         <div className="section-header" style={{ marginBottom: '10px' }}>
           <span className="section-title">
-            <Sparkles size={16} color="#3b82f6" />
+            <Sparkles size={16} color="#ffffff" />
             <span>Autonomous Ingestion Engine</span>
           </span>
           <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>

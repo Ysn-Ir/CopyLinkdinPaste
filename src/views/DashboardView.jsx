@@ -78,9 +78,9 @@ export function DashboardView({ offers = [], onNavigate }) {
         <div className="kpi-card">
           <div className="kpi-label">
             <span>Direct DM / WhatsApp</span>
-            <span style={{ fontSize: '10px', color: '#c084fc', fontFamily: 'var(--font-mono)' }}>DM</span>
+            <span style={{ fontSize: '10px', color: '#f59e0b', fontFamily: 'var(--font-mono)' }}>DM</span>
           </div>
-          <div className="kpi-val" style={{ color: '#c084fc' }}>{directOffers}</div>
+          <div className="kpi-val" style={{ color: '#f59e0b' }}>{directOffers}</div>
           <div className="kpi-sub">LinkedIn DM / WhatsApp</div>
         </div>
 
@@ -98,7 +98,7 @@ export function DashboardView({ offers = [], onNavigate }) {
             <span>Active Interviews</span>
             <Clock size={14} />
           </div>
-          <div className="kpi-val" style={{ color: '#a855f7' }}>
+          <div className="kpi-val" style={{ color: '#f59e0b' }}>
             {interviews}
           </div>
           <div className="kpi-sub">Pipeline in progress</div>
@@ -123,7 +123,7 @@ export function DashboardView({ offers = [], onNavigate }) {
                 contentStyle={{ background: '#18181b', border: '1px solid #27272a', borderRadius: '4px', fontSize: '12px' }}
                 cursor={{ fill: 'rgba(255,255,255,0.03)' }}
               />
-              <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="count" fill="#ffffff" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

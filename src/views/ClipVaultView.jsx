@@ -24,13 +24,13 @@ import {
 
 const CONTENT_TYPES = [
   { id: 'all', label: 'All', icon: '📋', color: '#94a3b8' },
-  { id: 'job_offer', label: 'Job Offers', icon: '💼', color: '#818cf8' },
-  { id: 'code_snippet', label: 'Code Snippets', icon: '💻', color: '#38bdf8' },
-  { id: 'tech_article', label: 'Articles', icon: '📰', color: '#60a5fa' },
-  { id: 'social_post', label: 'Social', icon: '💬', color: '#fbbf24' },
-  { id: 'tool_or_repo', label: 'Tools & Repos', icon: '🔧', color: '#34d399' },
-  { id: 'note', label: 'Notes', icon: '📝', color: '#a78bfa' },
-  { id: 'contact', label: 'Contacts', icon: '👤', color: '#fb7185' },
+  { id: 'job_offer', label: 'Job Offers', icon: '💼', color: '#10b981' },
+  { id: 'code_snippet', label: 'Code Snippets', icon: '💻', color: '#e2e8f0' },
+  { id: 'tech_article', label: 'Articles', icon: '📰', color: '#f59e0b' },
+  { id: 'social_post', label: 'Social', icon: '💬', color: '#14b8a6' },
+  { id: 'tool_or_repo', label: 'Tools & Repos', icon: '🔧', color: '#10b981' },
+  { id: 'note', label: 'Notes', icon: '📝', color: '#a1a1aa' },
+  { id: 'contact', label: 'Contacts', icon: '👤', color: '#f43f5e' },
 ]
 
 function getTypeInfo(typeId) {
@@ -68,9 +68,9 @@ function detectClipChannel(clip) {
     return { id: 'email', label: 'Email Channel', color: '#34d399' }
   }
   if (/(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}/.test(text) || /whatsapp|linkedin\.com\/in/i.test(text)) {
-    return { id: 'direct_contact', label: 'Direct DM / WA', color: '#818cf8' }
+    return { id: 'direct_contact', label: 'Direct DM / WA', color: '#2dd4bf' }
   }
-  return { id: 'external', label: 'ATS Portal', color: '#60a5fa' }
+  return { id: 'external', label: 'ATS Portal', color: '#38bdf8' }
 }
 
 export function ClipVaultView({
@@ -149,7 +149,7 @@ export function ClipVaultView({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-            <Clipboard size={22} style={{ color: '#818cf8' }} />
+            <Clipboard size={22} style={{ color: '#ffffff' }} />
             Clip Vault — Universal Memory
           </h2>
           <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
@@ -169,9 +169,9 @@ export function ClipVaultView({
                 gap: '6px',
                 padding: '6px 14px',
                 borderRadius: '8px',
-                background: '#4f46e5',
-                border: '1px solid #6366f1',
-                color: '#ffffff',
+                background: '#ffffff',
+                border: '1px solid #ffffff',
+                color: '#09090b',
                 cursor: 'pointer',
                 fontSize: '12px',
                 fontWeight: 600,
@@ -359,10 +359,10 @@ export function ClipVaultView({
         color: 'var(--text-secondary)',
         flexWrap: 'wrap',
       }}>
-        <span><strong style={{ color: '#818cf8' }}>{clips.length}</strong> total clips</span>
-        <span><strong style={{ color: '#fbbf24' }}>{clips.filter((c) => c.isStarred).length}</strong> favorites</span>
-        <span><strong style={{ color: '#34d399' }}>{clips.filter((c) => c.convertedToOffer).length}</strong> routed to offers</span>
-        <span><strong style={{ color: '#60a5fa' }}>{domains.length - 1}</strong> web sources</span>
+        <span><strong style={{ color: '#ffffff' }}>{clips.length}</strong> total clips</span>
+        <span><strong style={{ color: '#f59e0b' }}>{clips.filter((c) => c.isStarred).length}</strong> favorites</span>
+        <span><strong style={{ color: '#10b981' }}>{clips.filter((c) => c.convertedToOffer).length}</strong> routed to offers</span>
+        <span><strong style={{ color: '#e2e8f0' }}>{domains.length - 1}</strong> web sources</span>
         <span>Showing: <strong>{filteredClips.length}</strong></span>
       </div>
 
@@ -483,9 +483,9 @@ export function ClipVaultView({
                         style={{
                           padding: '4px 10px',
                           borderRadius: '6px',
-                          border: '1px solid #4f46e5',
-                          background: 'rgba(79, 70, 229, 0.15)',
-                          color: '#c7d2fe',
+                          border: '1px solid rgba(16, 185, 129, 0.4)',
+                          background: 'rgba(16, 185, 129, 0.1)',
+                          color: '#10b981',
                           cursor: 'pointer',
                           fontSize: '10.5px',
                           fontWeight: 600,
@@ -580,7 +580,7 @@ export function ClipVaultView({
                         display: 'flex',
                         alignItems: 'center',
                         gap: '3px',
-                        color: '#60a5fa',
+                        color: 'var(--text-secondary)',
                         textDecoration: 'none',
                         fontSize: '11px',
                       }}

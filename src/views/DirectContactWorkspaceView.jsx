@@ -18,7 +18,7 @@ import {
 import confetti from 'canvas-confetti'
 import { AiService } from '../services/aiService.js'
 
-function LinkedinIcon({ size = 14, color = '#60a5fa' }) {
+function LinkedinIcon({ size = 14, color = 'var(--text-primary)' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
@@ -196,7 +196,7 @@ Output ONLY the WhatsApp message text.`
                 style={{
                   padding: '10px 12px',
                   borderRadius: '4px',
-                  border: isSelected ? '1px solid #a855f7' : '1px solid var(--border-subtle)',
+                  border: isSelected ? '1px solid var(--border-focus)' : '1px solid var(--border-subtle)',
                   background: isSelected ? 'var(--bg-surface-hover)' : 'var(--bg-app)',
                   cursor: 'pointer',
                   display: 'flex',
@@ -208,7 +208,7 @@ Output ONLY the WhatsApp message text.`
                   {offer.title}
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  {offer.company} • Contact: <strong style={{ color: '#c084fc' }}>{offer.sharer?.name || 'Recruteur'}</strong>
+                  {offer.company} • Contact: <strong style={{ color: '#f59e0b' }}>{offer.sharer?.name || 'Recruiter'}</strong>
                 </div>
                 {offer.sharer?.phone && (
                   <div style={{ fontSize: '10.5px', color: '#34d399', fontFamily: 'var(--font-mono)' }}>
@@ -254,7 +254,7 @@ Output ONLY the WhatsApp message text.`
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#c084fc',
+                    color: '#f59e0b',
                   }}
                 >
                   <User size={18} />
@@ -273,7 +273,7 @@ Output ONLY the WhatsApp message text.`
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {(currentOffer.sharer?.profileUrl || currentOffer.sourceUrl) && (
                   <button className="btn btn-secondary" onClick={handleOpenLinkedIn}>
-                    <LinkedinIcon size={13} color="#60a5fa" />
+                    <LinkedinIcon size={13} color="var(--text-primary)" />
                     <span>Open LinkedIn Profile</span>
                   </button>
                 )}
@@ -300,7 +300,7 @@ Output ONLY the WhatsApp message text.`
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <FileText size={15} color="#3b82f6" />
+                <FileText size={15} color="#ffffff" />
                 <span style={{ fontSize: '12px' }}>
                   Attached CV: <strong>{currentOffer.attachedCvTag}</strong>
                 </span>
@@ -378,7 +378,7 @@ Output ONLY the WhatsApp message text.`
                   marginBottom: '10px',
                 }}
               >
-                <Sparkles size={14} color="#a855f7" />
+                <Sparkles size={14} color="#ffffff" />
                 <input
                   type="text"
                   className="form-input"
@@ -395,7 +395,7 @@ Output ONLY the WhatsApp message text.`
                   onClick={() => handleRunAiCopilot()}
                   disabled={isAiLoading}
                 >
-                  {isAiLoading ? <Loader2 size={12} className="pulse-glow" /> : <Zap size={12} color="#a855f7" />}
+                  {isAiLoading ? <Loader2 size={12} className="pulse-glow" /> : <Zap size={12} color="#f59e0b" />}
                   <span>{isAiLoading ? 'Drafting...' : 'Run AI'}</span>
                 </button>
               </div>
@@ -536,7 +536,7 @@ Output ONLY the WhatsApp message text.`
                         href={currentOffer.sourceUrl}
                         target="_blank"
                         rel="noreferrer"
-                        style={{ color: '#60a5fa', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}
+                        style={{ color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}
                       >
                         <span>Open original post link</span>
                         <ExternalLink size={11} />
@@ -558,7 +558,7 @@ Output ONLY the WhatsApp message text.`
               }}
             >
               <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                Application Channel: <strong style={{ color: '#c084fc' }}>Direct Outreach (LinkedIn / WhatsApp)</strong>
+                Application Channel: <strong style={{ color: '#f59e0b' }}>Direct Outreach (LinkedIn / WhatsApp)</strong>
               </div>
 
               <button

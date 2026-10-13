@@ -204,8 +204,8 @@ export function CommandCenterView({
     if (groupBy === 'channel') {
       const channels = [
         { id: 'email', label: 'Direct Email Outreach', color: '#10b981' },
-        { id: 'direct_contact', label: 'Direct Contact (DM & WhatsApp)', color: '#c084fc' },
-        { id: 'external', label: 'External Portals & ATS', color: '#60a5fa' },
+        { id: 'direct_contact', label: 'Direct Contact (DM & WhatsApp)', color: '#f59e0b' },
+        { id: 'external', label: 'External Portals & ATS', color: '#a1a1aa' },
       ]
       return channels
         .map((ch) => ({
@@ -465,7 +465,7 @@ export function CommandCenterView({
                 transform: 'translateY(-50%)',
                 background: 'transparent',
                 border: 'none',
-                color: '#60a5fa',
+                color: 'var(--text-secondary)',
                 fontSize: '11.5px',
                 cursor: 'pointer',
                 display: 'flex',
@@ -485,8 +485,8 @@ export function CommandCenterView({
             style={{
               height: '40px',
               padding: '0 18px',
-              background: '#4f46e5',
-              borderColor: '#6366f1',
+              background: 'var(--accent-primary)',
+              borderColor: 'var(--border-focus)',
               color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
@@ -616,9 +616,9 @@ export function CommandCenterView({
                   display: 'flex',
                   gap: '4px',
                   alignItems: 'center',
-                  background: 'rgba(79, 70, 229, 0.15)',
-                  borderColor: 'rgba(99, 102, 241, 0.4)',
-                  color: '#c7d2fe',
+                  background: '#27272a',
+                  borderColor: '#3f3f46',
+                  color: '#fafafa',
                   fontWeight: 600,
                   marginLeft: 'auto',
                 }}
@@ -869,8 +869,8 @@ export function CommandCenterView({
                                 fontSize: '9.5px',
                                 padding: '1px 5px',
                                 borderRadius: '3px',
-                                background: offer.status === 'applied' ? 'rgba(96, 165, 250, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                                color: offer.status === 'applied' ? '#60a5fa' : 'var(--text-tertiary)',
+                                background: offer.status === 'applied' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                color: offer.status === 'applied' ? '#10b981' : 'var(--text-tertiary)',
                                 textTransform: 'capitalize',
                               }}
                             >
@@ -928,8 +928,8 @@ export function CommandCenterView({
                 <div
                   style={{
                     padding: '12px 20px',
-                    background: 'rgba(79, 70, 229, 0.08)',
-                    borderBottom: '1px solid rgba(79, 70, 229, 0.25)',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    borderBottom: '1px solid var(--border-default)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -944,11 +944,11 @@ export function CommandCenterView({
                         width: '32px',
                         height: '32px',
                         borderRadius: '6px',
-                        background: 'rgba(79, 70, 229, 0.15)',
+                        background: '#27272a',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#a5b4fc',
+                        color: '#ffffff',
                         flexShrink: 0,
                       }}
                     >
@@ -965,8 +965,9 @@ export function CommandCenterView({
                             fontSize: '11px',
                             fontWeight: 700,
                             padding: '2px 8px',
-                            color: currentCategory?.color || '#818cf8',
-                            borderColor: currentCategory?.borderColor || '#4f46e5',
+                            color: '#ffffff',
+                            borderColor: '#3f3f46',
+                            background: '#18181b',
                           }}
                         >
                           {currentCategory?.label || currentOffer.category}
@@ -1242,13 +1243,13 @@ export function CommandCenterView({
                       width: '32px',
                       height: '32px',
                       borderRadius: '50%',
-                      background: '#1e293b',
-                      border: '1px solid #334155',
+                      background: '#27272a',
+                      border: '1px solid #3f3f46',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#38bdf8',
-                      fontWeight: 600,
+                      color: '#ffffff',
+                      fontWeight: 700,
                       fontSize: '12px',
                     }}
                   >
@@ -1273,7 +1274,7 @@ export function CommandCenterView({
                         }}
                       />
                       {currentOffer.sharer?.phone && (
-                        <span style={{ fontSize: '11px', color: '#4ade80', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                        <span style={{ fontSize: '11px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '2px' }}>
                           <Phone size={10} />
                           {currentOffer.sharer.phone}
                         </span>
@@ -1301,7 +1302,7 @@ export function CommandCenterView({
                   {(currentOffer.sharer?.profileUrl || currentOffer.sourceUrl) && (
                     <button
                       className="btn btn-secondary"
-                      style={{ height: '28px', padding: '0 8px', fontSize: '11px', color: '#38bdf8' }}
+                      style={{ height: '28px', padding: '0 8px', fontSize: '11px', color: '#ffffff' }}
                       onClick={handleOpenLinkedIn}
                     >
                       <Share2 size={11} />
@@ -1379,7 +1380,7 @@ export function CommandCenterView({
                 <button
                   className={`tab-btn ${inspectorTab === 'copilot' ? 'active' : ''}`}
                   onClick={() => setInspectorTab('copilot')}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#a855f7' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981' }}
                 >
                   <Bot size={13} />
                   <span>Groq AI Copilot</span>
@@ -1459,7 +1460,7 @@ export function CommandCenterView({
                         <label className="form-label">Subject Line</label>
                         <button
                           type="button"
-                          style={{ background: 'none', border: 'none', color: '#60a5fa', fontSize: '11px', cursor: 'pointer' }}
+                          style={{ background: 'none', border: 'none', color: '#10b981', fontSize: '11px', cursor: 'pointer' }}
                           onClick={() => handleCopy(emailDraftSubject, 'subject')}
                         >
                           {copiedKey === 'subject' ? 'Copied!' : 'Copy Subject'}
@@ -1479,7 +1480,7 @@ export function CommandCenterView({
                         <label className="form-label">Email Body (Tailored & Editable)</label>
                         <button
                           type="button"
-                          style={{ background: 'none', border: 'none', color: '#60a5fa', fontSize: '11px', cursor: 'pointer' }}
+                          style={{ background: 'none', border: 'none', color: '#10b981', fontSize: '11px', cursor: 'pointer' }}
                           onClick={() => handleCopy(emailDraftBody, 'body')}
                         >
                           {copiedKey === 'body' ? 'Copied Body!' : 'Copy Body'}
@@ -1746,20 +1747,20 @@ export function CommandCenterView({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxWidth: '820px' }}>
                     <div
                       style={{
-                        background: 'linear-gradient(135deg, rgba(88, 28, 135, 0.2), rgba(30, 58, 138, 0.2))',
-                        border: '1px solid rgba(168, 85, 247, 0.3)',
+                        background: 'var(--bg-surface)',
+                        border: '1px solid var(--border-default)',
                         borderRadius: '6px',
                         padding: '14px 18px',
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                        <Bot size={16} style={{ color: '#c084fc' }} />
-                        <span style={{ fontWeight: 600, fontSize: '13px', color: '#f3e8ff' }}>
+                        <Bot size={16} style={{ color: '#ffffff' }} />
+                        <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)' }}>
                           Groq AI Career Copilot ({aiConfig.model || 'openai/gpt-oss-120b'})
                         </span>
                       </div>
-                      <p style={{ fontSize: '11.5px', color: '#d8b4fe', margin: 0 }}>
-                        Unconstrained AI agent. Ask to rewrite emails, translate, find interview questions, or sharpen your pitch without restrictions.
+                      <p style={{ fontSize: '11.5px', color: 'var(--text-secondary)', margin: 0 }}>
+                        High-speed Groq agent. Rewrite emails, translate, extract interview questions, or sharpen your pitch.
                       </p>
                     </div>
 
@@ -1833,7 +1834,7 @@ export function CommandCenterView({
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: '#c084fc' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: '#10b981' }}>
                             Groq Output
                           </span>
                           <div style={{ display: 'flex', gap: '6px' }}>
