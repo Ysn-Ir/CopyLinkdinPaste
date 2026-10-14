@@ -8,7 +8,10 @@ env_path = root_dir / ".env"
 load_dotenv(dotenv_path=env_path)
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:root@localhost:5432/pfe_hunter")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 GROQ_API_KEY = os.getenv("GROQ_API_KEY") or os.getenv("VITE_GROQ_API_KEY", "")
 DEFAULT_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 HOST = os.getenv("BACKEND_HOST", "0.0.0.0")
-PORT = int(os.getenv("BACKEND_PORT", 8003))
+PORT = int(os.getenv("PORT", os.getenv("BACKEND_PORT", 8003)))

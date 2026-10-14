@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Linking,
 } from 'react-native'
 import { ApiService } from '../services/api'
 import { THEME, getStageMeta } from '../theme'
@@ -55,6 +56,16 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
 
   const handleSearchSubmit = () => {
     loadData()
+  }
+
+  const handleExportCsv = async () => {
+    try {
+      const serverUrl = ApiService.getServerUrl()
+      const exportUrl = `${serverUrl}/api/offers/export/csv`
+      await Linking.openURL(exportUrl)
+    } catch (err) {
+      Alert.alert('Export Error', err.message || 'Could not download CSV file.')
+    }
   }
 
   const handleQuickAdvance = async (offer) => {
@@ -198,16 +209,25 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
     <View style={styles.container}>
       {/* Search Header */}
       <View style={styles.header}>
-        <View style={styles.searchBar}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search offers, skills, company..."
-            placeholderTextColor={THEME.colors.textMuted}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={handleSearchSubmit}
-            returnKeyType="search"
-          />
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <View style={[styles.searchBar, { flex: 1 }]}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search offers, skills, company..."
+              placeholderTextColor={THEME.colors.textMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onSubmitEditing={handleSearchSubmit}
+              returnKeyType="search"
+            />
+          </View>
+          <TouchableOpacity
+            style={styles.exportCsvBtn}
+            onPress={handleExportCsv}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.exportCsvText}>📥 CSV</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Channel Filter Tabs */}
@@ -317,8 +337,23 @@ const styles = StyleSheet.create({
     borderBottomColor: THEME.colors.border,
   },
   searchBar: {
-    paddingHorizontal: 16,
     marginBottom: 8,
+  },
+  exportCsvBtn: {
+    height: 38,
+    paddingHorizontal: 12,
+    backgroundColor: '#18181b',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  exportCsvText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#10b981',
   },
   searchInput: {
     height: 38,

@@ -1,0 +1,34 @@
+services:
+  # ==============================================================================
+  # OmniHunt Unified Web & API Service (FastAPI + React 19 Frontend)
+  # ==============================================================================
+  - type: web
+    name: omnihunt
+    env: python
+    region: frankfurt # or oregon / ohio / singapore
+    plan: free # or starter
+    buildCommand: "pip install -r requirements.txt && npm install && npm run build"
+    startCommand: "python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: omnihunt-postgres
+          property: connectionString
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: NODE_VERSION
+        value: 20.12.0
+
+databases:
+  # ==============================================================================
+  # Managed PostgreSQL Database (Free Tier or Starter)
+  # ==============================================================================
+  - name: omnihunt-postgres
+    plan: free # or starter
+    databaseName: pfe_hunter
+    user: omnihunt_user

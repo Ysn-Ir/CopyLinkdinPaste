@@ -454,6 +454,92 @@ def get_offers(
     return results
 
 
+@app.get("/api/offers/export/csv")
+def export_offers_csv(
+    category: Optional[str] = None,
+    channel: Optional[str] = None,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Exports all career offers to a standardized RFC 4180 CSV spreadsheet"""
+    import csv
+    import io
+    from fastapi.responses import Response
+
+    query = db.query(OfferModel)
+    if category and category != "all":
+        query = query.filter(OfferModel.category == category)
+    if channel and channel != "all":
+        query = query.filter(OfferModel.channel == channel)
+    if status and status != "all":
+        query = query.filter(OfferModel.status == status)
+
+    offers = query.order_by(OfferModel.updated_at.desc()).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
+
+    # Header Row
+    writer.writerow([
+        "Offer ID",
+        "Role Title",
+        "Company",
+        "Location",
+        "Category",
+        "Channel",
+        "Status",
+        "Recruiter Name",
+        "Recruiter Email",
+        "Recruiter Phone / WhatsApp",
+        "Required Skills",
+        "Match Confidence",
+        "LinkedIn Note",
+        "WhatsApp Message",
+        "Source URL",
+        "Created At",
+        "Updated At",
+        "Notes",
+        "Job Description"
+    ])
+
+    for o in offers:
+        d = o.to_dict()
+        sharer = d.get("sharer") or {}
+        writer.writerow([
+            d.get("id", ""),
+            d.get("title", ""),
+            d.get("company", ""),
+            d.get("location", ""),
+            d.get("category", ""),
+            d.get("channel", ""),
+            d.get("status", ""),
+            d.get("recruiterName") or sharer.get("name", ""),
+            d.get("recruiterEmail", ""),
+            sharer.get("phone", ""),
+            ", ".join(d.get("skills") or []),
+            f"{int((d.get('confidence') or 0.9) * 100)}%",
+            d.get("linkedInNote", ""),
+            d.get("whatsAppMsg", ""),
+            d.get("sourceUrl", ""),
+            d.get("createdAt", ""),
+            d.get("updatedAt", ""),
+            d.get("notes", ""),
+            (d.get("description") or "").replace("\r", " ").replace("\n", " ").strip()[:1000]
+        ])
+
+    csv_content = output.getvalue()
+    filename = f"omnihunt_offers_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+
+    return Response(
+        content="\ufeff" + csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        }
+    )
+
+
 @app.post("/api/offers/sync")
 def sync_offers(payload: dict, db: Session = Depends(get_db)):
     """Atomic batch synchronization of offers from the frontend"""

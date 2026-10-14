@@ -14,6 +14,10 @@ OmniHunt (formerly PFE Hunter) is an executive-grade, multi-platform intelligenc
 
 - **Universal Clip Vault**: Ingests job postings, GitHub repositories, educational TikTok/Instagram reels, code snippets, notes, and recruiter contacts.
 - **Atomic Multi-Link Decomposition**: Automatically isolates multiple URLs inside a single LinkedIn post or message, ingesting each independently while preserving the source post reference (`entities.parentPost`).
+- **Render Cloud Deployment (Optional)**: 1-Click deployment via `render.yaml` with hosted PostgreSQL database. Keeps web and mobile 100% synchronized 24/7 with zero PC required.
+- **Remote 4G Tunnel Wizard (`start_tunnel.bat`)**: Solves NAT/cellular isolation. Run `start_tunnel.bat` on your PC to get a public HTTPS link so your phone on 4G syncs with your local machine with zero router setup!
+- **Offline Ingestion Queue**: Buffer captures and clips on device when disconnected; auto-syncs to database upon reconnect.
+- **1-Click CSV Export**: Full export of all career opportunities across Web and Mobile with Excel UTF-8 BOM compatibility.
 - **Mobile 1-Tap & MediaStore Screenshot Watcher**: Real-time Android screenshot detection with 1-tap Groq Vision OCR (`llama-3.2-90b-vision-instruct`).
 - **Specialized Social Scrapers**: Extracts full captions, author handles, video thumbnails, and educational takeaways from TikTok and Instagram links.
 - **Bulk Link & Text Cleaner**: Ingests and decomposes messy lists of links, bulleted points, or notes into discrete clips.

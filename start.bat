@@ -12,9 +12,10 @@ echo    [2] Run with Docker (1-Command: docker compose up -d)
 echo    [3] Run Dev Mode (FastAPI + Vite in visible terminals)
 echo    [4] Stop all running background servers
 echo    [5] Open Web Command Center in Browser (http://localhost:8003)
+echo    [6] Expose to Phone on 4G / Outside Home (Remote Tunnel Wizard)
 echo.
 echo ==============================================================================
-set /p choice="Enter your choice (1-5, default is 1): "
+set /p choice="Enter your choice (1-6, default is 1): "
 
 if "%choice%"=="" set choice=1
 if "%choice%"=="1" goto BACKGROUND
@@ -22,6 +23,11 @@ if "%choice%"=="2" goto DOCKER
 if "%choice%"=="3" goto DEV
 if "%choice%"=="4" goto STOP
 if "%choice%"=="5" goto BROWSER
+if "%choice%"=="6" goto TUNNEL
+
+:TUNNEL
+call start_tunnel.bat
+exit
 
 :BACKGROUND
 echo.

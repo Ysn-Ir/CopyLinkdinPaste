@@ -481,30 +481,106 @@ npm run dev
 
 ---
 
-### Step 4: Run the Mobile Companion
+### Option D: 1-Click Render Cloud Deployment (24/7 Global Access & Hosted DB)
 
-Option A: **Direct APK Installation (Fastest)**
-- Download the compiled APK directly from the web command center or [`omnihunt-mobile.apk`](file:///c:/Users/khali/OneDrive/Bureau/learning/nlp/ILIACODE/linkdin%20special/omnihunt-mobile.apk).
-- Install on any Android device and connect to the same Wi-Fi network.
+OmniHunt provides a pre-configured **`render.yaml`** blueprint for instant, 1-click cloud deployment on [Render](https://render.com).
 
-Option B: **Expo Go Development Server**
-```bash
-cd mobile
-npm install
-npx expo start
-```
-Scan the QR code using the Expo Go app.
+> [!NOTE]
+> **Cloud deployment is completely optional.** OmniHunt is designed with 100% parity between local (PC / Docker) and cloud (Render) environments.
+
+#### Architecture on Render:
+1. **Managed PostgreSQL Database** (`omnihunt-postgres`): Hosted cloud database that guarantees real-time synchronization between the mobile app (on cellular 4G/5G) and the web app from anywhere on Earth.
+2. **Unified Web Service** (`omnihunt`): Builds the React 19 SPA frontend with `npm run build` and serves both the static web assets and the full FastAPI REST API from a single container on `$PORT`.
+
+#### How to Deploy:
+1. Push your repository to GitHub or GitLab.
+2. In Render Dashboard, click **New +** -> **Blueprint**.
+3. Select your repository. Render will automatically parse `render.yaml` and provision:
+   - A managed PostgreSQL instance.
+   - A unified Python web service.
+4. Set the `GROQ_API_KEY` environment variable in the Render dashboard.
+5. Once deployed, Render generates a permanent HTTPS URL:
+   👉 **`https://your-omnihunt.onrender.com`**
+6. Open your mobile app -> Go to **Connect / Settings** -> Select the **Render Cloud** profile -> Tap **Test Ping**. All devices are now synchronized 24/7!
 
 ---
 
-### Docker Deployment
+### Option E: Local Deployment Cross-Network Sync (Phone on 4G / Outside Home)
 
-To run the complete stack with Docker Compose:
-```bash
-docker-compose up --build -d
+#### The Problem:
+When running OmniHunt locally on your PC (`http://192.168.1.X:8003`), the phone can communicate with the PC only while connected to the **same local Wi-Fi router**. If your phone leaves home, switches to cellular 4G/5G, or connects to a different network (coffee shop, university, office), it cannot reach `192.168.1.X` because private RFC 1918 IPs cannot be routed across the public internet without port forwarding.
+
+#### 4 Battle-Tested Solutions Provided by OmniHunt:
+
+```mermaid
+graph TD
+    subgraph Mobile on 4G / Foreign Wi-Fi
+        PHONE[OmniHunt Mobile App]
+    end
+
+    subgraph Solution 1: Zero-Config Remote Tunnel
+        PHONE -->|HTTPS Public URL| LT[Localtunnel / Cloudflare Tunnel]
+        LT -->|Encrypted Pipe| PC_TUNNEL[PC Port 8003]
+    end
+
+    subgraph Solution 2: Render Cloud
+        PHONE -->|HTTPS| RENDER[Render Cloud Service]
+        RENDER --> CLOUD_DB[(Hosted PostgreSQL)]
+    end
+
+    subgraph Solution 3: Hybrid Database Sync
+        PHONE -->|Tunnel| PC_TUNNEL
+        PC_TUNNEL --> NEON[(Free Cloud DB / Neon or Supabase)]
+    end
+
+    subgraph Solution 4: Offline Queue
+        PHONE -.->|No Network| ASYNC_STORE[Local Device Storage]
+        ASYNC_STORE -->|1-Tap Sync on Reconnect| PC_TUNNEL
+    end
 ```
-- Web Application: `http://localhost:80`
-- API Backend: `http://localhost:8003`
+
+| Solution | Mechanism | Setup Time | Router Config | Cost |
+| :--- | :--- | :--- | :--- | :--- |
+| **1. Zero-Config Remote Tunnel** | Run `start_tunnel.bat` or `start.bat` Option [6] | 5 seconds | None | Free |
+| **2. Render Cloud Deployment** | Blueprint `render.yaml` | 2 minutes | None | Free Tier |
+| **3. Tailscale Mesh** | Tailscale app on PC & Phone | 1 minute | None | Free |
+| **4. Mobile Offline Queue** | Automatic device buffering in `AsyncStorage` | 0 seconds (Built-in) | None | Free |
+
+##### How to Use Solution 1 (Remote Tunnel Wizard):
+1. On your PC, run **`start_tunnel.bat`** (or run `start.bat` and select `[6]`).
+2. The script starts a secure public HTTPS tunnel via `localtunnel` (or `cloudflared`).
+3. It prints a public URL, for example: `https://pfe-hunter.loca.lt`.
+4. In your OmniHunt Mobile App, tap **Settings / Connect**, paste the HTTPS URL, and tap **Test Ping**.
+5. Your phone can now capture offers, run Groq Vision OCR, and sync data from cellular 4G/5G anywhere in the world!
+
+##### How Solution 4 (Fail-Safe Offline Queue) Works:
+If you are outside with zero internet connection or your PC is shut down:
+- The mobile app intercepts failed network requests and buffers captures into local `AsyncStorage` under `@pfe_hunter_offline_queue`.
+- A prominent amber badge appears on the Connect screen: `X Offline Items Buffered`.
+- As soon as you reconnect (via Wi-Fi, tunnel, or Render), tap **Sync Now** to push all buffered offers and clips directly to the database. Zero data is ever lost!
+
+---
+
+### Step 5: Exporting Career Offers to CSV
+
+OmniHunt provides one-click CSV export of all career offers across both Web and Mobile interfaces:
+
+#### API Endpoint:
+- **`GET /api/offers/export/csv`**
+  - **Query Parameters**:
+    - `category`: Filter by technical domain (e.g. `Machine Learning`, `Fullstack`, `all`).
+    - `channel`: Filter by sourcing channel (`linkedin`, `email`, `whatsapp`, `all`).
+    - `status`: Filter by pipeline stage (`scouted`, `applied`, `interview`, `all`).
+  - **Features**:
+    - RFC 4180 standard escaping for multi-line job specifications and quotes.
+    - UTF-8 Byte Order Mark (`\ufeff`) header for native Microsoft Excel character rendering.
+    - Direct browser download via `Content-Disposition: attachment; filename="omnihunt_offers_<timestamp>.csv"`.
+    - Includes 19 comprehensive columns: `id`, `title`, `company`, `location`, `workplace_type`, `contract_type`, `salary`, `domain`, `skills`, `application_channel`, `status`, `relevance_score`, `source_url`, `contact_name`, `contact_email`, `contact_phone`, `outreach_status`, `scouted_at`, and `job_specification`.
+
+#### User Interface Access:
+1. **Web Dashboard**: Click **📥 Export All Offers (CSV)** in the Quick Action toolbar.
+2. **Web Command Center**: Click the **CSV** button in the filter and search toolbar.
+3. **Mobile App**: Tap the **📥 CSV** button at the top of the Offers list to open and download the CSV directly on your phone.
 
 ---
 

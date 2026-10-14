@@ -2,9 +2,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const STORAGE_KEY_SERVER_URL = '@pfe_hunter_server_url'
 const STORAGE_KEY_CACHED_OFFERS = '@pfe_hunter_cached_offers'
+const STORAGE_KEY_OFFLINE_QUEUE = '@pfe_hunter_offline_queue'
 const DEFAULT_SERVER_URL = 'http://192.168.1.12:8003'
 
 let currentServerUrl = DEFAULT_SERVER_URL
+
+// Standard headers including Localtunnel & Cloudflare bypass headers
+const DEFAULT_HEADERS = {
+  'Content-Type': 'application/json',
+  'Accept': 'application/json',
+  'Bypass-Tunnel-Reminder': 'true', // Bypasses localtunnel warning screen
+}
 
 export const ApiService = {
   /**
@@ -40,8 +48,91 @@ export const ApiService = {
   },
 
   /**
+   * Offline Ingestion Queue Management
+   */
+  async getOfflineQueue() {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEY_OFFLINE_QUEUE)
+      return data ? JSON.parse(data) : []
+    } catch {
+      return []
+    }
+  },
+
+  async queueOfflineItem(type, payload) {
+    try {
+      const queue = await this.getOfflineQueue()
+      const item = {
+        id: `offline_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        type,
+        payload,
+        createdAt: new Date().toISOString(),
+      }
+      queue.unshift(item)
+      await AsyncStorage.setItem(STORAGE_KEY_OFFLINE_QUEUE, JSON.stringify(queue))
+      return item
+    } catch (e) {
+      console.warn('Failed to queue offline item:', e)
+      return null
+    }
+  },
+
+  async clearOfflineQueue() {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEY_OFFLINE_QUEUE)
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  async syncOfflineQueue() {
+    const queue = await this.getOfflineQueue()
+    if (!queue || queue.length === 0) return { synced: 0, failed: 0 }
+
+    let synced = 0
+    let failed = 0
+    const remaining = []
+
+    for (const item of queue) {
+      try {
+        if (item.type === 'post') {
+          const res = await fetch(`${currentServerUrl}/api/mobile/ingest`, {
+            method: 'POST',
+            headers: DEFAULT_HEADERS,
+            body: JSON.stringify(item.payload),
+          })
+          if (res.ok) synced++
+          else remaining.push(item)
+        } else if (item.type === 'clip') {
+          const res = await fetch(`${currentServerUrl}/api/clips/ingest`, {
+            method: 'POST',
+            headers: DEFAULT_HEADERS,
+            body: JSON.stringify(item.payload),
+          })
+          if (res.ok) synced++
+          else remaining.push(item)
+        } else if (item.type === 'bulk') {
+          const res = await fetch(`${currentServerUrl}/api/clips/bulk-ingest`, {
+            method: 'POST',
+            headers: DEFAULT_HEADERS,
+            body: JSON.stringify(item.payload),
+          })
+          if (res.ok) synced++
+          else remaining.push(item)
+        }
+      } catch {
+        remaining.push(item)
+        failed++
+      }
+    }
+
+    await AsyncStorage.setItem(STORAGE_KEY_OFFLINE_QUEUE, JSON.stringify(remaining))
+    return { synced, failed, remainingCount: remaining.length }
+  },
+
+  /**
    * Tests network ping and returns pairing metadata.
-   * If target is unreachable and none specified, attempts local candidates.
    */
   async testConnection(targetUrl = null) {
     const candidates = targetUrl
@@ -52,12 +143,12 @@ export const ApiService = {
       const base = cand.replace(/\/+$/, '')
       const url = `${base}/api/mobile/pairing`
       const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 3000)
+      const timer = setTimeout(() => controller.abort(), 4000)
 
       try {
         const res = await fetch(url, {
           signal: controller.signal,
-          headers: { Accept: 'application/json' },
+          headers: DEFAULT_HEADERS,
         })
         clearTimeout(timer)
         if (res.ok) {
@@ -73,7 +164,7 @@ export const ApiService = {
 
     return {
       success: false,
-      error: `Could not connect to PC at ${targetUrl || currentServerUrl}. Ensure phone is connected to the same Wi-Fi and FastAPI server is running.`,
+      error: `Could not connect to ${targetUrl || currentServerUrl}. Verify server is running, or launch start_tunnel.bat for remote 4G access.`,
     }
   },
 
@@ -88,7 +179,7 @@ export const ApiService = {
 
     const url = `${currentServerUrl}/api/offers?${params.toString()}`
     try {
-      const res = await fetch(url)
+      const res = await fetch(url, { headers: DEFAULT_HEADERS })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const offers = await res.json()
       // Cache offers offline
@@ -114,7 +205,7 @@ export const ApiService = {
     try {
       const res = await fetch(url, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: DEFAULT_HEADERS,
         body: JSON.stringify({ status: newStatus }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -126,21 +217,28 @@ export const ApiService = {
   },
 
   /**
-   * Captures clipboard post / URL and extracts entities via PC backend Groq LLM
+   * Captures clipboard post / URL and extracts entities via PC backend Groq LLM.
+   * Auto-buffers to offline queue if server is unreachable!
    */
   async ingestPost({ rawText = '', sourceUrl = '' }) {
     const url = `${currentServerUrl}/api/mobile/ingest`
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: DEFAULT_HEADERS,
         body: JSON.stringify({ rawText, sourceUrl }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       return { success: true, offer: data.offer, message: data.message }
     } catch (err) {
-      return { success: false, error: err.message }
+      // Offline fallback: Buffer into queue
+      await this.queueOfflineItem('post', { rawText, sourceUrl })
+      return {
+        success: true,
+        isOfflineQueued: true,
+        message: 'Saved to Offline Queue. Will auto-sync when connected to backend.',
+      }
     }
   },
 
@@ -150,7 +248,7 @@ export const ApiService = {
   async getCategories() {
     const url = `${currentServerUrl}/api/categories`
     try {
-      const res = await fetch(url)
+      const res = await fetch(url, { headers: DEFAULT_HEADERS })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const categories = await res.json()
       return { success: true, categories }
@@ -165,7 +263,7 @@ export const ApiService = {
   async getProfile() {
     const url = `${currentServerUrl}/api/profile`
     try {
-      const res = await fetch(url)
+      const res = await fetch(url, { headers: DEFAULT_HEADERS })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const profile = await res.json()
       return { success: true, profile }
@@ -190,7 +288,7 @@ export const ApiService = {
 
     const url = `${currentServerUrl}/api/clips?${params.toString()}`
     try {
-      const res = await fetch(url)
+      const res = await fetch(url, { headers: DEFAULT_HEADERS })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const clips = await res.json()
       return { success: true, clips }
@@ -200,27 +298,35 @@ export const ApiService = {
   },
 
   /**
-   * Ingests a new clipboard clip for AI classification
+   * Ingests a new clipboard clip for AI classification.
+   * Auto-buffers to offline queue if server is unreachable!
    */
   async ingestClip({ content, sourceUrl = '', sourceDomain = '', sourceDevice = 'mobile' }) {
     const url = `${currentServerUrl}/api/clips/ingest`
+    const payload = {
+      content,
+      sourceUrl,
+      sourceDomain,
+      sourceDevice,
+      copiedAt: new Date().toISOString(),
+    }
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content,
-          sourceUrl,
-          sourceDomain,
-          sourceDevice,
-          copiedAt: new Date().toISOString(),
-        }),
+        headers: DEFAULT_HEADERS,
+        body: JSON.stringify(payload),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       return { success: true, clip: data.clip, isJobOffer: data.isJobOffer, offer: data.offer }
     } catch (err) {
-      return { success: false, error: err.message }
+      // Offline fallback: Buffer into queue
+      await this.queueOfflineItem('clip', payload)
+      return {
+        success: true,
+        isOfflineQueued: true,
+        message: 'Clip saved offline. Will auto-sync when server is connected.',
+      }
     }
   },
 
@@ -230,7 +336,7 @@ export const ApiService = {
   async starClip(clipId) {
     const url = `${currentServerUrl}/api/clips/${clipId}/star`
     try {
-      const res = await fetch(url, { method: 'PATCH' })
+      const res = await fetch(url, { method: 'PATCH', headers: DEFAULT_HEADERS })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       return { success: true, isStarred: data.isStarred }
@@ -245,7 +351,7 @@ export const ApiService = {
   async deleteClip(clipId) {
     const url = `${currentServerUrl}/api/clips/${clipId}`
     try {
-      const res = await fetch(url, { method: 'DELETE' })
+      const res = await fetch(url, { method: 'DELETE', headers: DEFAULT_HEADERS })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return { success: true }
     } catch (err) {
@@ -259,7 +365,7 @@ export const ApiService = {
   async convertClipToOffer(clipId) {
     const url = `${currentServerUrl}/api/clips/${clipId}/convert-to-offer`
     try {
-      const res = await fetch(url, { method: 'POST' })
+      const res = await fetch(url, { method: 'POST', headers: DEFAULT_HEADERS })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       return { success: true, offer: data.offer }
@@ -274,7 +380,7 @@ export const ApiService = {
   async syncAllClips() {
     const url = `${currentServerUrl}/api/clips/sync-all`
     try {
-      const res = await fetch(url, { method: 'POST' })
+      const res = await fetch(url, { method: 'POST', headers: DEFAULT_HEADERS })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return await res.json()
     } catch (err) {
@@ -290,7 +396,7 @@ export const ApiService = {
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: DEFAULT_HEADERS,
         body: JSON.stringify({
           imageBase64,
           sourceUrl,
@@ -306,20 +412,29 @@ export const ApiService = {
   },
 
   /**
-   * Bulk ingest messy text / list of links independently
+   * Bulk ingest messy text / list of links independently.
+   * Auto-buffers to offline queue if server is unreachable!
    */
   async bulkIngestClips({ rawText = '', urls = [], sourceDevice = 'mobile' }) {
     const url = `${currentServerUrl}/api/clips/bulk-ingest`
+    const payload = { rawText, urls, sourceDevice }
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rawText, urls, sourceDevice }),
+        headers: DEFAULT_HEADERS,
+        body: JSON.stringify(payload),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return await res.json()
     } catch (err) {
-      return { success: false, error: err.message, count: 0, clips: [] }
+      await this.queueOfflineItem('bulk', payload)
+      return {
+        success: true,
+        isOfflineQueued: true,
+        message: 'Bulk links saved to offline queue. Will process upon reconnect.',
+        count: (urls && urls.length) || 1,
+        clips: [],
+      }
     }
   },
 
@@ -329,7 +444,7 @@ export const ApiService = {
   async enrichClip(clipId) {
     const url = `${currentServerUrl}/api/clips/${clipId}/enrich`
     try {
-      const res = await fetch(url, { method: 'POST' })
+      const res = await fetch(url, { method: 'POST', headers: DEFAULT_HEADERS })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return await res.json()
     } catch (err) {
@@ -345,7 +460,7 @@ export const ApiService = {
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: DEFAULT_HEADERS,
         body: JSON.stringify({ messages }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -355,4 +470,3 @@ export const ApiService = {
     }
   },
 }
-

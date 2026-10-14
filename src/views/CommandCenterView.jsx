@@ -693,6 +693,29 @@ export function CommandCenterView({
               </button>
             )}
 
+            <a
+              href="/api/offers/export/csv"
+              className="btn btn-secondary"
+              style={{
+                height: '30px',
+                padding: '0 8px',
+                fontSize: '10.5px',
+                color: '#10b981',
+                borderColor: 'rgba(16, 185, 129, 0.3)',
+                background: '#18181b',
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                textDecoration: 'none',
+                borderRadius: '4px',
+              }}
+              title="Export all offers with recruiter contacts, skills, and statuses to CSV"
+            >
+              <Download size={11} />
+              <span>CSV</span>
+            </a>
+
             <select
               className="form-select"
               style={{ height: '30px', fontSize: '11px', width: '92px', padding: '0 4px' }}

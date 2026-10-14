@@ -8,6 +8,7 @@ import {
   Calendar,
   AlertCircle,
   TrendingUp,
+  Download,
 } from 'lucide-react'
 import {
   BarChart,
@@ -55,6 +56,35 @@ export function DashboardView({ offers = [], onNavigate }) {
 
   return (
     <div className="workspace-view">
+      {/* Executive Header with 1-Click CSV Export */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div>
+          <h1 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff', margin: 0 }}>Executive Career Pipeline</h1>
+          <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: '3px 0 0 0' }}>Real-time intelligence across multi-channel outreach, offers, and vault captures</p>
+        </div>
+        <a
+          href="/api/offers/export/csv"
+          className="btn btn-secondary"
+          style={{
+            padding: '7px 14px',
+            fontSize: '12px',
+            color: '#10b981',
+            borderColor: 'rgba(16, 185, 129, 0.35)',
+            background: '#18181b',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            textDecoration: 'none',
+            borderRadius: '6px',
+            fontWeight: 600,
+          }}
+          title="Download complete offers dataset with recruiter contacts, skills, and statuses"
+        >
+          <Download size={13} />
+          <span>Export All Offers (CSV)</span>
+        </a>
+      </div>
+
       {/* KPI Metric Strip */}
       <div className="kpi-row">
         <div className="kpi-card">

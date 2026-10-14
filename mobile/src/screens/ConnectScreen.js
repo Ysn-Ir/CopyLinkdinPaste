@@ -17,9 +17,13 @@ export function ConnectScreen({ onConnected, onCancel }) {
   const [isTesting, setIsTesting] = useState(false)
   const [statusResult, setStatusResult] = useState(null)
   const [errorMsg, setErrorMsg] = useState('')
+  const [pingLatency, setPingLatency] = useState(null)
+  const [offlineQueueCount, setOfflineQueueCount] = useState(0)
+  const [isSyncingQueue, setIsSyncingQueue] = useState(false)
 
   useEffect(() => {
     loadCurrentUrl()
+    checkOfflineQueue()
   }, [])
 
   const loadCurrentUrl = async () => {
@@ -28,24 +32,35 @@ export function ConnectScreen({ onConnected, onCancel }) {
     testUrl(url, false)
   }
 
+  const checkOfflineQueue = async () => {
+    const queue = await ApiService.getOfflineQueue()
+    setOfflineQueueCount(queue.length)
+  }
+
   const testUrl = async (targetUrl, showAlert = true) => {
     setIsTesting(true)
     setErrorMsg('')
+    setPingLatency(null)
+
+    const startTime = Date.now()
     const res = await ApiService.testConnection(targetUrl)
+    const elapsed = Date.now() - startTime
     setIsTesting(false)
 
     if (res.success) {
+      setPingLatency(elapsed)
       setStatusResult(res.data)
       await ApiService.setServerUrl(res.url || targetUrl)
       if (showAlert) {
         Alert.alert(
           'Connection Successful 🎉',
-          `Connected to PC (${res.data.hostname || 'FastAPI'})!\n${res.data.counts?.offers || 0} offers synced.`
+          `Connected to ${res.data.hostname || 'OmniHunt Server'} (${elapsed}ms latency)!\n${res.data.counts?.offers || 0} career offers synced.`
         )
       }
+      checkOfflineQueue()
     } else {
       setStatusResult(null)
-      setErrorMsg(res.error || 'Server unreachable. Verify PC and phone are on the same Wi-Fi network.')
+      setErrorMsg(res.error || 'Server unreachable. Verify host URL or start tunnel.')
     }
   }
 
@@ -55,11 +70,23 @@ export function ConnectScreen({ onConnected, onCancel }) {
     if (onConnected) onConnected()
   }
 
+  const handleSyncOffline = async () => {
+    setIsSyncingQueue(true)
+    const res = await ApiService.syncOfflineQueue()
+    setIsSyncingQueue(false)
+    await checkOfflineQueue()
+    Alert.alert(
+      'Offline Sync Completed',
+      `Synced ${res.synced} items to database. ${res.remainingCount > 0 ? `${res.remainingCount} failed.` : 'Queue is now empty!'}`
+    )
+  }
+
   const PRESETS = [
-    { label: 'Wi-Fi LAN', url: 'http://192.168.1.12:8003' },
-    { label: 'Tailscale', url: 'http://100.89.108.117:8003' },
-    { label: 'Android VM', url: 'http://10.0.2.2:8003' },
-    { label: 'Localhost', url: 'http://localhost:8003' },
+    { label: '🌐 Render Cloud', url: 'https://omnihunt-backend.onrender.com' },
+    { label: '⚡ Localtunnel (4G)', url: 'https://pfe-hunter.loca.lt' },
+    { label: '🏠 Wi-Fi LAN', url: 'http://192.168.1.12:8003' },
+    { label: '🔒 Tailscale Mesh', url: 'http://100.89.108.117:8003' },
+    { label: '📱 Android VM', url: 'http://10.0.2.2:8003' },
   ]
 
   return (
@@ -69,29 +96,57 @@ export function ConnectScreen({ onConnected, onCancel }) {
         <View style={styles.iconCircle}>
           <Text style={styles.iconText}>📡</Text>
         </View>
-        <Text style={styles.title}>Local Network Sync</Text>
+        <Text style={styles.title}>Network & Cloud Sync</Text>
         <Text style={styles.subtitle}>
-          Connect OmniHunt to the FastAPI backend running on your PC over local Wi-Fi or Tailscale.
+          Connect OmniHunt Mobile to your backend over Cloud Render, Local 4G Tunnel, or Home Wi-Fi.
         </Text>
       </View>
 
+      {/* Offline Queue Banner if items buffered */}
+      {offlineQueueCount > 0 && (
+        <View style={styles.offlineCard}>
+          <View style={styles.offlineHeader}>
+            <Text style={styles.offlineIcon}>📦</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.offlineTitle}>
+                {offlineQueueCount} Offline Item{offlineQueueCount > 1 ? 's' : ''} Buffered
+              </Text>
+              <Text style={styles.offlineSubtitle}>
+                Captured while disconnected. Sync to database now!
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.syncButton}
+              onPress={handleSyncOffline}
+              disabled={isSyncingQueue || !statusResult}
+            >
+              {isSyncingQueue ? (
+                <ActivityIndicator color="#ffffff" size="small" />
+              ) : (
+                <Text style={styles.syncButtonText}>Sync Now</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Input Box */}
       <View style={styles.card}>
-        <Text style={styles.label}>PC SERVER ENDPOINT (PORT 8003)</Text>
+        <Text style={styles.label}>BACKEND SERVER ENDPOINT (HTTP / HTTPS)</Text>
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
             value={ipInput}
             onChangeText={setIpInput}
-            placeholder="http://192.168.1.12:8003"
+            placeholder="https://... or http://192.168.1.12:8003"
             placeholderTextColor="#64748b"
             autoCapitalize="none"
             autoCorrect={false}
           />
         </View>
 
-        {/* Quick IP Presets */}
-        <Text style={styles.presetsLabel}>Quick Network Presets:</Text>
+        {/* Quick Presets */}
+        <Text style={styles.presetsLabel}>Connection Profiles & Presets:</Text>
         <View style={styles.presetsRow}>
           {PRESETS.map((p) => {
             const isMatch = ipInput === p.url
@@ -140,7 +195,10 @@ export function ConnectScreen({ onConnected, onCancel }) {
         <View style={styles.statusSuccessCard}>
           <View style={styles.statusHeader}>
             <View style={styles.onlineDot} />
-            <Text style={styles.statusTitle}>FastAPI Backend Online</Text>
+            <Text style={styles.statusTitle}>Backend Connected</Text>
+            {pingLatency && (
+              <Text style={styles.latencyBadge}>{pingLatency} ms</Text>
+            )}
           </View>
           <View style={styles.statGrid}>
             <View style={styles.statBox}>
@@ -156,24 +214,44 @@ export function ConnectScreen({ onConnected, onCancel }) {
               <Text style={styles.statLabel}>CV Variants</Text>
             </View>
           </View>
-          <Text style={styles.hostnameText}>PC Host: {statusResult.hostname || 'Workstation'}</Text>
+          <Text style={styles.hostnameText}>
+            Host: {statusResult.hostname || 'Workstation'} • DB: {statusResult.database || 'PostgreSQL/SQLite'}
+          </Text>
         </View>
       ) : errorMsg ? (
         <View style={styles.statusErrorCard}>
-          <Text style={styles.errorTitle}>Connection Failed</Text>
+          <Text style={styles.errorTitle}>Connection Unreachable</Text>
           <Text style={styles.errorText}>{errorMsg}</Text>
           <Text style={styles.errorHelp}>
-            Tip: Verify that start.bat is running on your PC, both devices are on the same Wi-Fi, and your PC IP matches the preset above.
+            Tip: If outside home Wi-Fi, run 'start_tunnel.bat' on your PC and paste the public HTTPS link above.
           </Text>
         </View>
       ) : null}
 
-      {/* Connection Checklist */}
+      {/* Solutions Explanations */}
       <View style={styles.guideCard}>
-        <Text style={styles.guideTitle}>💡 Connection Checklist:</Text>
-        <Text style={styles.guideItem}>1. Phone and PC connected to the same Wi-Fi network.</Text>
-        <Text style={styles.guideItem}>2. Backend active on port 8003 (launch via start.bat).</Text>
-        <Text style={styles.guideItem}>3. If Wi-Fi isolates devices, use Tailscale (100.89.108.117:8003).</Text>
+        <Text style={styles.guideTitle}>🌐 How to Connect from Different Networks:</Text>
+        
+        <View style={styles.guideSection}>
+          <Text style={styles.guideBadge}>OPTION 1: RENDER CLOUD (Always Synced)</Text>
+          <Text style={styles.guideItem}>
+            Deploy to Render using render.yaml. You get a permanent HTTPS URL with hosted PostgreSQL. Both phone and web stay 100% in sync worldwide with no PC running.
+          </Text>
+        </View>
+
+        <View style={styles.guideSection}>
+          <Text style={styles.guideBadge}>OPTION 2: LOCAL PC + TUNNEL (4G Cellular)</Text>
+          <Text style={styles.guideItem}>
+            Running backend on your PC at home? Run <Text style={{ fontFamily: 'monospace', color: '#38bdf8' }}>start_tunnel.bat</Text> to get a free public HTTPS tunnel. Paste it above to sync over 4G!
+          </Text>
+        </View>
+
+        <View style={styles.guideSection}>
+          <Text style={styles.guideBadge}>OPTION 3: LOCAL WI-FI LAN (Home / Office)</Text>
+          <Text style={styles.guideItem}>
+            Connect both PC and phone to the same Wi-Fi router. Select the Wi-Fi LAN preset (port 8003).
+          </Text>
+        </View>
       </View>
     </ScrollView>
   )
@@ -191,7 +269,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   iconCircle: {
     width: 58,
@@ -221,6 +299,43 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     paddingHorizontal: 12,
   },
+  offlineCard: {
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    padding: 14,
+    marginBottom: 16,
+  },
+  offlineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  offlineIcon: {
+    fontSize: 22,
+  },
+  offlineTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fbbf24',
+  },
+  offlineSubtitle: {
+    fontSize: 11,
+    color: THEME.colors.textSecondary,
+    marginTop: 2,
+  },
+  syncButton: {
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  syncButtonText: {
+    color: '#000000',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   card: {
     backgroundColor: THEME.colors.bgCard,
     borderRadius: 14,
@@ -247,7 +362,7 @@ const styles = StyleSheet.create({
   input: {
     height: 44,
     color: THEME.colors.textPrimary,
-    fontSize: 13.5,
+    fontSize: 13,
     fontFamily: 'monospace',
   },
   presetsLabel: {
@@ -342,6 +457,16 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: '700',
     color: THEME.colors.success,
+    flex: 1,
+  },
+  latencyBadge: {
+    fontSize: 11,
+    fontFamily: 'monospace',
+    color: THEME.colors.success,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
   statGrid: {
     flexDirection: 'row',
@@ -396,19 +521,29 @@ const styles = StyleSheet.create({
   guideCard: {
     backgroundColor: THEME.colors.bgCard,
     borderRadius: 14,
-    padding: 14,
+    padding: 16,
     borderWidth: 1,
     borderColor: THEME.colors.border,
   },
   guideTitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: THEME.colors.textPrimary,
-    marginBottom: 6,
+    marginBottom: 12,
+  },
+  guideSection: {
+    marginBottom: 12,
+  },
+  guideBadge: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#38bdf8',
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   guideItem: {
-    fontSize: 11,
+    fontSize: 11.5,
     color: THEME.colors.textSecondary,
-    lineHeight: 18,
+    lineHeight: 17,
   },
 })
