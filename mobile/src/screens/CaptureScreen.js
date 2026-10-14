@@ -251,6 +251,21 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
             Copy any job post on LinkedIn, WhatsApp, or browser — it will appear here automatically.
           </Text>
         )}
+
+        <View style={{
+          marginTop: 10,
+          paddingTop: 8,
+          borderTopWidth: 1,
+          borderTopColor: THEME.colors.border,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+        }}>
+          <Text style={{ fontSize: 12 }}>📸</Text>
+          <Text style={{ fontSize: 11, color: THEME.colors.textMuted, flex: 1, lineHeight: 15 }}>
+            <Text style={{ fontWeight: '700', color: '#10b981' }}>Automatic Screenshot Watcher:</Text> Any screenshot you take on this phone is automatically detected and parsed via Groq Vision OCR without entering or uploading manually!
+          </Text>
+        </View>
       </View>
 
       {/* Mode Selector */}

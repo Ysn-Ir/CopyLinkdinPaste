@@ -16,6 +16,7 @@ import {
 import { THEME } from '../theme'
 import { ApiService } from '../services/api'
 import { ClipboardWatcher } from '../services/clipboardWatcher'
+import { ScreenshotWatcher } from '../services/screenshotWatcher'
 import * as ImagePicker from 'expo-image-picker'
 
 const CONTENT_TYPES = [
@@ -159,6 +160,14 @@ export function ClipVaultScreen({ onNavigateTab }) {
   // Centralized single ClipboardWatcher subscription (eliminates phone repeated clips bug)
   useEffect(() => {
     const unsubscribe = ClipboardWatcher.subscribe(() => {
+      loadClips()
+    })
+    return () => unsubscribe()
+  }, [loadClips])
+
+  // Live ScreenshotWatcher subscription: auto-refreshes vault when a screenshot is auto-ingested
+  useEffect(() => {
+    const unsubscribe = ScreenshotWatcher.subscribe(() => {
       loadClips()
     })
     return () => unsubscribe()

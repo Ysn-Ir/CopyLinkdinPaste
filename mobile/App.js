@@ -26,13 +26,14 @@ import { OfferDetailScreen } from './src/screens/OfferDetailScreen'
 import { ConnectScreen } from './src/screens/ConnectScreen'
 import { ClipVaultScreen } from './src/screens/ClipVaultScreen'
 import { ClipboardWatcher } from './src/services/clipboardWatcher'
+import { ScreenshotWatcher } from './src/services/screenshotWatcher'
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [selectedOffer, setSelectedOffer] = useState(null)
   const [isReady, setIsReady] = useState(false)
 
-  // Floating Toast State for Automatic Clipboard Capture
+  // Floating Toast State for Automatic Clipboard & Screenshot Capture
   const [capturedEvent, setCapturedEvent] = useState(null)
   const [bannerVisible, setBannerVisible] = useState(false)
   const bannerAnim = useRef(new Animated.Value(-120)).current
@@ -46,14 +47,25 @@ export default function App() {
     await ApiService.init()
     await ClipboardWatcher.init()
     ClipboardWatcher.start(2500)
+    await ScreenshotWatcher.init()
+    ScreenshotWatcher.start(3000)
     setIsReady(true)
   }
 
-  // Handle incoming Android share intents and deep links
+  // Handle incoming Android share intents (both URLs/Text and Shared Screenshot Images)
   useEffect(() => {
     const handleIncomingUrl = async (url) => {
       if (!url) return
       try {
+        // Direct image content URI from Android Share Sheet
+        if (url.startsWith('content://') || url.startsWith('file://')) {
+          const res = await ScreenshotWatcher.processImageUri(url)
+          if (res && res.success) {
+            showAutoCapturedToast({ ...res, isScreenshot: true })
+          }
+          return
+        }
+
         const parsed = Linking.parse(url)
         const rawContent = parsed.queryParams?.text || parsed.queryParams?.url || (url.startsWith('http') ? url : null)
         if (rawContent && rawContent.length > 5) {
@@ -76,11 +88,24 @@ export default function App() {
     return () => subscription.remove()
   }, [])
 
-  // Subscribe to automatic clipboard ingestion events (strictly non-blocking & deduplicated)
+  // Subscribe to automatic clipboard ingestion events
   useEffect(() => {
     const unsubscribe = ClipboardWatcher.subscribe((event) => {
       if (event && event.success && !event.isDuplicate) {
         showAutoCapturedToast(event)
+      }
+    })
+    return () => unsubscribe()
+  }, [])
+
+  // Subscribe to automatic screenshot detection events (0 manual steps)
+  useEffect(() => {
+    const unsubscribe = ScreenshotWatcher.subscribe((event) => {
+      if (event && event.success) {
+        showAutoCapturedToast({
+          ...event,
+          isScreenshot: true,
+        })
       }
     })
     return () => unsubscribe()
@@ -171,15 +196,17 @@ export default function App() {
           <View style={styles.bannerLeft}>
             <View style={styles.bannerIconBox}>
               <Text style={{ fontSize: 13 }}>
-                {capturedEvent.isJobOffer ? '🎯' : '📋'}
+                {capturedEvent.isScreenshot ? '📸' : (capturedEvent.isJobOffer ? '🎯' : '📋')}
               </Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.bannerTitle} numberOfLines={1}>
-                {capturedEvent.isJobOffer ? 'Job Offer Auto-Captured!' : 'Clip Auto-Captured to Vault'}
+                {capturedEvent.isScreenshot
+                  ? (capturedEvent.isJobOffer ? 'Screenshot Job Offer Detected!' : 'Screenshot OCR Auto-Ingested!')
+                  : (capturedEvent.isJobOffer ? 'Job Offer Auto-Captured!' : 'Clip Auto-Captured to Vault')}
               </Text>
               <Text style={styles.bannerSnippet} numberOfLines={1}>
-                {capturedEvent.clip?.title || (capturedEvent.rawText?.slice(0, 45) + '...') || 'Item synced to vault'}
+                {capturedEvent.clip?.title || (capturedEvent.rawText?.slice(0, 45) + '...') || 'Processed via Groq Vision OCR'}
               </Text>
             </View>
           </View>
