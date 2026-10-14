@@ -49,11 +49,20 @@ echo ===========================================================================
 echo  Launching Cloudflare Quick Tunnel for port 8003...
 echo ==============================================================================
 echo.
-echo  Checking for cloudflared...
-where cloudflared >nul 2>&1
-if %errorlevel% equ 0 (
-    echo Cloudflared detected. Starting tunnel...
-    cloudflared tunnel --url http://localhost:8003
+set "CF_BIN="
+where cloudflared >nul 2>&1 && set "CF_BIN=cloudflared"
+if not defined CF_BIN if exist "C:\Program Files (x86)\cloudflared\cloudflared.exe" set "CF_BIN=C:\Program Files (x86)\cloudflared\cloudflared.exe"
+if not defined CF_BIN if exist "C:\Program Files\cloudflared\cloudflared.exe" set "CF_BIN=C:\Program Files\cloudflared\cloudflared.exe"
+
+if defined CF_BIN (
+    echo Cloudflared detected at "%CF_BIN%".
+    echo Starting tunnel...
+    echo ------------------------------------------------------------------------------
+    echo 1. Look for the "https://xxxx.trycloudflare.com" link below.
+    echo 2. Paste it in OmniHunt Mobile App -> Connect / Settings.
+    echo 3. Press Ctrl+C when finished to terminate the tunnel.
+    echo ------------------------------------------------------------------------------
+    "%CF_BIN%" tunnel --url http://localhost:8003
 ) else (
     echo [INFO] Cloudflared is not installed. You can download it with:
     echo        winget install Cloudflare.cloudflared
