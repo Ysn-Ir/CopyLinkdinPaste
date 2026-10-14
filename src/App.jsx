@@ -21,6 +21,9 @@ import { OfferModal } from './components/OfferModal.jsx'
 import { CVManagerModal } from './components/CVManagerModal.jsx'
 import { CategoryManagerModal } from './components/CategoryManagerModal.jsx'
 import { MobileConnectModal } from './components/MobileConnectModal.jsx'
+import { NotificationBlockedModal } from './components/NotificationBlockedModal.jsx'
+import { notificationService } from './services/notificationService.js'
+import { Bell, BellOff } from 'lucide-react'
 
 import { CommandCenterView } from './views/CommandCenterView.jsx'
 import { DashboardView } from './views/DashboardView.jsx'
@@ -45,6 +48,10 @@ export default function App() {
   const [isCvVaultModalOpen, setIsCvVaultModalOpen] = useState(false)
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false)
+  const [isNotifBlockedModalOpen, setIsNotifBlockedModalOpen] = useState(false)
+  const [notificationStatus, setNotificationStatus] = useState(
+    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported'
+  )
   const [isIngesting, setIsIngesting] = useState(false)
 
   // Database State (Backed by PostgreSQL/SQLite & IndexedDB)
@@ -109,6 +116,30 @@ export default function App() {
     loadClips()
   }, [])
 
+  // Notification button handler
+  const handleNotificationBtnClick = async () => {
+    const current = notificationService.getPermission()
+    if (current === 'denied') {
+      setIsNotifBlockedModalOpen(true)
+    } else if (current === 'default') {
+      const res = await notificationService.requestPermission()
+      setNotificationStatus(res)
+      if (res === 'granted') {
+        notificationService.notify({
+          title: '🦅 OmniHunt Alerts Activated',
+          body: 'Desktop notifications are active for all captured clips and job offers.',
+        })
+      } else if (res === 'denied') {
+        setIsNotifBlockedModalOpen(true)
+      }
+    } else if (current === 'granted') {
+      notificationService.notify({
+        title: '🔔 OmniHunt Alerts Active',
+        body: 'Desktop notifications are working properly. Click to focus app.',
+      })
+    }
+  }
+
   // Clipboard Monitor Lifecycle
   useEffect(() => {
     if (clipMonitorActive) {
@@ -120,13 +151,23 @@ export default function App() {
           const refreshedOffers = await StorageService.getOffers()
           setOffers(refreshedOffers)
         }
-        // Show toast
+        // Show in-app toast
         setClipToast({
           title: clip?.title || 'Nouveau clip capturé',
           type: clip?.contentType || 'note',
           isJobOffer: Boolean(isJobOffer),
         })
         setTimeout(() => setClipToast(null), 4000)
+
+        // Trigger native desktop notification & audio alert
+        notificationService.notify({
+          title: isJobOffer ? '🎯 New Career Offer Detected!' : '📋 Clip Captured to Vault',
+          body: clip?.title || (isJobOffer ? `${offer?.title} at ${offer?.company}` : 'Captured into OmniHunt'),
+          onClick: () => {
+            if (isJobOffer) setActiveView('command-center')
+            else setActiveView('clip-vault')
+          },
+        })
       })
     } else {
       ClipboardMonitorService.stop()
@@ -371,6 +412,65 @@ export default function App() {
               <span style={{ fontSize: '10px', opacity: 0.8, fontFamily: 'monospace' }}>
                 {networkInfo?.localIps?.[0] ? `(${networkInfo.localIps[0]})` : ''}
               </span>
+            </button>
+
+            {/* Desktop Notification Alert Button */}
+            <button
+              type="button"
+              onClick={handleNotificationBtnClick}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '11px',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                background:
+                  notificationStatus === 'granted'
+                    ? 'rgba(16, 185, 129, 0.1)'
+                    : notificationStatus === 'denied'
+                    ? 'rgba(239, 68, 68, 0.15)'
+                    : 'rgba(245, 158, 11, 0.12)',
+                border:
+                  notificationStatus === 'granted'
+                    ? '1px solid rgba(16, 185, 129, 0.3)'
+                    : notificationStatus === 'denied'
+                    ? '1px solid rgba(239, 68, 68, 0.35)'
+                    : '1px solid rgba(245, 158, 11, 0.3)',
+                color:
+                  notificationStatus === 'granted'
+                    ? '#10b981'
+                    : notificationStatus === 'denied'
+                    ? '#ef4444'
+                    : '#fbbf24',
+                cursor: 'pointer',
+                fontWeight: 600,
+                transition: 'all 0.15s ease',
+              }}
+              title={
+                notificationStatus === 'granted'
+                  ? 'Desktop alerts active (Click to test)'
+                  : notificationStatus === 'denied'
+                  ? 'Notifications are blocked in your browser (Click to unblock)'
+                  : 'Click to enable desktop alerts'
+              }
+            >
+              {notificationStatus === 'granted' ? (
+                <>
+                  <Bell size={12} color="#10b981" />
+                  <span>Alerts Active</span>
+                </>
+              ) : notificationStatus === 'denied' ? (
+                <>
+                  <BellOff size={12} color="#ef4444" />
+                  <span>Alerts Blocked (Unblock)</span>
+                </>
+              ) : (
+                <>
+                  <Bell size={12} color="#fbbf24" />
+                  <span>Enable Alerts</span>
+                </>
+              )}
             </button>
           </div>
 
@@ -619,6 +719,13 @@ export default function App() {
       <MobileConnectModal
         isOpen={isMobileModalOpen}
         onClose={() => setIsMobileModalOpen(false)}
+      />
+
+      {/* Notification Unblock Help Modal */}
+      <NotificationBlockedModal
+        isOpen={isNotifBlockedModalOpen}
+        onClose={() => setIsNotifBlockedModalOpen(false)}
+        onPermissionChanged={setNotificationStatus}
       />
 
       {/* Clip Captured Toast Notification */}

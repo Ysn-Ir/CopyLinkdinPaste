@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
   Vibration,
+  PermissionsAndroid,
 } from 'react-native'
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar'
 import * as Clipboard from 'expo-clipboard'
@@ -34,6 +35,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [selectedOffer, setSelectedOffer] = useState(null)
   const [isReady, setIsReady] = useState(false)
+  const [notificationsBlocked, setNotificationsBlocked] = useState(false)
 
   // Floating Toast State for Automatic Clipboard & Screenshot Capture
   const [capturedEvent, setCapturedEvent] = useState(null)
@@ -45,8 +47,29 @@ export default function App() {
     initApp()
   }, [])
 
+  const checkNotificationPermission = async () => {
+    if (Platform.OS === 'android' && Platform.Version >= 33) {
+      try {
+        const hasPermission = await PermissionsAndroid.check(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+        )
+        if (!hasPermission) {
+          const res = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+          )
+          setNotificationsBlocked(res !== PermissionsAndroid.RESULTS.GRANTED)
+        } else {
+          setNotificationsBlocked(false)
+        }
+      } catch (err) {
+        console.warn('POST_NOTIFICATIONS request failed:', err)
+      }
+    }
+  }
+
   const initApp = async () => {
     await ApiService.init()
+    await checkNotificationPermission()
     await ClipboardWatcher.init()
     ClipboardWatcher.start(2500)
     await ScreenshotWatcher.init()
@@ -235,6 +258,30 @@ export default function App() {
             </TouchableOpacity>
           </View>
         </Animated.View>
+      )}
+
+      {/* System Notifications Blocked Banner */}
+      {notificationsBlocked && (
+        <TouchableOpacity
+          style={styles.blockedAlertBar}
+          onPress={() => Linking.openSettings()}
+          activeOpacity={0.8}
+        >
+          <View style={styles.blockedAlertLeft}>
+            <Text style={styles.blockedAlertIcon}>🔕</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.blockedAlertTitle}>
+                Notifications are blocked
+              </Text>
+              <Text style={styles.blockedAlertSubtitle}>
+                Tap to allow notifications in Android Settings for background screenshot & clip alerts.
+              </Text>
+            </View>
+          </View>
+          <View style={styles.blockedAlertBtn}>
+            <Text style={styles.blockedAlertBtnText}>Enable →</Text>
+          </View>
+        </TouchableOpacity>
       )}
 
       {/* Screen Body */}
@@ -513,6 +560,48 @@ const styles = StyleSheet.create({
   },
   navLabelActive: {
     color: '#ffffff',
+    fontWeight: '700',
+  },
+  blockedAlertBar: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(239, 68, 68, 0.25)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  blockedAlertLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  blockedAlertIcon: {
+    fontSize: 20,
+  },
+  blockedAlertTitle: {
+    color: '#ef4444',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  blockedAlertSubtitle: {
+    color: '#a1a1aa',
+    fontSize: 10.5,
+    marginTop: 2,
+    lineHeight: 14,
+  },
+  blockedAlertBtn: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  blockedAlertBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
     fontWeight: '700',
   },
 })
