@@ -39,42 +39,98 @@ OmniHunt bridges the gap between chaotic real-world browsing (on phones and PCs)
 
 ## 2. High-Level System Architecture
 
-OmniHunt operates on a **tri-tier distributed architecture**:
+OmniHunt operates on an executive-grade **hybrid tri-tier distributed architecture** engineered for 100% operational flexibility between 24/7 cloud deployment and completely isolated local execution:
 
 ```mermaid
 graph TD
-    subgraph Mobile Device (Android / Expo)
-        MS[Native Screenshot Watcher] -->|MediaStore / Albums| CS[Capture Screen]
-        CB[Native Clipboard Watcher] -->|System Clipboard| CS
-        1Tap[1-Tap Instant OCR Scan] --> CS
-        CS -->|HTTP / JSON| MAPI[Mobile API Client]
-        CV_M[Mobile Clip Vault Screen] <--> MAPI
-        OD_M[Mobile Offer Details & WhatsApp] <--> MAPI
+    %% INGRESS & CAPTURE LAYER
+    subgraph Capture & Ingress Sources
+        AND_SS[Android MediaStore Screenshot Watcher]
+        AND_CB[System Clipboard Listener]
+        AND_OCR[1-Tap Groq Vision OCR]
+        WEB_CLIP[Web Auto-Clipboard Ingest]
+        WEB_BULK_IN[Bulk Link & Text Cleaner]
     end
 
-    subgraph FastAPI Backend (Python 3.10+)
-        MAPI -->|REST API| API_ROUTER[FastAPI Endpoints]
-        API_ROUTER --> SCRAPER[Scraper Service]
-        API_ROUTER --> AI[AI Engine - Groq Llama 3.3 / Vision]
-        API_ROUTER --> ORM[SQLAlchemy ORM]
-        
-        SCRAPER -->|oEmbed & Bot Emulation| SOCIAL[TikTok / Instagram / Web]
-        ORM --> DB[(SQLite Database / pfe_hunter.db)]
+    %% NETWORK & TRANSPORT LAYER
+    subgraph Network & Ingress Routing
+        MODE_CLOUD[Path 1: Render Cloud HTTPS<br/>https://omnihunt.onrender.com]
+        MODE_TUNNEL[Path 2: 4G Remote Tunnel<br/>https://*.loca.lt / trycloudflare]
+        MODE_LAN[Path 3: Local Wi-Fi LAN<br/>http://192.168.1.X:8003]
+        MODE_OFFLINE[Path 4: Offline Device Buffer<br/>AsyncStorage Queue]
     end
 
-    subgraph Web Command Center (React 19 + Vite)
-        WEB_VAULT[Clip Vault View & Inspector Modal] <--> API_ROUTER
-        WEB_BULK[Bulk Link & Text Cleaner] <--> API_ROUTER
-        WEB_PIPE[Pipeline / Kanban View] <--> API_ROUTER
-        WEB_AGENT[Autonomous Agent Console] <--> API_ROUTER
-        WEB_SETTINGS[Settings & Categories Manager] <--> API_ROUTER
+    AND_SS -->|Automatic Polling| AND_OCR
+    AND_OCR --> MODE_CLOUD & MODE_TUNNEL & MODE_LAN & MODE_OFFLINE
+    AND_CB --> MODE_CLOUD & MODE_TUNNEL & MODE_LAN & MODE_OFFLINE
+    WEB_CLIP --> MODE_CLOUD & MODE_LAN
+    WEB_BULK_IN --> MODE_CLOUD & MODE_LAN
+    MODE_OFFLINE -.->|1-Tap Reconnect Sync| MODE_CLOUD & MODE_TUNNEL & MODE_LAN
+
+    %% UNIFIED BACKEND LAYER
+    subgraph FastAPI Unified Backend Port 8003 / $PORT
+        ROUTER[API Router & Dispatcher]
+        DECOMP[Atomic Multi-Link Decomposition Engine]
+        SCRAPER[Social & Web Scraper Service<br/>TikTok oEmbed / IG OpenGraph / BS4]
+        AI_ENGINE[Groq Semantic AI Engine<br/>Llama 3.3 70B & Vision 90B]
+        CSV_ENGINE[RFC 4180 CSV Export Engine<br/>UTF-8 BOM + Multi-filter]
+        STATIC_SRV[SPA Static Files Server<br/>Serves React 19 dist/ at /]
+        ORM[SQLAlchemy 2.0 Dynamic Engine]
+
+        ROUTER --> DECOMP
+        ROUTER --> SCRAPER
+        ROUTER --> AI_ENGINE
+        ROUTER --> CSV_ENGINE
+        ROUTER --> STATIC_SRV
+        ROUTER --> ORM
     end
+
+    MODE_CLOUD --> ROUTER
+    MODE_TUNNEL --> ROUTER
+    MODE_LAN --> ROUTER
+
+    %% DUAL-MODE PERSISTENCE LAYER
+    subgraph Dual-Mode Persistence Layer
+        CLOUD_PG[(Render / Neon Hosted PostgreSQL<br/>24/7 Synced Cloud DB)]
+        LOCAL_SQLITE[(Local SQLite Database<br/>data/pfe_hunter.db)]
+    end
+
+    ORM -->|DATABASE_URL present| CLOUD_PG
+    ORM -->|Fallback / Local Default| LOCAL_SQLITE
+
+    %% USER INTERFACES
+    subgraph Executive Presentation Layer
+        REACT_WEB[Web Command Center<br/>React 19 + Lucide + Obsidian CSS]
+        EXPO_MOB[Mobile Companion App<br/>React Native 0.76 + Expo 52]
+    end
+
+    STATIC_SRV --> REACT_WEB
+    ROUTER <--> REACT_WEB
+    ROUTER <--> EXPO_MOB
 ```
 
-### Components
-1. **Web Command Center (`src/`)**: Built on React 19, Vite, and Lucide Icons. Uses pure Obsidian Executive styling tokens (high-contrast dark mode, zero external CSS framework bloat).
-2. **FastAPI Backend (`backend/`)**: Python 3.10+ asynchronous backend providing REST endpoints, scraping engines, Groq Llama/Vision orchestration, and SQLite persistence via SQLAlchemy.
-3. **Mobile Companion (`mobile/`)**: Native Android / Expo 52 client featuring background MediaStore screenshot monitoring, clipboard polling, 1-tap Groq Vision OCR capture, offline AsyncStorage caching, and zero-config local network pairing.
+### Tri-Tier Architectural Subsystems
+
+1. **Client & Ingestion Tier**:
+   - **React Native Mobile App (`mobile/`)**: Native Android client running Expo SDK 52. Features a background MediaStore watcher that detects new phone screenshots in real time, a background clipboard listener, a 1-tap Groq Vision OCR camera module, and a fail-safe offline buffer in `AsyncStorage`.
+   - **Web Command Center (`src/`)**: Executive desktop dashboard built on React 19 and Vite. Implements Obsidian Executive styling tokens (high-contrast dark mode, zero CSS framework bloat), a universal Clip Vault inspector, a bulk link/text cleaner, a Kanban pipeline, and an autonomous AI agent console.
+
+2. **Ingress & Transport Tier (Cross-Network Mobility)**:
+   - **Cloud Mode (Render)**: Full global HTTPS endpoint (`https://your-app.onrender.com`). Enables synchronization between mobile and web anywhere in the world on any network (cellular 4G/5G, foreign Wi-Fi).
+   - **Remote Tunnel Mode (`start_tunnel.bat`)**: Solves RFC 1918 private IP isolation for local PC execution. Exposes local port 8003 over a secure HTTPS pipe (`localtunnel` or `cloudflared`) so the phone on 4G can sync with your PC without opening router ports.
+   - **Local LAN Mode**: Direct device-to-device communication over home/office Wi-Fi router on port `8003`.
+   - **Offline Buffer Mode**: When the backend is unreachable or the PC is off, captures are buffered locally in `AsyncStorage` under `@pfe_hunter_offline_queue` and flushed with 1-tap upon reconnection.
+
+3. **Compute & Intelligence Tier (`backend/`)**:
+   - **FastAPI Core Engine**: Asynchronous Python 3.10+ server providing 34+ REST endpoints.
+   - **Multi-Link Decomposition Engine**: Uses regex pattern matching and context slicing to isolate multiple URLs from single LinkedIn/WhatsApp posts, creating discrete child records while maintaining parent-post lineage.
+   - **Social Scrapers**: Emulates verified bot headers (`facebookexternalhit/1.1`) and consumes TikTok oEmbed APIs to extract descriptions, author handles, and video thumbnails.
+   - **Groq Semantic Intelligence**: Orchestrates `meta-llama/llama-3.2-90b-vision-instruct` for OCR and `meta-llama/llama-3.3-70b-versatile` for skills extraction, classification, and outreach drafting.
+   - **CSV Export Engine**: Serializes career pipeline offers into Excel-compliant RFC 4180 CSV with UTF-8 BOM encoding.
+
+4. **Persistence Tier (Dual-Mode Engine)**:
+   - **Cloud PostgreSQL**: Used when deployed to Render or when pointing `DATABASE_URL` to a hosted database (Render Postgres, Neon, Supabase).
+   - **SQLite Fallback**: Zero-configuration default (`data/pfe_hunter.db`) used when running locally offline without a database server.
 
 ---
 
