@@ -4,7 +4,7 @@ services:
   # ==============================================================================
   - type: web
     name: omnihunt
-    env: python
+    runtime: python
     region: frankfurt # or oregon / ohio / singapore
     plan: free # or starter
     buildCommand: "pip install -r requirements.txt && npm install && npm run build"
