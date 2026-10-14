@@ -18,6 +18,24 @@ function getChannelMeta(channel) {
   return { label: 'ATS / External Portal', icon: '🌐', color: '#ffffff', bg: 'rgba(255, 255, 255, 0.08)' }
 }
 
+function formatCleanDescription(text) {
+  if (!text) return ''
+  // Strip scraper header tags if present
+  let cleaned = text.replace(/^(TITLE|SITE|DESCRIPTION|PAGE CONTENT|URL):\s*[^\n]*\n+/gmi, '')
+  // Deduplicate repeated paragraphs
+  const paras = cleaned.split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
+  const seen = new Set()
+  const unique = []
+  for (const p of paras) {
+    const norm = p.toLowerCase().replace(/\s+/g, ' ').slice(0, 90)
+    if (!seen.has(norm)) {
+      seen.add(norm)
+      unique.push(p)
+    }
+  }
+  return unique.join('\n\n') || text
+}
+
 export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
   const [currentOffer, setCurrentOffer] = useState(offer)
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
@@ -239,7 +257,7 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
         {currentOffer.description ? (
           <View style={styles.infoCard}>
             <Text style={styles.sectionTitle}>Job Specification & Notes</Text>
-            <Text style={styles.descText}>{currentOffer.description}</Text>
+            <Text style={styles.descText}>{formatCleanDescription(currentOffer.description)}</Text>
           </View>
         ) : null}
       </ScrollView>

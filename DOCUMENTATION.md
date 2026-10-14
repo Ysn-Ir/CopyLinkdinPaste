@@ -372,20 +372,21 @@ The mobile application is built with **React Native** and **Expo SDK 52**.
 
 ```
 mobile/
-├── App.js                   # Root navigation with Bottom Tab Navigator
+├── App.js                   # Root navigation with Bottom Tab Navigator & Haptic Notifications
 ├── app.json                 # Expo configuration & Android native permissions
 ├── package.json             # React Native, Expo 52, AsyncStorage
 ├── build_apk.py             # Automated standalone Gradle APK compiler
 ├── src/
 │   ├── theme.js             # Obsidian executive palette & typography tokens
 │   ├── services/
-│   │   ├── api.js           # Axios HTTP client, offline AsyncStorage sync
+│   │   ├── api.js           # Axios HTTP client, offline AsyncStorage sync, AI chat
 │   │   ├── clipboardWatcher.js # Polling clipboard watcher with deduping
 │   │   └── screenshotWatcher.js# MediaStore Screenshots album watcher & 1-tap scan
 │   └── screens/
 │       ├── DashboardScreen.js   # Pipeline metrics, quick actions
 │       ├── CaptureScreen.js     # 1-Tap OCR, MediaStore status, Bulk & Single Ingest
 │       ├── ClipVaultScreen.js   # Universal Vault with Clip Inspector Modal
+│       ├── AgentScreen.js       # Conversational AI Career Agent (Groq Llama 3.3 70B)
 │       ├── OffersListScreen.js  # Searchable career offers stream
 │       ├── OfferDetailScreen.js # Full offer inspector, WhatsApp 1-Tap, Cover Letter
 │       └── ConnectScreen.js     # LAN pairing, IP configuration, ping test
@@ -449,31 +450,34 @@ HOST=0.0.0.0
 
 ---
 
-### Step 2: Start the Backend
-
-```bash
-cd backend
-python -m venv venv
-# On Windows:
-venv\Scripts\activate
-# On Linux/macOS:
-# source venv/bin/activate
-
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8003 --reload
-```
-API Documentation will be available at: `http://localhost:8003/docs`
+### Option A: 1-Click Silent Background Mode (No Terminal Windows!)
+To run OmniHunt without keeping open CMD or PowerShell windows:
+- Double click **`start_background.vbs`** or run `start.bat` and select Option 1.
+- Both the Web Command Center and all APIs run silently in the background on:
+  👉 **`http://localhost:8003`**
+- To terminate background processes: Double click **`stop_background.bat`**.
 
 ---
 
-### Step 3: Start the Web Command Center
-
-In a new terminal:
+### Option B: 1-Command Docker Deployment (Recommended for Cloud / Server)
 ```bash
-npm install
+docker compose up -d --build
+```
+- Web Application & API: `http://localhost:8003`
+- Web Frontend (Nginx): `http://localhost:5174`
+- PostgreSQL: `localhost:5432`
+- Native Tesseract OCR is baked directly into the Docker image with English and French language packs.
+
+---
+
+### Option C: Local Dev Mode (Interactive Terminals)
+```bash
+# Terminal 1 - FastAPI Backend (Port 8003)
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8003 --reload
+
+# Terminal 2 - Vite Frontend (Port 5174)
 npm run dev
 ```
-The web dashboard opens at: `http://localhost:5174`
 
 ---
 

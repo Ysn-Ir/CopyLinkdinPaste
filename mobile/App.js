@@ -11,6 +11,7 @@ import {
   Animated,
   ActivityIndicator,
   Alert,
+  Vibration,
 } from 'react-native'
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar'
 import * as Clipboard from 'expo-clipboard'
@@ -25,6 +26,7 @@ import { OffersListScreen } from './src/screens/OffersListScreen'
 import { OfferDetailScreen } from './src/screens/OfferDetailScreen'
 import { ConnectScreen } from './src/screens/ConnectScreen'
 import { ClipVaultScreen } from './src/screens/ClipVaultScreen'
+import { AgentScreen } from './src/screens/AgentScreen'
 import { ClipboardWatcher } from './src/services/clipboardWatcher'
 import { ScreenshotWatcher } from './src/services/screenshotWatcher'
 
@@ -112,6 +114,9 @@ export default function App() {
   }, [])
 
   const showAutoCapturedToast = (event) => {
+    try {
+      Vibration.vibrate([0, 100, 50, 150])
+    } catch {}
     setCapturedEvent(event)
     setBannerVisible(true)
     if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current)
@@ -122,10 +127,10 @@ export default function App() {
       bounciness: 4,
     }).start()
 
-    // Smoothly auto-dismiss after 4 seconds
+    // Smoothly auto-dismiss after 4.5 seconds
     bannerTimerRef.current = setTimeout(() => {
       hideClipboardBanner()
-    }, 4000)
+    }, 4500)
   }
 
   const hideClipboardBanner = () => {
@@ -262,6 +267,12 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'agent' && (
+          <AgentScreen
+            onNavigateTab={setActiveTab}
+          />
+        )}
+
         {activeTab === 'connect' && (
           <ConnectScreen
             onConnected={() => setActiveTab('dashboard')}
@@ -317,6 +328,18 @@ export default function App() {
           </Text>
           <Text style={[styles.navLabel, activeTab === 'clipvault' && styles.navLabelActive]}>
             Vault
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.navItem, activeTab === 'agent' && styles.navItemActive]}
+          onPress={() => setActiveTab('agent')}
+        >
+          <Text style={[styles.navIcon, activeTab === 'agent' && styles.navIconActive]}>
+            🤖
+          </Text>
+          <Text style={[styles.navLabel, activeTab === 'agent' && styles.navLabelActive]}>
+            Agent
           </Text>
         </TouchableOpacity>
 

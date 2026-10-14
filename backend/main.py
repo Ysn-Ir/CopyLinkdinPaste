@@ -25,7 +25,7 @@ from .schemas import (
     ClipOcrRequest,
     BulkIngestSchema,
 )
-from .ai_service import call_groq_chat, analyze_offer, analyze_clip, call_groq_vision
+from .ai_service import call_groq_chat, analyze_offer, analyze_clip, call_groq_vision, clean_repetitive_text
 from .scraper_service import scrape_url_metadata
 
 logging.basicConfig(level=logging.INFO)
@@ -1124,7 +1124,7 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
                     recruiter_email=job_data.get("recruiterEmail") or (emails[0] if emails else ""),
                     recruiter_name=job_data.get("recruiterName") or "",
                     skills_json=json.dumps(job_data.get("skills") or tags),
-                    description=rich_text,
+                    description=job_data.get("jobSpecification") or job_data.get("description") or clean_repetitive_text(rich_text),
                     source_url=u,
                     status="saved",
                     attached_cv_tag=cv_tag,
@@ -1282,7 +1282,7 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
             recruiter_email=job_data.get("recruiterEmail") or (emails[0] if emails else ""),
             recruiter_name=job_data.get("recruiterName") or "",
             skills_json=json.dumps(job_data.get("skills") or tags),
-            description=rich_text,
+            description=job_data.get("jobSpecification") or job_data.get("description") or clean_repetitive_text(rich_text),
             source_url=target_url or req.sourceUrl or "",
             status="saved",
             attached_cv_tag=cv_tag,
@@ -1453,11 +1453,9 @@ async def enrich_clip(clip_id: str, db: Session = Depends(get_db)):
 
 @app.post("/api/clips/ocr-ingest")
 async def ocr_ingest_clip(req: ClipOcrRequest, db: Session = Depends(get_db)):
-    """Extracts OCR text from mobile screenshot via Groq Vision, then performs semantic classification"""
+    """Extracts OCR text from mobile screenshot via Native OCR & Groq, then performs semantic classification"""
     cfg = db.query(AiConfigModel).filter_by(id="default").first()
     api_key = (cfg.api_key if cfg else None) or GROQ_API_KEY
-    if not api_key:
-        raise HTTPException(status_code=500, detail="Groq API key not configured for Vision OCR")
 
     try:
         extracted_text = await call_groq_vision(
@@ -1466,11 +1464,19 @@ async def ocr_ingest_clip(req: ClipOcrRequest, db: Session = Depends(get_db)):
             api_key=api_key
         )
     except Exception as e:
-        logger.error(f"Groq Vision OCR failed: {e}")
-        raise HTTPException(status_code=500, detail=f"OCR failed: {str(e)}")
+        logger.error(f"OCR extraction failed: {e}")
+        return {
+            "success": False,
+            "error": f"OCR processing failed: {str(e)}",
+            "message": "Please ensure the screenshot is clear and contains readable text."
+        }
 
-    if not extracted_text or len(extracted_text.strip()) < 10:
-        raise HTTPException(status_code=400, detail="Could not detect readable text in screenshot")
+    if not extracted_text or len(extracted_text.strip()) < 8:
+        return {
+            "success": False,
+            "error": "No readable text detected in screenshot",
+            "message": "Could not identify text in image. Try taking a closer screenshot of the text."
+        }
 
     # Ingest the extracted text as a clip
     ingest_payload = ClipIngestSchema(
@@ -1707,6 +1713,39 @@ def delete_clip(clip_id: str, db: Session = Depends(get_db)):
 async def scrape_endpoint(url: str = Query(..., description="Target LinkedIn or job portal URL")):
     result = await scrape_url_metadata(url)
     return result
+
+
+# ==============================================================================
+# SERVE PRODUCTION WEB BUILD (FastAPI Serves Both API & React Web App on Port 8003)
+# ==============================================================================
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+dist_path = None
+for cand in [
+    Path(__file__).resolve().parent.parent / "dist",
+    Path(__file__).resolve().parent / "dist",
+    Path("/app/dist"),
+    Path("dist")
+]:
+    if cand.exists() and (cand / "index.html").exists():
+        dist_path = cand
+        break
+
+if dist_path:
+    logger.info(f"Serving production web frontend from {dist_path}")
+    if (dist_path / "assets").exists():
+        app.mount("/assets", StaticFiles(directory=str(dist_path / "assets")), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend_spa(full_path: str):
+        if full_path.startswith("api/") or full_path == "api":
+            raise HTTPException(status_code=404, detail="API route not found")
+        target_file = dist_path / full_path
+        if target_file.is_file():
+            return FileResponse(target_file)
+        return FileResponse(dist_path / "index.html")
 
 
 if __name__ == "__main__":

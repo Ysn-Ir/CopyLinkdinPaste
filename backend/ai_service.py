@@ -1,10 +1,53 @@
 import json
 import logging
 import httpx
+import io
+import base64
+import re
+import sys
+from PIL import Image
 from .config import GROQ_API_KEY, DEFAULT_MODEL
 
 logger = logging.getLogger("pfe_hunter.ai")
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+
+def clean_repetitive_text(text: str) -> str:
+    """
+    Cleans raw post or scraped text by removing header prefixes (TITLE:, SITE:, DESCRIPTION:)
+    and deduplicating repeated sentences and paragraphs.
+    """
+    if not text:
+        return ""
+
+    # Strip multi-layered scraper headers
+    cleaned = re.sub(r'^(TITLE|SITE|DESCRIPTION|PAGE CONTENT|URL):\s*[^\n]*\n+', '', text, flags=re.MULTILINE)
+    
+    # Split into paragraphs
+    paragraphs = [p.strip() for p in re.split(r'\n{2,}', cleaned) if p.strip()]
+    seen_paras = set()
+    unique_paras = []
+
+    for p in paragraphs:
+        # Normalize for deduplication comparison
+        norm = re.sub(r'\s+', ' ', p.lower())[:100]
+        if norm not in seen_paras:
+            seen_paras.add(norm)
+            # Within the paragraph, deduplicate consecutive identical lines
+            lines = [l.strip() for l in p.split('\n') if l.strip()]
+            seen_lines = set()
+            unique_lines = []
+            for l in lines:
+                l_norm = re.sub(r'\s+', ' ', l.lower())
+                if l_norm not in seen_lines:
+                    seen_lines.add(l_norm)
+                    unique_lines.append(l)
+            if unique_lines:
+                unique_paras.append("\n".join(unique_lines))
+
+    result = "\n\n".join(unique_paras)
+    return result if len(result) > 20 else text.strip()
+
 
 async def call_groq_chat(messages, api_key=None, model=None, temperature=0.25, max_tokens=1500):
     key = (api_key or GROQ_API_KEY or "").strip()
@@ -41,42 +84,78 @@ async def call_groq_chat(messages, api_key=None, model=None, temperature=0.25, m
             "usage": data.get("usage", {})
         }
 
+
 async def call_groq_vision(image_base64: str, prompt: str = "Extract all text and job/educational details from this screenshot", api_key: str = None):
-    """Uses Groq Vision (llama-3.2-11b-vision-preview) to extract OCR text from phone screenshots"""
+    """
+    Robust Multi-Engine OCR Processor:
+    1. Extracts text from base64 image using Windows Native OCR (winocr) or Tesseract (Linux/Docker).
+    2. Cleans and formats the extracted text with Groq LLM (openai/gpt-oss-120b) to remove OCR noise and restore structured layout.
+    """
+    if not image_base64:
+        raise ValueError("Empty image data provided")
+
+    # Clean base64 string
+    clean_b64 = re.sub(r'^data:image/[a-zA-Z]+;base64,', '', image_base64).strip()
+    try:
+        raw_bytes = base64.b64decode(clean_b64)
+        pil_image = Image.open(io.BytesIO(raw_bytes))
+    except Exception as e:
+        logger.error(f"Failed decoding image for OCR: {e}")
+        raise ValueError(f"Invalid image format: {e}")
+
+    extracted_raw = ""
+
+    # Engine 1: Windows Native OCR (winocr) - high accuracy, fast, works offline
+    if sys.platform == "win32":
+        try:
+            import winocr
+            res = await winocr.recognize_pil(pil_image, "en")
+            if res and res.text and len(res.text.strip()) > 5:
+                extracted_raw = res.text.strip()
+        except Exception as e:
+            logger.warning(f"Windows OCR error: {e}")
+
+    # Engine 2: Tesseract OCR (cross-platform, Linux, Docker)
+    if not extracted_raw or len(extracted_raw) < 10:
+        try:
+            import pytesseract
+            res = pytesseract.image_to_string(pil_image)
+            if res and len(res.strip()) > 5:
+                extracted_raw = res.strip()
+        except Exception as e:
+            logger.warning(f"Tesseract OCR error: {e}")
+
+    # Fallback message if completely unreadable
+    if not extracted_raw or len(extracted_raw.strip()) < 5:
+        return "Could not detect readable text in screenshot. Please ensure the image contains clear text or post content."
+
+    # Engine 3: Semantic Reconstruction via Groq LLM (openai/gpt-oss-120b)
+    # Fixes typos, restores bullet points and lines, removes OCR noise
     key = (api_key or GROQ_API_KEY or "").strip()
-    if not key:
-        raise ValueError("Groq API key is not configured")
+    if key:
+        try:
+            clean_prompt = f"""You are an OCR text repair specialist.
+Below is raw text extracted from a mobile screenshot (such as a recruiter post on LinkedIn, WhatsApp message, or job listing).
+Clean up typos, fix merged or broken words, restore proper paragraphs, and preserve all details (role, company, requirements, recruiter email, phone, links).
+Return ONLY the cleaned text verbatim without adding commentary.
 
-    image_url = image_base64 if image_base64.startswith("data:image") else f"data:image/jpeg;base64,{image_base64}"
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": {"url": image_url}}
-            ]
-        }
-    ]
+Raw OCR Text:
+{extracted_raw[:3500]}"""
+            clean_res = await call_groq_chat(
+                [{"role": "user", "content": clean_prompt}],
+                api_key=key,
+                model="openai/gpt-oss-120b",
+                temperature=0.1,
+                max_tokens=1200
+            )
+            cleaned = clean_res.get("content", "").strip()
+            if cleaned and len(cleaned) > 10:
+                return cleaned
+        except Exception as e:
+            logger.warning(f"AI OCR cleanup failed, returning raw OCR: {e}")
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.post(
-            GROQ_API_URL,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {key}",
-            },
-            json={
-                "model": "llama-3.2-11b-vision-preview",
-                "messages": messages,
-                "temperature": 0.2,
-                "max_tokens": 1500,
-            }
-        )
-        if resp.status_code != 200:
-            err = resp.text
-            raise RuntimeError(f"Groq Vision Error: {err}")
-        data = resp.json()
-        return data["choices"][0]["message"]["content"]
+    return extracted_raw
+
 
 async def analyze_offer(raw_text: str, candidate_profile: dict = None, api_key: str = None, model: str = None, categories: list = None):
     profile = candidate_profile or {}
@@ -101,6 +180,8 @@ async def analyze_offer(raw_text: str, candidate_profile: dict = None, api_key: 
 - "embedded-iot": Embedded & IoT / Systems (C/C++, STM32, Firmware, Microcontrollers)
 - "other": General / Other Domains"""
 
+    clean_input = clean_repetitive_text(raw_text)
+
     system_prompt = f"""You are an elite PFE (graduation internship) career assistant with complete freedom.
 Analyze recruiter posts from LinkedIn, Indeed, or career sites.
 Extract and output ONLY a valid JSON object with the following keys:
@@ -124,6 +205,7 @@ If none match, you have freedom to propose a new concise slug (e.g. "robotics", 
 }}
 - "skills": Array of 4-8 keywords (e.g. ["Python", "PyTorch", "NLP", "FastAPI"])
 - "summary": 2-sentence crisp summary
+- "jobSpecification": Clean, structured job description formatted with Role Overview, Key Responsibilities, and Requirements in clean bullet points. Strictly remove redundant repetitions, headers, and footer noise.
 - "linkedInNote": Concise connection request note (strictly UNDER 280 characters!) personalized from candidate profile
 - "whatsAppMsg": Crisp professional WhatsApp pitch
 - "confidence": Float between 0.70 and 0.99 indicating certainty of classification

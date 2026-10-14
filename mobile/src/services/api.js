@@ -336,5 +336,23 @@ export const ApiService = {
       return { success: false, error: err.message }
     }
   },
+
+  /**
+   * Conversational AI Agent powered by Groq LLM
+   */
+  async chatAgent(messages) {
+    const url = `${currentServerUrl}/api/ai/chat`
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return await res.json()
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  },
 }
 
