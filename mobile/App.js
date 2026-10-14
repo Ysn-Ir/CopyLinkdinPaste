@@ -17,6 +17,7 @@ import {
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar'
 import * as Clipboard from 'expo-clipboard'
 import * as Linking from 'expo-linking'
+import * as Notifications from 'expo-notifications'
 
 import { ApiService } from './src/services/api'
 import { THEME } from './src/theme'
@@ -30,6 +31,7 @@ import { ClipVaultScreen } from './src/screens/ClipVaultScreen'
 import { AgentScreen } from './src/screens/AgentScreen'
 import { ClipboardWatcher } from './src/services/clipboardWatcher'
 import { ScreenshotWatcher } from './src/services/screenshotWatcher'
+import { NotificationService } from './src/services/notificationService'
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -47,7 +49,31 @@ export default function App() {
     initApp()
   }, [])
 
+  // Listen for native notification clicks from the Android status bar / lockscreen
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      try {
+        const data = response?.notification?.request?.content?.data
+        if (data?.offerId) {
+          ApiService.getOffer(data.offerId).then((res) => {
+            if (res?.success && res.offer) {
+              setSelectedOffer(res.offer)
+            } else {
+              setActiveTab('offers')
+            }
+          }).catch(() => setActiveTab('offers'))
+        } else if (data?.clipId) {
+          setActiveTab('clipvault')
+        }
+      } catch (err) {
+        console.warn('Notification click handling notice:', err)
+      }
+    })
+    return () => subscription.remove()
+  }, [])
+
   const checkNotificationPermission = async () => {
+    await NotificationService.init()
     if (Platform.OS === 'android' && Platform.Version >= 33) {
       try {
         const hasPermission = await PermissionsAndroid.check(
@@ -188,9 +214,9 @@ export default function App() {
   if (!isReady) {
     return (
       <View style={styles.splashContainer}>
-        <ActivityIndicator size="large" color="#ffffff" />
-        <Text style={styles.splashText}>OmniHunt</Text>
-        <Text style={styles.splashSub}>Executive Career Command</Text>
+        <ActivityIndicator size="large" color="#e1306c" />
+        <Text style={styles.splashText}>RADAR</Text>
+        <Text style={styles.splashSub}>AI Career & Signal Intelligence</Text>
       </View>
     )
   }
@@ -443,20 +469,20 @@ const styles = StyleSheet.create({
     left: 12,
     right: 12,
     zIndex: 9999,
-    backgroundColor: '#131826',
+    backgroundColor: '#121212',
     borderWidth: 1,
-    borderColor: 'rgba(14, 165, 233, 0.45)',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderColor: '#e1306c',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 12,
+    shadowOpacity: 0.7,
+    shadowRadius: 12,
+    elevation: 14,
   },
   bannerLeft: {
     flex: 1,
@@ -466,36 +492,36 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   bannerIconBox: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    width: 32,
+    height: 32,
+    borderRadius: 9999,
+    backgroundColor: 'rgba(225, 48, 108, 0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   bannerTitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#f8fafc',
+    color: '#ffffff',
   },
   bannerSnippet: {
-    fontSize: 10,
-    color: '#94a3b8',
-    marginTop: 1,
+    fontSize: 10.5,
+    color: '#a8a8a8',
+    marginTop: 2,
   },
   bannerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   bannerActionBtn: {
     backgroundColor: '#ffffff',
     paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 6,
+    paddingVertical: 6,
+    borderRadius: 9999,
   },
   bannerActionText: {
-    color: '#09090b',
+    color: '#000000',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -503,18 +529,18 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   bannerCloseText: {
-    color: '#64748b',
+    color: '#737373',
     fontSize: 12,
     fontWeight: '700',
   },
 
-  // Navigation Bar with Safe Android Padding
+  // Navigation Bar with Safe Android Padding (Instagram Dark Mode)
   navBar: {
     flexDirection: 'row',
     height: Platform.OS === 'android' ? 74 : 66,
-    backgroundColor: THEME.colors.bgCard,
+    backgroundColor: '#000000',
     borderTopWidth: 1,
-    borderTopColor: THEME.colors.border,
+    borderTopColor: '#262626',
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingBottom: Platform.OS === 'android' ? 14 : 4,
@@ -536,26 +562,26 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   captureIconWrapper: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: '#1c1c1e',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: '#363636',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
   },
   captureIconWrapperActive: {
-    backgroundColor: '#ffffff',
-    borderColor: '#ffffff',
+    backgroundColor: '#e1306c',
+    borderColor: '#fd1d1d',
   },
   captureIcon: {
-    fontSize: 12,
+    fontSize: 13,
   },
   navLabel: {
     fontSize: 10,
-    color: THEME.colors.textMuted,
+    color: '#737373',
     fontWeight: '500',
   },
   navLabelActive: {

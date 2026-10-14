@@ -2,9 +2,10 @@ import * as Clipboard from 'expo-clipboard'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AppState } from 'react-native'
 import { ApiService } from './api'
+import { NotificationService } from './notificationService'
 
-const STORAGE_KEY = '@omnihunt_ingested_hashes'
-const MAX_STORED_HASHES = 100
+const STORAGE_KEY = '@radar_ingested_hashes'
+const MAX_STORED_HASHES = 150
 
 class ClipboardWatcherService {
   constructor() {
@@ -142,10 +143,28 @@ class ClipboardWatcherService {
       })
 
       if (res && res.success) {
+        const isJobOffer = Boolean(res.isJobOffer && res.offer)
+
+        // Fire native Android/iOS system notification
+        NotificationService.sendCaptureNotification({
+          title: isJobOffer
+            ? `🎯 RADAR: ${res.offer.title} @ ${res.offer.company || 'Company'}`
+            : '📋 RADAR: Copied Link Captured',
+          body: isJobOffer
+            ? `Match: ${Math.round((res.offer.confidence || 0.92) * 100)}% • ${res.offer.location || 'Remote'}`
+            : (res.clip?.title || 'Saved to your RADAR Vault.'),
+          data: {
+            clipId: res.clip?.id,
+            offerId: res.offer?.id,
+            isJobOffer,
+          },
+          isOffer: isJobOffer,
+        })
+
         this.notify({
           success: true,
           clip: res.clip,
-          isJobOffer: Boolean(res.isJobOffer),
+          isJobOffer,
           offer: res.offer,
           channel: res.channel,
           isDuplicate: Boolean(res.isDuplicate),

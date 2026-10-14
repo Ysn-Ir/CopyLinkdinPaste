@@ -3,9 +3,10 @@ import * as FileSystem from 'expo-file-system'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AppState } from 'react-native'
 import { ApiService } from './api'
+import { NotificationService } from './notificationService'
 
-const STORAGE_KEY = '@omnihunt_processed_screenshot_ids'
-const MAX_PROCESSED_IDS = 150
+const STORAGE_KEY = '@radar_processed_screenshot_ids'
+const MAX_PROCESSED_IDS = 250
 
 class ScreenshotWatcherService {
   constructor() {
@@ -23,7 +24,10 @@ class ScreenshotWatcherService {
   async init() {
     if (this.isInitialized) return
     try {
-      // Load previously processed IDs from storage
+      // 1. Initialize notification system
+      await NotificationService.init()
+
+      // 2. Load previously processed IDs from local storage
       const stored = await AsyncStorage.getItem(STORAGE_KEY)
       if (stored) {
         const parsed = JSON.parse(stored)
@@ -32,19 +36,18 @@ class ScreenshotWatcherService {
         }
       }
 
-      // Request media library permission
+      // 3. Request media library permissions
       const { status } = await MediaLibrary.requestPermissionsAsync()
       this.hasPermission = status === 'granted'
 
       if (this.hasPermission) {
-        // Record only screenshots older than 6 minutes at startup
-        const { assets } = await this.getScreenshotAssets(5)
+        // Record only screenshots older than 30 minutes at startup to avoid re-triggering old items
+        const { assets } = await this.getScreenshotAssets(10)
         if (assets && assets.length > 0) {
           const now = Date.now()
           assets.forEach((a) => {
             const timeMs = this.getAssetTimestampMs(a)
-            // If it was taken more than 6 minutes before app start, mark as seen
-            if (now - timeMs > 6 * 60 * 1000) {
+            if (now - timeMs > 30 * 60 * 1000) {
               this.processedIds.add(a.id)
             }
           })
@@ -59,8 +62,7 @@ class ScreenshotWatcherService {
   getAssetTimestampMs(asset) {
     if (!asset || !asset.creationTime) return Date.now()
     let time = asset.creationTime
-    // On Android, MediaStore DATE_ADDED is in seconds (e.g. 1.74e9)
-    // Date.now() is in milliseconds (e.g. 1.74e12)
+    // Android MediaStore timestamps are sometimes in seconds (< 1e11) vs milliseconds
     if (time < 1e11) {
       time = time * 1000
     }
@@ -77,18 +79,17 @@ class ScreenshotWatcherService {
   start(intervalMs = 2500) {
     if (this.intervalId) return
 
+    // Watch for app state transitions (e.g. user took screenshot in LinkedIn and returned, or unlocked phone)
     this.appStateSubscription = AppState.addEventListener('change', async (nextState) => {
-      // Whenever app is brought to foreground (e.g. user took screenshot in another app and switched back)
       if (this.appState.match(/inactive|background/) && nextState === 'active') {
         await this.checkAndProcessScreenshot()
       }
       this.appState = nextState
     })
 
+    // Periodic scanner
     this.intervalId = setInterval(() => {
-      if (this.appState === 'active') {
-        this.checkAndProcessScreenshot()
-      }
+      this.checkAndProcessScreenshot()
     }, intervalMs)
   }
 
@@ -126,19 +127,28 @@ class ScreenshotWatcherService {
     return (
       filename.includes('screenshot') ||
       filename.includes('screen_shot') ||
+      filename.includes('screen-shot') ||
       filename.includes('capture') ||
+      filename.includes('screencap') ||
+      filename.includes('snapshot') ||
+      filename.includes('shot') ||
       uri.includes('screenshot') ||
       uri.includes('dcim/screenshots') ||
-      uri.includes('pictures/screenshots')
+      uri.includes('pictures/screenshots') ||
+      uri.includes('captures')
     )
   }
 
-  async getScreenshotAssets(limit = 6) {
+  async getScreenshotAssets(limit = 8) {
     try {
-      // 1. Try finding dedicated Screenshots album on Android / iOS
+      // 1. Try finding dedicated Screenshots / Captures album
       const albums = await MediaLibrary.getAlbumsAsync()
       const screenshotAlbum = albums.find(
-        (a) => /screenshot/i.test(a.title) || /capture/i.test(a.title) || a.title === 'Screenshots'
+        (a) =>
+          /screenshot/i.test(a.title) ||
+          /capture/i.test(a.title) ||
+          /screen/i.test(a.title) ||
+          a.title === 'Screenshots'
       )
 
       if (screenshotAlbum) {
@@ -170,7 +180,7 @@ class ScreenshotWatcherService {
 
     this.isProcessing = true
     try {
-      const { assets, isFromScreenshotAlbum } = await this.getScreenshotAssets(4)
+      const { assets, isFromScreenshotAlbum } = await this.getScreenshotAssets(6)
       if (!assets || assets.length === 0) return
 
       for (const asset of assets) {
@@ -178,18 +188,17 @@ class ScreenshotWatcherService {
 
         const timeMs = this.getAssetTimestampMs(asset)
         const ageMs = Date.now() - timeMs
-        // Check if taken within the last 5 minutes
-        const isRecent = ageMs >= -30000 && ageMs < 5 * 60 * 1000
+        // Check if taken within the last 15 minutes or since app startup
+        const isRecent = ageMs >= -30000 && ageMs < 15 * 60 * 1000
         const isScreenshot = isFromScreenshotAlbum || this.isScreenshotAsset(asset)
 
+        // Process if recent screenshot OR any recent photo from screenshot album
         if (isRecent && isScreenshot) {
           this.processedIds.add(asset.id)
           await this.persistProcessedIds()
 
           await this.processAsset(asset)
-          break // Process one screenshot at a time
-        } else if (!isScreenshot) {
-          this.processedIds.add(asset.id)
+          break // Process one screenshot at a time to prevent server flood
         }
       }
     } catch (err) {
@@ -200,7 +209,7 @@ class ScreenshotWatcherService {
   }
 
   /**
-   * 1-Tap instant scanner: scans the newest screenshot in the device gallery with zero manual file picking
+   * 1-Tap instant scanner: scans the newest screenshot/photo in the device gallery with zero manual file picking
    */
   async scanLatestScreenshot({ force = false } = {}) {
     if (!this.hasPermission) {
@@ -214,7 +223,7 @@ class ScreenshotWatcherService {
     try {
       const { assets } = await this.getScreenshotAssets(3)
       if (!assets || assets.length === 0) {
-        return { success: false, error: 'No screenshots found in your photo gallery' }
+        return { success: false, error: 'No recent screenshots found in your photo gallery' }
       }
 
       const newest = assets[0]
@@ -247,12 +256,33 @@ class ScreenshotWatcherService {
       })
 
       if (ingestRes && ingestRes.success) {
+        const isJobOffer = Boolean(ingestRes.isJobOffer && ingestRes.offer)
+        const offer = ingestRes.offer
+        const clip = ingestRes.clip
+
+        // Fire real Android System Notification to the device status bar / lockscreen
+        await NotificationService.sendCaptureNotification({
+          title: isJobOffer
+            ? `🎯 RADAR: ${offer.title} @ ${offer.company || 'Company'}`
+            : '⚡ RADAR: Screenshot Captured',
+          body: isJobOffer
+            ? `Match: ${Math.round((offer.confidence || 0.92) * 100)}% • ${offer.location || 'Remote'} • Tap to inspect`
+            : (clip?.title || 'Screenshot analyzed and saved to your RADAR Vault.'),
+          data: {
+            clipId: clip?.id,
+            offerId: offer?.id,
+            isJobOffer,
+          },
+          isOffer: isJobOffer,
+        })
+
+        // Notify in-app UI listeners (for floating banner toast)
         this.notify({
           success: true,
           isScreenshot: true,
-          clip: ingestRes.clip,
-          isJobOffer: ingestRes.isJobOffer,
-          offer: ingestRes.offer,
+          clip,
+          isJobOffer,
+          offer,
           assetUri: asset.uri,
         })
       }
@@ -273,4 +303,3 @@ class ScreenshotWatcherService {
 }
 
 export const ScreenshotWatcher = new ScreenshotWatcherService()
-

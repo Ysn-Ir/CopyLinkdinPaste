@@ -386,11 +386,11 @@ export function ClipVaultScreen({ onNavigateTab }) {
 
         {/* Meta + Actions */}
         <View style={styles.clipFooter}>
-          <View style={styles.metaRow}>
-            <Text style={styles.metaText}>
+          <View style={[styles.metaRow, { flex: 1, overflow: 'hidden', marginRight: 6 }]}>
+            <Text style={styles.metaText} numberOfLines={1} ellipsizeMode="tail">
               {getDomainEmoji(clip.sourceDomain)} {clip.sourceDomain || 'clipboard'}
             </Text>
-            <Text style={styles.metaText}>
+            <Text style={styles.metaText} numberOfLines={1}>
               {clip.sourceDevice === 'mobile' ? '📱' : '🖥️'} {clip.sourceDevice}
             </Text>
           </View>

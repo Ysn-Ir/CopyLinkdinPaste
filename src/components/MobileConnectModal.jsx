@@ -162,22 +162,22 @@ export function MobileConnectModal({ isOpen, onClose }) {
               style={{
                 width: '36px',
                 height: '36px',
-                borderRadius: '8px',
-                background: '#27272a',
-                border: '1px solid #3f3f46',
+                borderRadius: '10px',
+                background: 'var(--ig-gradient)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#ffffff',
+                boxShadow: '0 2px 10px rgba(225, 48, 108, 0.4)',
               }}
             >
               <Smartphone size={18} />
             </div>
             <div>
               <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#ffffff', margin: 0 }}>
-                Pair OmniHunt Mobile App
+                Pair RADAR Mobile App
               </h3>
-              <p style={{ fontSize: '11px', color: '#a1a1aa', margin: '2px 0 0 0' }}>
+              <p style={{ fontSize: '11px', color: '#a8a8a8', margin: '2px 0 0 0' }}>
                 Instant synchronization across Cloud, Local 4G Tunnel, or Home Wi-Fi.
               </p>
             </div>
@@ -311,7 +311,7 @@ export function MobileConnectModal({ isOpen, onClose }) {
                 )}
               </div>
               <span style={{ fontSize: '11px', fontWeight: 600, color: '#f4f4f5' }}>
-                Scan with OmniHunt App
+                Scan with RADAR App
               </span>
               <span style={{ fontSize: '10px', color: '#71717a', marginTop: '2px' }}>
                 {activeTab === 'lan'

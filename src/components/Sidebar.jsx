@@ -23,6 +23,7 @@ import {
   Briefcase,
   Smartphone,
   Plus,
+  Radio,
 } from 'lucide-react'
 import { CATEGORIES } from '../data/categories.js'
 
@@ -83,9 +84,12 @@ export function Sidebar({
       <div className="sidebar-header">
         <div className="brand-badge" onClick={() => onNavigate('command-center')} style={{ cursor: 'pointer' }}>
           <div className="brand-icon-box">
-            <Compass size={14} />
+            <Radio size={14} color="#ffffff" />
           </div>
-          <span className="sidebar-label" style={{ letterSpacing: '0.04em' }}>CAREER COMMAND</span>
+          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
+            <span className="brand-radar-text">RADAR</span>
+            <span style={{ fontSize: '9px', color: 'var(--text-tertiary)', letterSpacing: '0.08em', fontWeight: 600 }}>SIGNAL & OPPS</span>
+          </div>
         </div>
       </div>
 
@@ -281,11 +285,11 @@ export function Sidebar({
           textAlign: 'left',
           transition: 'all 0.15s ease',
         }}
-        title="Open OmniHunt mobile pairing & QR code"
+        title="Open RADAR mobile pairing & QR code"
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Smartphone size={13} color="#10b981" />
-          <span style={{ color: '#ffffff', fontWeight: 600 }}>OmniHunt App</span>
+          <Smartphone size={13} color="#0095f6" />
+          <span style={{ color: '#ffffff', fontWeight: 600 }}>RADAR Mobile</span>
         </div>
         <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontSize: '10px' }}>
           {networkIp || '192.168.1.12'}

@@ -783,11 +783,11 @@ export function CommandCenterView({
                           transition: 'all 0.12s ease',
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '3px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: isSelected ? '#ffffff' : 'var(--text-secondary)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px', gap: '8px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: isSelected ? '#ffffff' : 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                             {offer.company || 'Confidential Company'}
                           </span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
                             {offer.createdAt && (
                               <span
                                 style={{

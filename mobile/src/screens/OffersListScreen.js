@@ -116,8 +116,8 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
             <View style={styles.companyAvatar}>
               <Text style={styles.companyAvatarText}>{getCompanyInitial(item.company)}</Text>
             </View>
-            <View>
-              <Text style={styles.domainText} numberOfLines={1}>
+            <View style={{ flex: 1, overflow: 'hidden' }}>
+              <Text style={styles.domainText} numberOfLines={1} ellipsizeMode="tail">
                 {cat?.label || item.category?.toUpperCase() || 'GENERAL'}
               </Text>
               <Text style={styles.matchText}>{matchScore}% Match</Text>
@@ -126,7 +126,7 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
 
           <View style={styles.headerRight}>
             {createdDate ? (
-              <Text style={styles.dateText}>{createdDate}</Text>
+              <Text style={styles.dateText} numberOfLines={1}>{createdDate}</Text>
             ) : null}
             <View
               style={[
@@ -134,26 +134,26 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
                 { backgroundColor: stageMeta.bg, borderColor: stageMeta.color + '60' },
               ]}
             >
-              <Text style={[styles.stageText, { color: stageMeta.color }]}>
+              <Text style={[styles.stageText, { color: stageMeta.color }]} numberOfLines={1}>
                 {stageMeta.label}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Title & Company */}
-        <Text style={styles.cardTitle} numberOfLines={2}>
+        {/* Title & Company (Overflow Protected) */}
+        <Text style={styles.cardTitle} numberOfLines={2} ellipsizeMode="tail">
           {item.title}
         </Text>
 
-        <Text style={styles.companyText}>
+        <Text style={styles.companyText} numberOfLines={1} ellipsizeMode="tail">
           {item.company || 'Direct Organization'} • 📍 {item.location || 'Remote / Hybrid'}
         </Text>
 
         {/* Recruiter info if available */}
         {(item.recruiterName || item.sharer?.name) && (
           <View style={styles.recruiterRow}>
-            <Text style={styles.recruiterText}>
+            <Text style={styles.recruiterText} numberOfLines={1} ellipsizeMode="tail">
               👤 {item.recruiterName || item.sharer?.name}
               {item.recruiterEmail ? ` • ${item.recruiterEmail}` : ''}
             </Text>
@@ -165,7 +165,7 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
           <View style={styles.skillsRow}>
             {item.skills.slice(0, 4).map((s, idx) => (
               <View key={idx} style={styles.skillChip}>
-                <Text style={styles.skillText}>{s}</Text>
+                <Text style={styles.skillText} numberOfLines={1}>{s}</Text>
               </View>
             ))}
             {item.skills.length > 4 && (
@@ -176,8 +176,8 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
 
         {/* Card Footer: Channel Badge & Non-Squished Advance Action */}
         <View style={styles.cardFooter}>
-          <View style={styles.channelBadge}>
-            <Text style={styles.channelLabel}>
+          <View style={[styles.channelBadge, { flexShrink: 1, overflow: 'hidden' }]}>
+            <Text style={styles.channelLabel} numberOfLines={1} ellipsizeMode="tail">
               {item.channel === 'email'
                 ? '✉️ Email Outreach'
                 : item.channel === 'direct_contact'
@@ -353,16 +353,16 @@ const styles = StyleSheet.create({
   exportCsvText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#10b981',
+    color: '#0095f6',
   },
   searchInput: {
-    height: 38,
-    backgroundColor: THEME.colors.bgCard,
-    borderRadius: 9,
+    height: 40,
+    backgroundColor: '#262626',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: THEME.colors.border,
+    borderColor: '#363636',
     paddingHorizontal: 14,
-    color: THEME.colors.textPrimary,
+    color: '#ffffff',
     fontSize: 13,
   },
   channelFilterRow: {
@@ -556,12 +556,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   advanceButton: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 7,
-    borderRadius: 7,
-    backgroundColor: 'rgba(14, 165, 233, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(14, 165, 233, 0.4)',
+    borderRadius: 9999,
+    backgroundColor: '#ffffff',
     flexShrink: 0,
     minHeight: 30,
     alignItems: 'center',
@@ -569,7 +567,7 @@ const styles = StyleSheet.create({
   },
   advanceButtonText: {
     fontSize: 11,
-    color: '#38bdf8',
+    color: '#000000',
     fontWeight: '700',
   },
   centerContainer: {

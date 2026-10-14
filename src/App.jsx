@@ -126,19 +126,84 @@ export default function App() {
       setNotificationStatus(res)
       if (res === 'granted') {
         notificationService.notify({
-          title: '🦅 OmniHunt Alerts Activated',
-          body: 'Desktop notifications are active for all captured clips and job offers.',
+          title: '⚡ RADAR Alerts Activated',
+          body: 'Desktop notifications active for all captured opportunities and clips.',
         })
       } else if (res === 'denied') {
         setIsNotifBlockedModalOpen(true)
       }
     } else if (current === 'granted') {
       notificationService.notify({
-        title: '🔔 OmniHunt Alerts Active',
+        title: '🔔 RADAR Alerts Active',
         body: 'Desktop notifications are working properly. Click to focus app.',
       })
     }
   }
+
+  // Cross-device background sync listener: detects clips/offers ingested via mobile or API in real-time
+  useEffect(() => {
+    let lastSeenClipId = null
+    let isPolling = false
+
+    const checkBackendSync = async () => {
+      if (isPolling) return
+      isPolling = true
+      try {
+        const res = await fetch('/api/clips?limit=1')
+        if (res.ok) {
+          const data = await res.json()
+          const newestClip = data?.clips?.[0]
+
+          if (newestClip && lastSeenClipId && newestClip.id !== lastSeenClipId) {
+            // New clip arrived from mobile device or background scanner!
+            await loadClips()
+            const refreshedOffers = await StorageService.getOffers()
+            setOffers(refreshedOffers)
+
+            const isOffer = Boolean(newestClip.contentType === 'job_offer' || newestClip.isJobOffer)
+            notificationService.notify({
+              title: isOffer ? '🎯 RADAR: Opportunity Synced!' : '⚡ RADAR: New Clip Synced',
+              body: newestClip.title || 'Synced in real-time from mobile device',
+              onClick: () => {
+                if (isOffer) setActiveView('command-center')
+                else setActiveView('clip-vault')
+              },
+            })
+
+            setClipToast({
+              title: newestClip.title || 'New Item Synced',
+              type: newestClip.contentType || 'note',
+              isJobOffer: isOffer,
+            })
+            setTimeout(() => setClipToast(null), 4000)
+          }
+
+          if (newestClip) {
+            lastSeenClipId = newestClip.id
+          }
+        }
+      } catch {
+        // network error silently ignored
+      } finally {
+        isPolling = false
+      }
+    }
+
+    checkBackendSync()
+    const syncInterval = setInterval(checkBackendSync, 3500)
+    return () => clearInterval(syncInterval)
+  }, [loadClips])
+
+  // Window Focus Auto-Clipboard Check
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      if (clipMonitorActive) {
+        ClipboardMonitorService.manualCapture()
+      }
+    }
+    window.addEventListener('focus', handleWindowFocus)
+    return () => window.removeEventListener('focus', handleWindowFocus)
+  }, [clipMonitorActive])
 
   // Clipboard Monitor Lifecycle
   useEffect(() => {
@@ -153,7 +218,7 @@ export default function App() {
         }
         // Show in-app toast
         setClipToast({
-          title: clip?.title || 'Nouveau clip capturé',
+          title: clip?.title || 'New clip captured',
           type: clip?.contentType || 'note',
           isJobOffer: Boolean(isJobOffer),
         })
@@ -161,8 +226,8 @@ export default function App() {
 
         // Trigger native desktop notification & audio alert
         notificationService.notify({
-          title: isJobOffer ? '🎯 New Career Offer Detected!' : '📋 Clip Captured to Vault',
-          body: clip?.title || (isJobOffer ? `${offer?.title} at ${offer?.company}` : 'Captured into OmniHunt'),
+          title: isJobOffer ? '🎯 RADAR: Opportunity Detected!' : '📋 RADAR: Clip Captured to Vault',
+          body: clip?.title || (isJobOffer ? `${offer?.title} at ${offer?.company}` : 'Captured into RADAR'),
           onClick: () => {
             if (isJobOffer) setActiveView('command-center')
             else setActiveView('clip-vault')

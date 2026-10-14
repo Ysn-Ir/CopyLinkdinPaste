@@ -302,15 +302,18 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           style={styles.scanScreenshotBanner}
           onPress={handleScanLatestScreenshot}
           disabled={isScanningScreenshot}
+          activeOpacity={0.8}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={{ fontSize: 16 }}>⚡</Text>
-            <View>
-              <Text style={styles.scanScreenshotTitle}>
-                {isScanningScreenshot ? 'Scanning Latest Screenshot...' : 'Scan Latest Screenshot (1-Tap)'}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, overflow: 'hidden' }}>
+            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(225, 48, 108, 0.2)', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 16 }}>📸</Text>
+            </View>
+            <View style={{ flex: 1, overflow: 'hidden' }}>
+              <Text style={styles.scanScreenshotTitle} numberOfLines={1} ellipsizeMode="tail">
+                {isScanningScreenshot ? 'Scanning Latest Screenshot...' : 'Instant Scan Last Screenshot (1-Tap)'}
               </Text>
-              <Text style={styles.scanScreenshotDesc}>
-                Directly parses your newest device screenshot with 0 file picker steps
+              <Text style={styles.scanScreenshotDesc} numberOfLines={1} ellipsizeMode="tail">
+                Directly parses your newest device screenshot with zero file picking
               </Text>
             </View>
           </View>

@@ -1,4 +1,4 @@
-' OmniHunt Silent Background Launcher
+' RADAR Silent Background Launcher
 ' Starts the unified FastAPI backend & Web Command Center with ZERO open terminal windows.
 
 Set WshShell = CreateObject("WScript.Shell")
@@ -16,7 +16,7 @@ WshShell.Run cmd, 0, False
 WScript.Sleep 1500
 
 ' Display desktop notification
-WshShell.Popup "OmniHunt is running silently in the background!" & vbCrLf & vbCrLf & _
+WshShell.Popup "RADAR is running silently in the background!" & vbCrLf & vbCrLf & _
                "• Web Command Center: http://localhost:8003" & vbCrLf & _
                "• Mobile / LAN: http://localhost:8003/api/health" & vbCrLf & _
-               "• To stop: Run stop_background.bat", 5, "OmniHunt Server Active", 64
+               "• To stop: Run stop_background.bat", 5, "RADAR Active", 64

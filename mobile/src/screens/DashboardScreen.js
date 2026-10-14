@@ -7,8 +7,10 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native'
 import { ApiService } from '../services/api'
+import { ScreenshotWatcher } from '../services/screenshotWatcher'
 import { THEME } from '../theme'
 
 export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
@@ -27,6 +29,32 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
   const [serverInfo, setServerInfo] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isScanningScreenshot, setIsScanningScreenshot] = useState(false)
+
+  const handleQuickScanScreenshot = async () => {
+    setIsScanningScreenshot(true)
+    try {
+      const res = await ScreenshotWatcher.scanLatestScreenshot({ force: true })
+      if (res && res.success) {
+        Alert.alert(
+          res.isJobOffer ? '🎯 Opportunity Detected!' : '⚡ Screenshot Captured',
+          res.isJobOffer
+            ? `"${res.offer?.title || 'Offer'}" extracted and routed!`
+            : 'Screenshot OCR text parsed into RADAR Vault.'
+        )
+        await loadDashboardData()
+        if (res.isJobOffer && res.offer && onSelectOffer) {
+          onSelectOffer(res.offer)
+        }
+      } else {
+        Alert.alert('Scan Result', res?.error || 'No new screenshots found in device gallery.')
+      }
+    } catch (err) {
+      Alert.alert('Scan Notice', err.message || 'Could not access photo library.')
+    } finally {
+      setIsScanningScreenshot(false)
+    }
+  }
 
   useEffect(() => {
     loadDashboardData()
@@ -83,9 +111,12 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
     >
       {/* Top Welcome Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>OmniHunt</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={styles.radarBrandDot} />
+          <Text style={styles.title}>RADAR</Text>
+        </View>
         <Text style={styles.subtitle}>
-          Executive Career Command • Cross-Device Sync
+          AI Signal & Career Opportunity Intelligence
         </Text>
       </View>
 
@@ -96,47 +127,78 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
         activeOpacity={0.8}
       >
         <View style={styles.serverStatusDot} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.serverTitle}>
-            {serverInfo ? `Connected to ${serverInfo.hostname || 'PC Server'}` : 'Scanning LAN & Wi-Fi...'}
+        <View style={{ flex: 1, overflow: 'hidden' }}>
+          <Text style={styles.serverTitle} numberOfLines={1} ellipsizeMode="tail">
+            {serverInfo ? `Connected to ${serverInfo.hostname || 'PC Server'}` : 'Scanning Network...'}
           </Text>
-          <Text style={styles.serverUrl}>{ApiService.getServerUrl()}</Text>
+          <Text style={styles.serverUrl} numberOfLines={1} ellipsizeMode="tail">
+            {ApiService.getServerUrl()}
+          </Text>
         </View>
         <Text style={styles.serverAction}>Settings →</Text>
       </TouchableOpacity>
 
-      {/* Primary KPI Grid (Zero Purple, Electric Ice & Cyan) */}
+      {/* 1-Tap Quick Screenshot Scanner */}
+      <TouchableOpacity
+        style={styles.screenshotQuickCard}
+        onPress={handleQuickScanScreenshot}
+        disabled={isScanningScreenshot}
+        activeOpacity={0.8}
+      >
+        <View style={styles.screenshotQuickLeft}>
+          <View style={styles.screenshotQuickIconBox}>
+            <Text style={{ fontSize: 16 }}>📸</Text>
+          </View>
+          <View style={{ flex: 1, overflow: 'hidden' }}>
+            <Text style={styles.screenshotQuickTitle} numberOfLines={1}>
+              Instant Scan Last Screenshot
+            </Text>
+            <Text style={styles.screenshotQuickSub} numberOfLines={1}>
+              {isScanningScreenshot ? 'Analyzing with Groq Vision OCR...' : '1-tap inspect newest screenshot in gallery'}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.screenshotQuickBtn}>
+          {isScanningScreenshot ? (
+            <ActivityIndicator size="small" color="#000000" />
+          ) : (
+            <Text style={styles.screenshotQuickBtnText}>Scan Now</Text>
+          )}
+        </View>
+      </TouchableOpacity>
+
+      {/* Primary KPI Grid (Instagram Dark Mode Palette) */}
       <View style={styles.kpiGrid}>
         <View style={[styles.kpiCard, styles.kpiCardAccent]}>
-          <Text style={[styles.kpiNumber, { color: '#f8fafc' }]}>
+          <Text style={[styles.kpiNumber, { color: '#ffffff' }]}>
             {stats.total}
           </Text>
           <Text style={styles.kpiLabel}>Total Tracked</Text>
         </View>
 
         <View style={styles.kpiCard}>
-          <Text style={[styles.kpiNumber, { color: '#ffffff' }]}>
+          <Text style={[styles.kpiNumber, { color: '#0095f6' }]}>
             {stats.ready}
           </Text>
           <Text style={styles.kpiLabel}>Ready to Apply</Text>
         </View>
 
         <View style={styles.kpiCard}>
-          <Text style={[styles.kpiNumber, { color: '#10b981' }]}>
+          <Text style={[styles.kpiNumber, { color: '#00e676' }]}>
             {stats.applied}
           </Text>
           <Text style={styles.kpiLabel}>Applications Sent</Text>
         </View>
 
         <View style={styles.kpiCard}>
-          <Text style={[styles.kpiNumber, { color: '#f59e0b' }]}>
+          <Text style={[styles.kpiNumber, { color: '#fcaf45' }]}>
             {stats.interview}
           </Text>
           <Text style={styles.kpiLabel}>Interviews</Text>
         </View>
 
         <View style={styles.kpiCard}>
-          <Text style={[styles.kpiNumber, { color: '#10b981' }]}>
+          <Text style={[styles.kpiNumber, { color: '#e1306c' }]}>
             {stats.offer}
           </Text>
           <Text style={styles.kpiLabel}>Offers Received</Text>
@@ -149,17 +211,17 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
         <View style={styles.channelRow}>
           <View style={styles.channelStatItem}>
             <Text style={styles.channelStatVal}>{stats.email}</Text>
-            <Text style={styles.channelStatLabel}>✉️ Direct Email</Text>
+            <Text style={styles.channelStatLabel} numberOfLines={1}>✉️ Direct Email</Text>
           </View>
           <View style={styles.channelStatDivider} />
           <View style={styles.channelStatItem}>
             <Text style={styles.channelStatVal}>{stats.direct}</Text>
-            <Text style={styles.channelStatLabel}>💬 WhatsApp / DM</Text>
+            <Text style={styles.channelStatLabel} numberOfLines={1}>💬 WhatsApp / DM</Text>
           </View>
           <View style={styles.channelStatDivider} />
           <View style={styles.channelStatItem}>
             <Text style={styles.channelStatVal}>{stats.external}</Text>
-            <Text style={styles.channelStatLabel}>🌐 ATS Portals</Text>
+            <Text style={styles.channelStatLabel} numberOfLines={1}>🌐 ATS Portals</Text>
           </View>
         </View>
       </View>
@@ -173,10 +235,10 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
         <View style={styles.ctaIconBox}>
           <Text style={styles.ctaIcon}>⚡</Text>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.ctaTitle}>Capture Clipboard Post</Text>
-          <Text style={styles.ctaSubtitle}>
-            Copy any LinkedIn post, job alert, or ATS URL — OmniHunt ingests and routes it automatically.
+        <View style={{ flex: 1, overflow: 'hidden' }}>
+          <Text style={styles.ctaTitle} numberOfLines={1}>Capture Clipboard or Link</Text>
+          <Text style={styles.ctaSubtitle} numberOfLines={2}>
+            Copy any job post, alert, or ATS link — RADAR parses and routes it automatically.
           </Text>
         </View>
         <Text style={styles.ctaArrow}>→</Text>
@@ -184,17 +246,17 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
 
       {/* Recent Offers Section */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Recent Synced Applications</Text>
+        <Text style={styles.sectionTitle}>Recent Synced Opportunities</Text>
         <TouchableOpacity onPress={() => onNavigateTab('offers')}>
           <Text style={styles.viewAllText}>View All ({stats.total}) →</Text>
         </TouchableOpacity>
       </View>
 
       {isLoading ? (
-        <ActivityIndicator color="#ffffff" style={{ marginTop: 20 }} />
+        <ActivityIndicator color="#e1306c" style={{ marginTop: 20 }} />
       ) : recentOffers.length === 0 ? (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>No synced applications yet. Capture or sync from PC.</Text>
+          <Text style={styles.emptyText}>No synced opportunities yet. Take a screenshot or copy a link.</Text>
         </View>
       ) : (
         <View style={styles.recentList}>
@@ -205,16 +267,16 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
               onPress={() => onSelectOffer(o)}
               activeOpacity={0.8}
             >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.recentTitle} numberOfLines={1}>
+              <View style={{ flex: 1, overflow: 'hidden' }}>
+                <Text style={styles.recentTitle} numberOfLines={1} ellipsizeMode="tail">
                   {o.title}
                 </Text>
-                <Text style={styles.recentMeta}>
+                <Text style={styles.recentMeta} numberOfLines={1} ellipsizeMode="tail">
                   {o.company || 'Direct Organization'} • {o.category?.toUpperCase() || 'GENERAL'} • {o.channel === 'email' ? '✉️ Email' : o.channel === 'direct_contact' ? '💬 WhatsApp' : '🌐 ATS'}
                 </Text>
               </View>
               <View style={styles.recentStatusBadge}>
-                <Text style={styles.recentStatus}>{o.status}</Text>
+                <Text style={styles.recentStatus} numberOfLines={1}>{o.status}</Text>
               </View>
             </TouchableOpacity>
           ))}
@@ -236,50 +298,109 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 14,
   },
+  radarBrandDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#e1306c',
+  },
   title: {
     fontSize: 22,
     fontWeight: '800',
-    color: THEME.colors.textPrimary,
+    color: '#ffffff',
+    letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: 12,
-    color: THEME.colors.textSecondary,
+    color: '#a8a8a8',
     marginTop: 2,
   },
   serverCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: THEME.colors.bgCard,
+    backgroundColor: '#121212',
     borderWidth: 1,
-    borderColor: THEME.colors.border,
-    borderRadius: 12,
+    borderColor: '#262626',
+    borderRadius: 14,
     padding: 12,
-    marginBottom: 14,
+    marginBottom: 12,
     gap: 10,
   },
   serverStatusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#10b981',
+    backgroundColor: '#00e676',
   },
   serverTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: THEME.colors.textPrimary,
+    color: '#ffffff',
   },
   serverUrl: {
     fontSize: 10,
-    color: THEME.colors.textMuted,
+    color: '#737373',
     marginTop: 1,
   },
   serverAction: {
     fontSize: 11,
-    color: '#ffffff',
+    color: '#0095f6',
     fontWeight: '700',
   },
 
-  // KPI Grid
+  // 1-Tap Quick Screenshot Scanner Card
+  screenshotQuickCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#121212',
+    borderWidth: 1,
+    borderColor: 'rgba(225, 48, 108, 0.4)',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 14,
+    gap: 10,
+  },
+  screenshotQuickLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  screenshotQuickIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 9999,
+    backgroundColor: 'rgba(225, 48, 108, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  screenshotQuickTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  screenshotQuickSub: {
+    fontSize: 10.5,
+    color: '#a8a8a8',
+    marginTop: 1,
+  },
+  screenshotQuickBtn: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 9999,
+    minWidth: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  screenshotQuickBtnText: {
+    color: '#000000',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
+  // KPI Grid (Instagram Dark Mode)
   kpiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -289,15 +410,15 @@ const styles = StyleSheet.create({
   kpiCard: {
     flex: 1,
     minWidth: '45%',
-    backgroundColor: THEME.colors.bgCard,
+    backgroundColor: '#121212',
     borderWidth: 1,
-    borderColor: THEME.colors.border,
-    borderRadius: 12,
+    borderColor: '#262626',
+    borderRadius: 14,
     padding: 12,
   },
   kpiCardAccent: {
-    borderColor: 'rgba(14, 165, 233, 0.4)',
-    backgroundColor: 'rgba(14, 165, 233, 0.08)',
+    borderColor: 'rgba(225, 48, 108, 0.45)',
+    backgroundColor: 'rgba(225, 48, 108, 0.08)',
   },
   kpiNumber: {
     fontSize: 22,
@@ -306,23 +427,23 @@ const styles = StyleSheet.create({
   },
   kpiLabel: {
     fontSize: 11,
-    color: THEME.colors.textMuted,
+    color: '#737373',
     fontWeight: '600',
   },
 
   // Channel Breakdown
   channelBreakdownCard: {
-    backgroundColor: THEME.colors.bgCard,
+    backgroundColor: '#121212',
     borderWidth: 1,
-    borderColor: THEME.colors.border,
-    borderRadius: 12,
+    borderColor: '#262626',
+    borderRadius: 14,
     padding: 12,
     marginBottom: 14,
   },
   channelSectionTitle: {
     fontSize: 11,
     fontWeight: '700',
-    color: THEME.colors.textMuted,
+    color: '#737373',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
@@ -339,28 +460,28 @@ const styles = StyleSheet.create({
   channelStatVal: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#f8fafc',
+    color: '#ffffff',
     marginBottom: 2,
   },
   channelStatLabel: {
     fontSize: 9.5,
-    color: THEME.colors.textSecondary,
+    color: '#a8a8a8',
     fontWeight: '600',
   },
   channelStatDivider: {
     width: 1,
     height: 24,
-    backgroundColor: THEME.colors.border,
+    backgroundColor: '#262626',
   },
 
   // CTA Banner
   ctaBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(14, 165, 233, 0.1)',
+    backgroundColor: '#121212',
     borderWidth: 1,
-    borderColor: 'rgba(14, 165, 233, 0.3)',
-    borderRadius: 12,
+    borderColor: '#262626',
+    borderRadius: 14,
     padding: 14,
     marginBottom: 18,
     gap: 12,
@@ -368,8 +489,8 @@ const styles = StyleSheet.create({
   ctaIconBox: {
     width: 36,
     height: 36,
-    borderRadius: 8,
-    backgroundColor: 'rgba(14, 165, 233, 0.2)',
+    borderRadius: 10,
+    backgroundColor: 'rgba(225, 48, 108, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
