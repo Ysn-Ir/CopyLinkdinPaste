@@ -135,5 +135,12 @@ class ClipOcrRequest(BaseModel):
     sourceUrl: Optional[str] = ""
     sourceDevice: Optional[str] = "mobile"
 
+class BulkIngestSchema(BaseModel):
+    rawText: Optional[str] = ""
+    raw_text: Optional[str] = None
+    content: Optional[str] = None
+    urls: Optional[List[str]] = []
+    sourceDevice: Optional[str] = "desktop"
+
 
 

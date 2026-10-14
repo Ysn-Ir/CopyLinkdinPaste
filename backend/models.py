@@ -217,7 +217,7 @@ class ClipVaultModel(Base):
     id = Column(String(100), primary_key=True, index=True)
     content = Column(Text, nullable=False)
     content_type = Column(String(50), default="note", index=True)  # job_offer, code_snippet, tech_article, social_post, tool_or_repo, note, contact
-    title = Column(String(255), default="Nouveau Clip")
+    title = Column(String(255), default="New Clip")
     summary = Column(Text, default="")
     source_url = Column(Text, default="")
     source_domain = Column(String(100), default="clipboard", index=True)

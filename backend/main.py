@@ -23,6 +23,7 @@ from .schemas import (
     ClipIngestSchema,
     AiChatRequest,
     ClipOcrRequest,
+    BulkIngestSchema,
 )
 from .ai_service import call_groq_chat, analyze_offer, analyze_clip, call_groq_vision
 from .scraper_service import scrape_url_metadata
@@ -995,44 +996,178 @@ def get_clips(
 
 @app.post("/api/clips/ingest")
 async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
-    """Universal AI clipboard ingest with automatic categorization, entity extraction, and job offer detection"""
+    """Universal AI clipboard ingest with automatic categorization, entity extraction, multi-link decomposition, and job offer detection"""
     raw_content = req.content.strip()
     if not raw_content:
         raise HTTPException(status_code=400, detail="Clipboard content cannot be empty")
-
-    # Deduplication: return existing clip if identical content was already ingested
-    existing_clip = db.query(ClipVaultModel).filter_by(content=raw_content).first()
-    if existing_clip:
-        return {
-            "success": True,
-            "clip": {
-                "id": existing_clip.id,
-                "content": existing_clip.content,
-                "contentType": existing_clip.content_type,
-                "title": existing_clip.title,
-                "summary": existing_clip.summary,
-                "sourceUrl": existing_clip.source_url,
-                "sourceDomain": existing_clip.source_domain,
-                "sourceDevice": existing_clip.source_device,
-                "tags": json.loads(existing_clip.tags_json) if existing_clip.tags_json else [],
-                "entities": json.loads(existing_clip.entities_json) if existing_clip.entities_json else {},
-                "isStarred": existing_clip.is_starred,
-                "convertedToOffer": existing_clip.converted_to_offer,
-                "createdAt": existing_clip.created_at,
-            },
-            "isJobOffer": existing_clip.content_type in ["job_offer", "job"],
-            "isDuplicate": True,
-        }
 
     cfg = db.query(AiConfigModel).filter_by(id="default").first()
     api_key = (cfg.api_key if cfg else None) or GROQ_API_KEY
     model = (cfg.model if cfg else None) or DEFAULT_MODEL
 
-    # Deep URL Scraping: If content is or contains a URL, fetch the real HTML & metadata first!
     import re
-    url_match = re.search(r'https?://[^\s]+', raw_content)
-    target_url = req.sourceUrl or (url_match.group(0) if url_match else None)
+    # Extract distinct URLs from the text
+    found_urls = re.findall(r'https?://[^\s,;"\'\)\]\}]+', raw_content)
+    seen_urls = set()
+    all_urls = []
+    for u in found_urls:
+        clean_u = u.rstrip('.,;)')
+        if clean_u not in seen_urls:
+            seen_urls.add(clean_u)
+            all_urls.append(clean_u)
 
+    # CASE A: MULTIPLE LINKS IN A SINGLE POST/CLIPBOARD ITEM
+    # If the text has multiple URLs and no explicit single sourceUrl was forced, process each independently while referencing the parent post.
+    if len(all_urls) > 1 and not req.sourceUrl:
+        created_clips = []
+        created_offers = []
+        parent_batch_id = f"batch-{int(datetime.utcnow().timestamp()*1000)}"
+        lines = [line.strip() for line in raw_content.splitlines() if line.strip()]
+
+        for idx, u in enumerate(all_urls[:12]):
+            # Local paragraph or line containing this link
+            context_lines = [l for l in lines if u in l]
+            item_context = "\n".join(context_lines) if context_lines else raw_content[:400]
+
+            scraped_meta = None
+            rich_text = item_context
+            try:
+                scraped_meta = await scrape_url_metadata(u)
+                if scraped_meta.get("bodyText"):
+                    rich_text = f"TITLE: {scraped_meta.get('title', '')}\nSITE: {scraped_meta.get('siteName', '')}\nDESCRIPTION: {scraped_meta.get('description', '')}\nCONTEXT: {item_context}\n\nPAGE CONTENT:\n{scraped_meta.get('bodyText', '')}"
+                elif scraped_meta.get("title"):
+                    rich_text = f"TITLE: {scraped_meta.get('title', '')}\nDESCRIPTION: {scraped_meta.get('description', '')}\nCONTEXT: {item_context}\nURL: {u}"
+            except Exception as e:
+                logger.warning(f"Error scraping sub-link {u}: {e}")
+
+            analyzed = await analyze_clip(
+                raw_text=rich_text,
+                source_url=u,
+                source_domain=(scraped_meta.get("siteName") if scraped_meta else None),
+                api_key=api_key,
+                model=model
+            )
+
+            clip_id = f"clip-{int(datetime.utcnow().timestamp()*1000)}-{idx+1}"
+            content_type = analyzed.get("contentType") or "note"
+            if scraped_meta and (scraped_meta.get("isVideo") or scraped_meta.get("isEducationalVideo")):
+                content_type = "educational_video"
+
+            title = (scraped_meta.get("title") if scraped_meta and scraped_meta.get("title") and len(scraped_meta["title"]) > 10 else None) or analyzed.get("title") or u
+            summary = analyzed.get("summary") or (scraped_meta.get("description") if scraped_meta else None) or item_context[:200]
+            source_domain = analyzed.get("sourceDomain") or (scraped_meta.get("siteName") if scraped_meta else None) or "web"
+            tags = analyzed.get("tags") or []
+            entities = analyzed.get("entities") or {}
+
+            # Reference parent post
+            entities["parentPost"] = {
+                "batchId": parent_batch_id,
+                "sourceSnippet": raw_content[:250],
+                "linkIndex": idx + 1,
+                "totalLinks": len(all_urls),
+                "allUrls": all_urls,
+            }
+
+            if analyzed.get("videoData"):
+                entities["videoData"] = analyzed["videoData"]
+            elif scraped_meta and scraped_meta.get("isVideo"):
+                entities["videoData"] = {
+                    "coreConcept": title,
+                    "keyTakeaways": [summary, f"Educational video from {source_domain}"],
+                    "toolsMentioned": tags,
+                    "creator": scraped_meta.get("author") or source_domain,
+                }
+
+            sub_clip = ClipVaultModel(
+                id=clip_id,
+                content=f"{item_context}\n\nLink: {u}",
+                content_type=content_type,
+                title=title,
+                summary=summary,
+                source_url=u,
+                source_domain=source_domain,
+                source_device=req.sourceDevice or "desktop",
+                tags_json=json.dumps(tags),
+                entities_json=json.dumps(entities),
+                is_starred=False,
+                converted_to_offer=False,
+                copied_at=req.copiedAt or datetime.utcnow().isoformat(),
+                created_at=datetime.utcnow().isoformat(),
+                updated_at=datetime.utcnow().isoformat(),
+            )
+            db.add(sub_clip)
+
+            is_job = bool(
+                analyzed.get("isJobOffer")
+                or content_type in ["job_offer", "job"]
+                or any(w in rich_text.lower() for w in [
+                    "stage", "pfe", "internship", "intern", "hiring", "recrute", "recrutement",
+                    "candidat", "poste", "cdi", "cdd", "job offer", "we are hiring", "apply now", "postuler"
+                ])
+            )
+            if is_job:
+                job_data = analyzed.get("jobData") or {}
+                emails = re.findall(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', rich_text)
+                detected_channel = job_data.get("channel") or ("email" if emails else "external")
+                cat_id = job_data.get("category") or "dev-fullstack"
+                db_cat = db.query(CategoryModel).filter_by(id=cat_id).first()
+                cv_tag = db_cat.default_cv_tag if db_cat else "CV - General"
+
+                new_offer = OfferModel(
+                    id=f"offer-clip-{int(datetime.utcnow().timestamp()*1000)}-{idx+1}",
+                    title=job_data.get("title") or title,
+                    company=job_data.get("company") or source_domain or "Company",
+                    location=job_data.get("location") or "Remote / Hybrid",
+                    category=cat_id,
+                    category_reasoning=f"Auto-routed from multi-link post link #{idx+1} ({source_domain})",
+                    channel=detected_channel,
+                    recruiter_email=job_data.get("recruiterEmail") or (emails[0] if emails else ""),
+                    recruiter_name=job_data.get("recruiterName") or "",
+                    skills_json=json.dumps(job_data.get("skills") or tags),
+                    description=rich_text,
+                    source_url=u,
+                    status="saved",
+                    attached_cv_tag=cv_tag,
+                    confidence=0.92,
+                    needs_user_review=True,
+                    notes=f"Auto-captured from multi-link post on {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
+                    created_at=datetime.utcnow().isoformat(),
+                    updated_at=datetime.utcnow().isoformat(),
+                )
+                db.add(new_offer)
+                sub_clip.converted_to_offer = True
+                sub_clip.content_type = "job_offer"
+                created_offers.append(new_offer)
+
+            created_clips.append(sub_clip)
+
+        db.commit()
+        for c in created_clips:
+            db.refresh(c)
+
+        return {
+            "success": True,
+            "isMultiLink": True,
+            "batchCount": len(created_clips),
+            "clips": [c.to_dict() for c in created_clips],
+            "offers": [o.to_dict() for o in created_offers],
+            "clip": created_clips[0].to_dict() if created_clips else None,
+            "isJobOffer": len(created_offers) > 0,
+            "offer": created_offers[0].to_dict() if created_offers else None,
+        }
+
+    # CASE B: SINGLE URL OR GENERAL TEXT
+    # Deduplication check
+    existing_clip = db.query(ClipVaultModel).filter_by(content=raw_content).first()
+    if existing_clip:
+        return {
+            "success": True,
+            "clip": existing_clip.to_dict(),
+            "isJobOffer": existing_clip.content_type in ["job_offer", "job"],
+            "isDuplicate": True,
+        }
+
+    target_url = req.sourceUrl or (all_urls[0] if all_urls else None)
     scraped_meta = None
     rich_text = raw_content
 
@@ -1046,7 +1181,7 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
         except Exception as e:
             logger.warning(f"Error scraping URL {target_url}: {e}")
 
-    # Run universal AI semantic classification with rich scraped content
+    # Run universal AI semantic classification
     analyzed = await analyze_clip(
         raw_text=rich_text,
         source_url=target_url or req.sourceUrl,
@@ -1066,7 +1201,6 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
     tags = analyzed.get("tags") or []
     entities = analyzed.get("entities") or {}
 
-    # Store videoData or educational takeaways if available
     if analyzed.get("videoData"):
         entities["videoData"] = analyzed["videoData"]
     elif scraped_meta and scraped_meta.get("isVideo"):
@@ -1096,7 +1230,6 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
     )
     db.add(clip)
 
-    # If it was identified as a job offer, auto-create the corresponding offer
     auto_created_offer = None
     is_job = bool(
         analyzed.get("isJobOffer")
@@ -1111,7 +1244,7 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
         job_data = analyzed.get("jobData") or {}
         emails = re.findall(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', rich_text)
         phones = re.findall(r'(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}', rich_text)
-        
+
         detected_channel = job_data.get("channel")
         if not detected_channel or detected_channel not in ["email", "direct_contact", "external"]:
             if emails:
@@ -1173,6 +1306,149 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
         "isJobOffer": bool(is_job),
         "offer": auto_created_offer.to_dict() if auto_created_offer else None
     }
+
+
+@app.post("/api/clips/bulk-ingest")
+async def bulk_ingest_clips(req: BulkIngestSchema, db: Session = Depends(get_db)):
+    """
+    Cleans messy raw bulk text (lists of links, notes, or bullet points)
+    and processes each item independently into the Clip Vault.
+    """
+    raw_text = (req.rawText or req.raw_text or req.content or "").strip()
+    urls = list(req.urls or [])
+
+    import re
+    if raw_text:
+        found = re.findall(r'https?://[^\s,;"\'\)\]\}]+', raw_text)
+        for f in found:
+            clean_f = f.rstrip('.,;)')
+            if clean_f not in urls:
+                urls.append(clean_f)
+
+    results = []
+    created_offers = []
+
+    # If discrete URLs were extracted from bulk input, ingest each one
+    if urls:
+        for u in urls[:20]:
+            try:
+                ingest_res = await ingest_clip(
+                    ClipIngestSchema(
+                        content=u,
+                        sourceUrl=u,
+                        sourceDevice=req.sourceDevice or "desktop"
+                    ),
+                    db=db
+                )
+                if ingest_res.get("clip"):
+                    results.append(ingest_res["clip"])
+                if ingest_res.get("offer"):
+                    created_offers.append(ingest_res["offer"])
+            except Exception as e:
+                logger.warning(f"Error bulk ingesting URL {u}: {e}")
+
+        return {"success": True, "count": len(results), "clips": results, "offers": created_offers}
+
+    # If no URLs found, split by double-newlines, bullets, or numbers
+    chunks = [c.strip() for c in re.split(r'\n{2,}|\n(?=[•\-\*]|\d+[\.\)])', raw_text) if len(c.strip()) > 15]
+    if not chunks and len(raw_text) > 10:
+        chunks = [raw_text]
+
+    for chunk in chunks[:12]:
+        try:
+            res = await ingest_clip(
+                ClipIngestSchema(
+                    content=chunk,
+                    sourceDevice=req.sourceDevice or "desktop"
+                ),
+                db=db
+            )
+            if res.get("clip"):
+                results.append(res["clip"])
+            if res.get("offer"):
+                created_offers.append(res["offer"])
+        except Exception as e:
+            logger.warning(f"Error bulk ingesting chunk: {e}")
+
+    return {"success": True, "count": len(results), "clips": results, "offers": created_offers}
+
+
+@app.post("/api/clips/{clip_id}/enrich")
+async def enrich_clip(clip_id: str, db: Session = Depends(get_db)):
+    """Deeply enriches a clip: re-fetches metadata, extracts rich takeaways, key points, tools, and updates Groq analysis"""
+    clip = db.query(ClipVaultModel).filter_by(id=clip_id).first()
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+
+    cfg = db.query(AiConfigModel).filter_by(id="default").first()
+    api_key = (cfg.api_key if cfg else None) or GROQ_API_KEY
+    model = (cfg.model if cfg else None) or DEFAULT_MODEL
+
+    rich_text = clip.content
+    scraped_meta = None
+    target_url = clip.source_url
+
+    if target_url:
+        try:
+            scraped_meta = await scrape_url_metadata(target_url)
+            if scraped_meta.get("bodyText"):
+                rich_text = f"TITLE: {scraped_meta.get('title', '')}\nSITE: {scraped_meta.get('siteName', '')}\nDESCRIPTION: {scraped_meta.get('description', '')}\n\nPAGE CONTENT:\n{scraped_meta.get('bodyText', '')}"
+            elif scraped_meta.get("title"):
+                rich_text = f"TITLE: {scraped_meta.get('title', '')}\nDESCRIPTION: {scraped_meta.get('description', '')}\nURL: {target_url}"
+        except Exception as e:
+            logger.warning(f"Re-scrape error on {target_url}: {e}")
+
+    analyzed = await analyze_clip(
+        raw_text=rich_text,
+        source_url=target_url,
+        source_domain=clip.source_domain or (scraped_meta.get("siteName") if scraped_meta else None),
+        api_key=api_key,
+        model=model
+    )
+
+    if analyzed.get("title") and len(analyzed["title"]) > 5:
+        clip.title = analyzed["title"]
+    if scraped_meta and scraped_meta.get("title") and len(scraped_meta["title"]) > 10:
+        clip.title = scraped_meta["title"]
+
+    if analyzed.get("summary"):
+        clip.summary = analyzed["summary"]
+    elif scraped_meta and scraped_meta.get("description"):
+        clip.summary = scraped_meta["description"]
+
+    if analyzed.get("contentType"):
+        clip.content_type = analyzed["contentType"]
+    if scraped_meta and (scraped_meta.get("isVideo") or scraped_meta.get("isEducationalVideo")):
+        clip.content_type = "educational_video"
+
+    entities = {}
+    try:
+        entities = json.loads(clip.entities_json) if clip.entities_json else {}
+    except Exception:
+        pass
+
+    if analyzed.get("entities"):
+        entities.update(analyzed["entities"])
+
+    if analyzed.get("videoData"):
+        entities["videoData"] = analyzed["videoData"]
+    elif scraped_meta and scraped_meta.get("isVideo"):
+        entities["videoData"] = {
+            "coreConcept": clip.title,
+            "keyTakeaways": [clip.summary or "Educational video insights", f"Source: {clip.source_domain}"],
+            "toolsMentioned": analyzed.get("tags") or [],
+            "creator": scraped_meta.get("author") or clip.source_domain,
+        }
+
+    clip.entities_json = json.dumps(entities)
+    if analyzed.get("tags"):
+        clip.tags_json = json.dumps(analyzed["tags"])
+
+    clip.updated_at = datetime.utcnow().isoformat()
+    db.commit()
+    db.refresh(clip)
+
+    return {"success": True, "clip": clip.to_dict()}
 
 
 @app.post("/api/clips/ocr-ingest")
@@ -1376,7 +1652,7 @@ async def convert_clip_to_offer(clip_id: str, db: Session = Depends(get_db)):
         company=analyzed.get("company") or "",
         location=analyzed.get("location") or "",
         category=cat_id,
-        category_reasoning=analyzed.get("categoryReasoning") or f"Converti depuis le clip #{clip_id[:8]}",
+        category_reasoning=analyzed.get("categoryReasoning") or f"Converted from clip #{clip_id[:8]}",
         channel=analyzed.get("channel") or "external",
         recruiter_email=analyzed.get("recruiterEmail") or "",
         recruiter_name=analyzed.get("recruiterName") or "",
@@ -1390,7 +1666,7 @@ async def convert_clip_to_offer(clip_id: str, db: Session = Depends(get_db)):
         needs_user_review=True,
         linked_in_note=analyzed.get("linkedInNote") or "",
         whats_app_msg=analyzed.get("whatsAppMsg") or "",
-        notes=f"Converti depuis le presse-papiers ({clip.source_domain})",
+        notes=f"Converted from clipboard vault ({clip.source_domain})",
         created_at=datetime.utcnow().isoformat(),
         updated_at=datetime.utcnow().isoformat(),
     )

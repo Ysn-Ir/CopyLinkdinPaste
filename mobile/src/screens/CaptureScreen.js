@@ -12,6 +12,7 @@ import {
 import * as Clipboard from 'expo-clipboard'
 import * as ImagePicker from 'expo-image-picker'
 import { ApiService } from '../services/api'
+import { ScreenshotWatcher } from '../services/screenshotWatcher'
 import { THEME } from '../theme'
 
 export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClips }) {
@@ -21,9 +22,42 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
   const [isIngesting, setIsIngesting] = useState(false)
   const [isReadingClipboard, setIsReadingClipboard] = useState(false)
   const [isProcessingOcr, setIsProcessingOcr] = useState(false)
-  const [captureMode, setCaptureMode] = useState('auto') // 'auto' | 'offer' | 'clip'
+  const [isScanningScreenshot, setIsScanningScreenshot] = useState(false)
+  const [captureMode, setCaptureMode] = useState('auto') // 'auto' | 'bulk' | 'offer' | 'clip'
   const [lastCreatedOffer, setLastCreatedOffer] = useState(null)
   const [lastCreatedClip, setLastCreatedClip] = useState(null)
+  const [bulkBatchResult, setBulkBatchResult] = useState(null)
+
+  const detectedLinksCount = (inputText.match(/https?:\/\/[^\s,;"'\)\]\}]+/g) || []).length
+
+  const handleScanLatestScreenshot = async () => {
+    setIsScanningScreenshot(true)
+    try {
+      const res = await ScreenshotWatcher.scanLatestScreenshot({ force: true })
+      if (res && res.success) {
+        setLastCreatedClip(res.clip)
+        if (res.isJobOffer && res.offer) {
+          setLastCreatedOffer(res.offer)
+          Alert.alert(
+            'Screenshot Analyzed!',
+            `"${res.offer.title}" was extracted via Groq Vision OCR and routed to channels!`
+          )
+          if (onOfferCreated) onOfferCreated(res.offer)
+        } else {
+          Alert.alert('Screenshot Ingested', 'Extracted text categorized and saved into Clip Vault.')
+        }
+      } else {
+        Alert.alert(
+          'Screenshot Notice',
+          res?.error || 'No new screenshot found. Take a screenshot in another app, then tap here to parse instantly.'
+        )
+      }
+    } catch (err) {
+      Alert.alert('OCR Error', err.message || 'Failed to scan screenshot.')
+    } finally {
+      setIsScanningScreenshot(false)
+    }
+  }
 
   const handlePickScreenshotOcr = async () => {
     try {
@@ -103,7 +137,7 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
       const text = await Clipboard.getStringAsync()
       if (text && text.trim().length > 0) {
         const trimmed = text.trim()
-        if (trimmed.startsWith('http')) {
+        if (trimmed.startsWith('http') && !trimmed.includes('\n') && captureMode !== 'bulk') {
           setSourceUrl(trimmed)
         } else {
           setInputText(trimmed)
@@ -130,6 +164,27 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
     setIsIngesting(true)
     setLastCreatedOffer(null)
     setLastCreatedClip(null)
+    setBulkBatchResult(null)
+
+    // BULK MODE: Clean and isolate each link / item independently
+    if (captureMode === 'bulk') {
+      const res = await ApiService.bulkIngestClips({
+        rawText: inputText.trim(),
+        sourceDevice: 'mobile',
+      })
+      setIsIngesting(false)
+      if (res && res.success) {
+        setBulkBatchResult(res)
+        setInputText('')
+        Alert.alert(
+          'Bulk Batch Completed',
+          `Processed ${res.count || 0} discrete items independently. Check Clip Vault or Offers!`
+        )
+      } else {
+        Alert.alert('Bulk Ingest Error', res?.error || 'Could not process bulk items.')
+      }
+      return
+    }
 
     if (captureMode === 'offer') {
       const res = await ApiService.ingestPost({
@@ -161,20 +216,35 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
       setIsIngesting(false)
 
       if (res.success) {
-        setLastCreatedClip(res.clip)
-        if (res.isJobOffer && res.offer) {
-          setLastCreatedOffer(res.offer)
+        if (res.isMultiLink) {
+          // Multi-link post decomposed!
+          setBulkBatchResult({ count: res.batchCount, clips: res.clips, offers: res.offers })
+          if (res.offer) {
+            setLastCreatedOffer(res.offer)
+            if (onOfferCreated) onOfferCreated(res.offer)
+          }
           setInputText('')
           setSourceUrl('')
           Alert.alert(
-            'Job Offer Detected!',
-            `"${res.offer.title}" was automatically recognized and routed to the ${res.channel ? res.channel.toUpperCase() : 'OFFER'} channel!`
+            'Multi-Link Post Decomposed!',
+            `Isolated and processed ${res.batchCount} links independently while linking to the source post!`
           )
-          if (onOfferCreated) onOfferCreated(res.offer)
         } else {
-          setInputText('')
-          setSourceUrl('')
-          Alert.alert('Saved to Vault', 'Clip saved and categorized.')
+          setLastCreatedClip(res.clip)
+          if (res.isJobOffer && res.offer) {
+            setLastCreatedOffer(res.offer)
+            setInputText('')
+            setSourceUrl('')
+            Alert.alert(
+              'Job Offer Detected!',
+              `"${res.offer.title}" was automatically recognized and routed to the ${res.channel ? res.channel.toUpperCase() : 'OFFER'} channel!`
+            )
+            if (onOfferCreated) onOfferCreated(res.offer)
+          } else {
+            setInputText('')
+            setSourceUrl('')
+            Alert.alert('Saved to Vault', 'Clip saved and categorized.')
+          }
         }
       } else {
         Alert.alert('Capture Error', res.error || 'Server unreachable.')
@@ -203,7 +273,7 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
         <View style={styles.clipboardHeader}>
           <View style={styles.clipboardLivePill}>
             <View style={styles.liveDot} />
-            <Text style={styles.clipboardLiveText}>CLIPBOARD LISTENER ACTIVE</Text>
+            <Text style={styles.clipboardLiveText}>LIVE AUTO-DETECTION</Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 6 }}>
             <TouchableOpacity
@@ -212,7 +282,7 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
               disabled={isProcessingOcr}
             >
               <Text style={styles.pasteActionBtnText}>
-                {isProcessingOcr ? 'Analyzing OCR...' : '📸 Screenshot OCR'}
+                {isProcessingOcr ? 'Analyzing OCR...' : '🖼️ Gallery OCR'}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -227,6 +297,25 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           </View>
         </View>
 
+        {/* 1-Tap Instant Screenshot Scanner */}
+        <TouchableOpacity
+          style={styles.scanScreenshotBanner}
+          onPress={handleScanLatestScreenshot}
+          disabled={isScanningScreenshot}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={{ fontSize: 16 }}>⚡</Text>
+            <View>
+              <Text style={styles.scanScreenshotTitle}>
+                {isScanningScreenshot ? 'Scanning Latest Screenshot...' : 'Scan Latest Screenshot (1-Tap)'}
+              </Text>
+              <Text style={styles.scanScreenshotDesc}>
+                Directly parses your newest device screenshot with 0 file picker steps
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+
         {clipboardContent ? (
           <View style={styles.clipboardContentBox}>
             <Text style={styles.clipboardContentLabel}>Detected in your clipboard:</Text>
@@ -236,14 +325,14 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
             <TouchableOpacity
               style={styles.oneTapLoadBtn}
               onPress={() => {
-                if (clipboardContent.startsWith('http')) {
+                if (clipboardContent.startsWith('http') && !clipboardContent.includes('\n') && captureMode !== 'bulk') {
                   setSourceUrl(clipboardContent)
                 } else {
                   setInputText(clipboardContent)
                 }
               }}
             >
-              <Text style={styles.oneTapLoadText}>↳ Use this text in input</Text>
+              <Text style={styles.oneTapLoadText}>↳ Load into input field</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -251,21 +340,6 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
             Copy any job post on LinkedIn, WhatsApp, or browser — it will appear here automatically.
           </Text>
         )}
-
-        <View style={{
-          marginTop: 10,
-          paddingTop: 8,
-          borderTopWidth: 1,
-          borderTopColor: THEME.colors.border,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 6,
-        }}>
-          <Text style={{ fontSize: 12 }}>📸</Text>
-          <Text style={{ fontSize: 11, color: THEME.colors.textMuted, flex: 1, lineHeight: 15 }}>
-            <Text style={{ fontWeight: '700', color: '#10b981' }}>Automatic Screenshot Watcher:</Text> Any screenshot you take on this phone is automatically detected and parsed via Groq Vision OCR without entering or uploading manually!
-          </Text>
-        </View>
       </View>
 
       {/* Mode Selector */}
@@ -276,6 +350,15 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
         >
           <Text style={[styles.modeBtnText, captureMode === 'auto' && styles.modeBtnTextActive]}>
             ⚡ Auto Detect
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.modeBtn, captureMode === 'bulk' && styles.modeBtnActive]}
+          onPress={() => setCaptureMode('bulk')}
+        >
+          <Text style={[styles.modeBtnText, captureMode === 'bulk' && styles.modeBtnTextActive]}>
+            📦 Bulk Links / Text
           </Text>
         </TouchableOpacity>
 
@@ -300,10 +383,24 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
 
       {/* Input Area */}
       <View style={styles.inputCard}>
-        <Text style={styles.label}>Paste Text / Job Description</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <Text style={styles.label}>
+            {captureMode === 'bulk' ? 'Bulk Raw Text / Links List' : 'Paste Text / Job Description'}
+          </Text>
+          {detectedLinksCount > 0 && (
+            <View style={styles.detectedBadge}>
+              <Text style={styles.detectedBadgeText}>{detectedLinksCount} Link{detectedLinksCount > 1 ? 's' : ''} Detected</Text>
+            </View>
+          )}
+        </View>
+
         <TextInput
           style={styles.textArea}
-          placeholder="Paste full LinkedIn post, email body, WhatsApp job alert, or tech notes..."
+          placeholder={
+            captureMode === 'bulk'
+              ? 'Paste multiple links, email digests, or bookmark lists. Each will be isolated and scraped independently...'
+              : 'Paste LinkedIn post, email body, WhatsApp alert, or TikTok/Instagram/YouTube links...'
+          }
           placeholderTextColor={THEME.colors.textMuted}
           multiline
           numberOfLines={6}
@@ -311,16 +408,20 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           onChangeText={setInputText}
         />
 
-        <Text style={[styles.label, { marginTop: 12 }]}>Source URL (Optional)</Text>
-        <TextInput
-          style={styles.urlInput}
-          placeholder="https://linkedin.com/feed/update/... or company careers link"
-          placeholderTextColor={THEME.colors.textMuted}
-          value={sourceUrl}
-          onChangeText={setSourceUrl}
-          autoCapitalize="none"
-          keyboardType="url"
-        />
+        {captureMode !== 'bulk' && (
+          <>
+            <Text style={[styles.label, { marginTop: 12 }]}>Source URL (Optional)</Text>
+            <TextInput
+              style={styles.urlInput}
+              placeholder="https://linkedin.com/... or tiktok/instagram/youtube link"
+              placeholderTextColor={THEME.colors.textMuted}
+              value={sourceUrl}
+              onChangeText={setSourceUrl}
+              autoCapitalize="none"
+              keyboardType="url"
+            />
+          </>
+        )}
 
         {/* Ingest Action Button */}
         <TouchableOpacity
@@ -329,14 +430,34 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           disabled={isIngesting || (!inputText && !sourceUrl)}
         >
           {isIngesting ? (
-            <ActivityIndicator size="small" color="#ffffff" />
+            <ActivityIndicator size="small" color="#09090b" />
           ) : (
             <Text style={styles.ingestBtnText}>
-              ⚡ Extract with Groq AI & Route to Channel
+              {captureMode === 'bulk'
+                ? `⚡ Clean & Ingest ${detectedLinksCount ? `${detectedLinksCount} Items` : 'All Discrete Items'}`
+                : '⚡ Extract with Groq AI & Route to Channel'}
             </Text>
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Bulk Batch Summary */}
+      {bulkBatchResult && (
+        <View style={styles.batchResultCard}>
+          <Text style={styles.batchResultTitle}>
+            ✓ Bulk Batch Completed ({bulkBatchResult.count} items)
+          </Text>
+          <Text style={styles.batchResultSubtitle}>
+            Discrete items processed and linked to the source batch.
+          </Text>
+          <TouchableOpacity
+            style={styles.viewBatchClipsBtn}
+            onPress={() => onNavigateClips && onNavigateClips()}
+          >
+            <Text style={styles.viewBatchClipsText}>Inspect in Clip Vault →</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Last Result Card */}
       {lastCreatedOffer && (
@@ -594,5 +715,77 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#10b981',
+  },
+
+  // 1-Tap Instant Screenshot Scanner
+  scanScreenshotBanner: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  scanScreenshotTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  scanScreenshotDesc: {
+    fontSize: 10.5,
+    color: THEME.colors.textMuted,
+    marginTop: 2,
+  },
+
+  // Badge for detected links
+  detectedBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  detectedBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#10b981',
+  },
+
+  // Bulk Batch Result Card
+  batchResultCard: {
+    backgroundColor: THEME.colors.bgCard,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  batchResultTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#10b981',
+    marginBottom: 4,
+  },
+  batchResultSubtitle: {
+    fontSize: 11.5,
+    color: THEME.colors.textSecondary,
+    marginBottom: 10,
+  },
+  viewBatchClipsBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  viewBatchClipsText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
   },
 })

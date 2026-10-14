@@ -21,6 +21,10 @@ import {
   Zap,
   RefreshCw,
   Camera,
+  X,
+  Copy,
+  Layers,
+  Check,
 } from 'lucide-react'
 import { StorageService } from '../services/storage.js'
 
@@ -94,7 +98,53 @@ export function ClipVaultView({
   const [showStarredOnly, setShowStarredOnly] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [isOcrProcessing, setIsOcrProcessing] = useState(false)
+  const [selectedClip, setSelectedClip] = useState(null)
+  const [isEnriching, setIsEnriching] = useState(false)
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
+  const [bulkInputText, setBulkInputText] = useState('')
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false)
+  const [copiedId, setCopiedId] = useState(null)
   const fileInputRef = useRef(null)
+
+  const handleEnrichClip = async (clipId) => {
+    setIsEnriching(true)
+    try {
+      const res = await StorageService.enrichClip(clipId)
+      if (res && res.success && res.clip) {
+        setSelectedClip(res.clip)
+        if (onRefresh) await onRefresh()
+      }
+    } catch (e) {
+      console.error('Enrich failed:', e)
+    } finally {
+      setIsEnriching(false)
+    }
+  }
+
+  const handleBulkIngest = async () => {
+    if (!bulkInputText.trim()) return
+    setIsBulkProcessing(true)
+    try {
+      await StorageService.bulkIngestClips({
+        rawText: bulkInputText.trim(),
+        sourceDevice: 'desktop',
+      })
+      setBulkInputText('')
+      setIsBulkModalOpen(false)
+      if (onRefresh) await onRefresh()
+    } catch (e) {
+      console.error('Bulk ingest failed:', e)
+    } finally {
+      setIsBulkProcessing(false)
+    }
+  }
+
+  const handleCopyText = (text, id) => {
+    if (!text) return
+    navigator.clipboard.writeText(text)
+    setCopiedId(id || 'copied')
+    setTimeout(() => setCopiedId(null), 2000)
+  }
 
   const handleScreenshotUpload = async (e) => {
     const file = e.target.files?.[0]
@@ -217,6 +267,28 @@ export function ClipVaultView({
               <span>{isSyncing ? 'Syncing...' : 'Sync Offers to Channels'}</span>
             </button>
           )}
+
+          {/* Bulk Import Button */}
+          <button
+            onClick={() => setIsBulkModalOpen(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '8px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 600,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Layers size={13} />
+            <span>Bulk Clean & Import</span>
+          </button>
 
           {/* Monitor toggle */}
           <button
@@ -481,6 +553,7 @@ export function ClipVaultView({
             return (
               <div
                 key={clip.id}
+                onClick={() => setSelectedClip(clip)}
                 style={{
                   padding: '14px 18px',
                   borderRadius: '10px',
@@ -488,6 +561,7 @@ export function ClipVaultView({
                   background: 'var(--bg-surface)',
                   transition: 'all 0.15s ease',
                   position: 'relative',
+                  cursor: 'pointer',
                 }}
               >
                 {/* Top row: Type + Channel Badge + Title + Actions */}
@@ -529,6 +603,25 @@ export function ClipVaultView({
                       </span>
                     )}
 
+                    {/* Multi-link badge if part of a batch */}
+                    {clip.entities?.parentPost && (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '2px 7px',
+                        borderRadius: '4px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid var(--border-default)',
+                        color: 'var(--text-secondary)',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                      }}>
+                        🔗 Link #{clip.entities.parentPost.linkIndex}/{clip.entities.parentPost.totalLinks}
+                      </span>
+                    )}
+
                     {/* Title */}
                     <h4 style={{
                       fontSize: '13px',
@@ -548,7 +641,10 @@ export function ClipVaultView({
                   {/* Actions */}
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
                     <button
-                      onClick={() => onStarClip(clip.id)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onStarClip(clip.id)
+                      }}
                       title={clip.isStarred ? 'Remove from favorites' : 'Add to favorites'}
                       style={{
                         padding: '4px',
@@ -564,7 +660,10 @@ export function ClipVaultView({
 
                     {!clip.convertedToOffer && isJobOffer && (
                       <button
-                        onClick={() => onConvertToOffer(clip.id)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onConvertToOffer(clip.id)
+                        }}
                         title="Route to Offer Channel"
                         style={{
                           padding: '4px 10px',
@@ -600,7 +699,10 @@ export function ClipVaultView({
                     )}
 
                     <button
-                      onClick={() => onDeleteClip(clip.id)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onDeleteClip(clip.id)
+                      }}
                       title="Delete"
                       style={{
                         padding: '4px',
@@ -750,6 +852,458 @@ export function ClipVaultView({
               </div>
             )
           })}
+        </div>
+      )}
+      {/* Clip Inspector Modal / Drawer */}
+      {selectedClip && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px',
+          }}
+          onClick={() => setSelectedClip(null)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '820px',
+              maxHeight: '88vh',
+              background: '#09090b',
+              border: '1px solid #27272a',
+              borderRadius: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+              overflow: 'hidden',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: '16px 22px',
+                borderBottom: '1px solid #27272a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: '#121215',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '3px 10px',
+                    borderRadius: '12px',
+                    background: getTypeInfo(selectedClip.contentType).color + '22',
+                    border: `1px solid ${getTypeInfo(selectedClip.contentType).color}40`,
+                    color: getTypeInfo(selectedClip.contentType).color,
+                    fontSize: '11px',
+                    fontWeight: 700,
+                  }}
+                >
+                  {getTypeInfo(selectedClip.contentType).icon} {getTypeInfo(selectedClip.contentType).label}
+                </span>
+
+                {detectClipChannel(selectedClip) && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '3px 8px',
+                      borderRadius: '4px',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: `1px solid ${detectClipChannel(selectedClip).color}40`,
+                      color: detectClipChannel(selectedClip).color,
+                      fontSize: '11px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {detectClipChannel(selectedClip).label}
+                  </span>
+                )}
+
+                <span style={{ fontSize: '11.5px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {getDomainIcon(selectedClip.sourceDomain)} {selectedClip.sourceDomain || 'clipboard'} • {selectedClip.sourceDevice === 'mobile' ? 'Mobile' : 'Desktop'} • {formatTimestamp(selectedClip.copiedAt || selectedClip.createdAt)}
+                </span>
+              </div>
+
+              <button
+                onClick={() => setSelectedClip(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-tertiary)',
+                  cursor: 'pointer',
+                  padding: '6px',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Scrollable Content Body */}
+            <div style={{ padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Full Title */}
+              <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, lineHeight: 1.4 }}>
+                {selectedClip.title}
+              </h3>
+
+              {/* Action Bar */}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', paddingBottom: '14px', borderBottom: '1px solid #27272a' }}>
+                <button
+                  onClick={() => handleEnrichClip(selectedClip.id)}
+                  disabled={isEnriching}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 14px',
+                    borderRadius: '8px',
+                    background: '#ffffff',
+                    color: '#09090b',
+                    border: 'none',
+                    fontWeight: 700,
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Sparkles size={13} />
+                  <span>{isEnriching ? 'Re-Scraping & Enriching...' : 'Deep AI Enrich / Re-scrape'}</span>
+                </button>
+
+                {selectedClip.sourceUrl && (
+                  <a
+                    href={selectedClip.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid #27272a',
+                      color: 'var(--text-primary)',
+                      textDecoration: 'none',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <ArrowUpRight size={13} />
+                    <span>Open Source Link</span>
+                  </a>
+                )}
+
+                <button
+                  onClick={() => handleCopyText(selectedClip.content, 'modal-content')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '7px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid #27272a',
+                    color: 'var(--text-primary)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {copiedId === 'modal-content' ? <Check size={13} style={{ color: '#10b981' }} /> : <Copy size={13} />}
+                  <span>{copiedId === 'modal-content' ? 'Copied!' : 'Copy Full Text'}</span>
+                </button>
+
+                {!selectedClip.convertedToOffer && (selectedClip.contentType === 'job_offer' || /stage|pfe|recrute|hiring|candidat|poste|cdi|internship|job/i.test(selectedClip.content)) && (
+                  <button
+                    onClick={async () => {
+                      if (onConvertToOffer) await onConvertToOffer(selectedClip.id)
+                      setSelectedClip((prev) => ({ ...prev, convertedToOffer: true }))
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      border: '1px solid rgba(16, 185, 129, 0.4)',
+                      color: '#10b981',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Briefcase size={13} />
+                    <span>Route to Career Offer Channel</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Multi-link Parent Reference Card */}
+              {selectedClip.entities?.parentPost && (
+                <div
+                  style={{
+                    padding: '12px 14px',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    borderRadius: '8px',
+                  }}
+                >
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#ffffff', marginBottom: '4px' }}>
+                    🔗 Origin: Multi-Link Post (Link #{selectedClip.entities.parentPost.linkIndex} of {selectedClip.entities.parentPost.totalLinks})
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.5 }}>
+                    "{selectedClip.entities.parentPost.sourceSnippet}"
+                  </div>
+                </div>
+              )}
+
+              {/* Summary */}
+              {selectedClip.summary && (
+                <div style={{ padding: '14px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid #27272a', borderRadius: '10px' }}>
+                  <div style={{ fontSize: '10.5px', fontWeight: 800, color: 'var(--text-tertiary)', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Executive Summary
+                  </div>
+                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                    {selectedClip.summary}
+                  </p>
+                </div>
+              )}
+
+              {/* Video Takeaways */}
+              {(selectedClip.contentType === 'educational_video' || selectedClip.entities?.videoData) && (
+                <div style={{ padding: '14px', background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      🎬 Video Key Takeaways & Educational Breakdown
+                    </span>
+                    {selectedClip.entities?.videoData?.creator && (
+                      <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                        Creator: {selectedClip.entities.videoData.creator}
+                      </span>
+                    )}
+                  </div>
+                  {selectedClip.entities?.videoData?.coreConcept && (
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                      Core Concept: {selectedClip.entities.videoData.coreConcept}
+                    </div>
+                  )}
+                  {Array.isArray(selectedClip.entities?.videoData?.keyTakeaways) && (
+                    <ul style={{ margin: '0 0 8px 0', paddingLeft: '20px', fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                      {selectedClip.entities.videoData.keyTakeaways.map((item, idx) => (
+                        <li key={idx} style={{ marginBottom: '4px' }}>{item}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {Array.isArray(selectedClip.entities?.videoData?.toolsMentioned) && selectedClip.entities.videoData.toolsMentioned.length > 0 && (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', marginTop: '8px' }}>
+                      <span style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 700 }}>Tools Mentioned:</span>
+                      {selectedClip.entities.videoData.toolsMentioned.map((t, idx) => (
+                        <span key={idx} style={{ fontSize: '11px', padding: '2px 7px', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.08)', color: '#ffffff' }}>
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Full Scraped Content & Transcript */}
+              <div style={{ padding: '14px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid #27272a', borderRadius: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '10.5px', fontWeight: 800, color: 'var(--text-tertiary)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                    Full Scraped Text / Transcript
+                  </div>
+                  <button
+                    onClick={() => handleCopyText(selectedClip.content, 'full-text')}
+                    style={{ background: 'transparent', border: 'none', color: '#10b981', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    Copy Text
+                  </button>
+                </div>
+                <div
+                  style={{
+                    background: '#040405',
+                    border: '1px solid #1f1f23',
+                    borderRadius: '8px',
+                    padding: '14px',
+                    fontSize: '12px',
+                    fontFamily: 'ui-monospace, monospace',
+                    color: 'var(--text-primary)',
+                    maxHeight: '260px',
+                    overflowY: 'auto',
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {selectedClip.content}
+                </div>
+              </div>
+
+              {/* Tags */}
+              {Array.isArray(selectedClip.tags) && selectedClip.tags.length > 0 && (
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Tags:</span>
+                  {selectedClip.tags.map((tag, i) => (
+                    <span
+                      key={i}
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                        background: 'rgba(255, 255, 255, 0.06)',
+                        border: '1px solid var(--border-default)',
+                        fontSize: '11px',
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Import & Cleaner Modal */}
+      {isBulkModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px',
+          }}
+          onClick={() => setIsBulkModalOpen(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '680px',
+              background: '#09090b',
+              border: '1px solid #27272a',
+              borderRadius: '14px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+              padding: '22px 26px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Layers size={18} style={{ color: '#ffffff' }} />
+                  Bulk Multi-Link & Text Cleaner
+                </h3>
+                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: '4px 0 0 0' }}>
+                  Paste a messy block of text, newsletter, or list of URLs. OmniHunt isolates each link, scrapes each page, and saves discrete items.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsBulkModalOpen(false)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <textarea
+              style={{
+                width: '100%',
+                height: '180px',
+                background: '#040405',
+                border: '1px solid var(--border-default)',
+                borderRadius: '8px',
+                padding: '12px',
+                fontSize: '12.5px',
+                fontFamily: 'inherit',
+                color: 'var(--text-primary)',
+                resize: 'vertical',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+              placeholder={`Paste any text containing multiple links, e.g.:\n1. https://tiktok.com/@creator/video/123\n2. https://github.com/vllm-project/vllm\n3. Senior ML Engineer: https://boards.greenhouse.io/job/456`}
+              value={bulkInputText}
+              onChange={(e) => setBulkInputText(e.target.value)}
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                Detected Links:{' '}
+                <strong style={{ color: '#ffffff' }}>
+                  {(bulkInputText.match(/https?:\/\/[^\s,;"'\)\]\}]+/g) || []).length}
+                </strong>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => setIsBulkModalOpen(false)}
+                  style={{
+                    padding: '7px 14px',
+                    borderRadius: '8px',
+                    background: 'transparent',
+                    border: '1px solid var(--border-default)',
+                    color: 'var(--text-secondary)',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBulkIngest}
+                  disabled={isBulkProcessing || !bulkInputText.trim()}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 16px',
+                    borderRadius: '8px',
+                    background: '#ffffff',
+                    border: 'none',
+                    color: '#09090b',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Sparkles size={13} />
+                  <span>{isBulkProcessing ? 'Decomposing & Scraping...' : 'Clean & Ingest All Items'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

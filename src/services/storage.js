@@ -459,12 +459,28 @@ export const StorageService = {
     return null
   },
 
-  async syncAllClipsToOffers() {
+  async bulkIngestClips({ rawText = '', urls = [], sourceDevice = 'desktop' }) {
     try {
-      const res = await fetch('/api/clips/sync-all', { method: 'POST' })
+      const res = await fetch('/api/clips/bulk-ingest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawText, urls, sourceDevice }),
+      })
       if (res.ok) return await res.json()
-    } catch (e) {}
-    return { success: false, syncedCount: 0, offers: [] }
+    } catch (e) {
+      console.error('Bulk ingest failed:', e)
+    }
+    return { success: false, count: 0, clips: [] }
+  },
+
+  async enrichClip(clipId) {
+    try {
+      const res = await fetch(`/api/clips/${clipId}/enrich`, { method: 'POST' })
+      if (res.ok) return await res.json()
+    } catch (e) {
+      console.error('Enrich clip failed:', e)
+    }
+    return null
   },
 }
 

@@ -304,4 +304,37 @@ export const ApiService = {
       return { success: false, error: err.message }
     }
   },
+
+  /**
+   * Bulk ingest messy text / list of links independently
+   */
+  async bulkIngestClips({ rawText = '', urls = [], sourceDevice = 'mobile' }) {
+    const url = `${currentServerUrl}/api/clips/bulk-ingest`
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawText, urls, sourceDevice }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return await res.json()
+    } catch (err) {
+      return { success: false, error: err.message, count: 0, clips: [] }
+    }
+  },
+
+  /**
+   * Deep enrich clip: re-fetches metadata and generates rich takeaways via Groq
+   */
+  async enrichClip(clipId) {
+    const url = `${currentServerUrl}/api/clips/${clipId}/enrich`
+    try {
+      const res = await fetch(url, { method: 'POST' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return await res.json()
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  },
 }
+

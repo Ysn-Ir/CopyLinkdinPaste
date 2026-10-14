@@ -159,17 +159,17 @@ Return ONLY the raw JSON object. Do not wrap in markdown quotes if possible."""
     except Exception as e:
         logger.warning(f"Failed to parse Groq JSON: {e}. Raw content: {content[:100]}")
         return {
-            "title": "Stage PFE",
-            "company": "Entreprise",
-            "location": "Paris, France",
+            "title": "Software Engineering Internship",
+            "company": "Company",
+            "location": "Remote / Hybrid",
             "category": "dev-fullstack",
             "channel": "external",
             "recruiterEmail": "",
             "sharer": {"name": "", "title": "", "profileUrl": "", "phone": ""},
             "skills": ["Python", "FastAPI", "React"],
             "description": raw_text,
-            "linkedInNote": "Bonjour, je serais ravi d'échanger au sujet de votre offre de stage PFE.",
-            "whatsAppMsg": "Bonjour, je vous contacte au sujet de votre offre de stage PFE.",
+            "linkedInNote": "Hello, I would love to connect and discuss your engineering internship opportunity.",
+            "whatsAppMsg": "Hello, I am reaching out regarding your engineering internship opportunity.",
             "confidence": 0.75,
             "aiPowered": False
         }

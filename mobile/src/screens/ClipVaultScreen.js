@@ -12,12 +12,14 @@ import {
   Linking,
   RefreshControl,
   Platform,
+  Modal,
 } from 'react-native'
 import { THEME } from '../theme'
 import { ApiService } from '../services/api'
 import { ClipboardWatcher } from '../services/clipboardWatcher'
 import { ScreenshotWatcher } from '../services/screenshotWatcher'
 import * as ImagePicker from 'expo-image-picker'
+import * as Clipboard from 'expo-clipboard'
 
 const CONTENT_TYPES = [
   { id: 'all', label: 'All', icon: '📋' },
@@ -95,6 +97,32 @@ export function ClipVaultScreen({ onNavigateTab }) {
   const [autoCapture, setAutoCapture] = useState(true)
   const [ingestingClip, setIngestingClip] = useState(false)
   const [isProcessingOcr, setIsProcessingOcr] = useState(false)
+  const [selectedClip, setSelectedClip] = useState(null)
+  const [isEnriching, setIsEnriching] = useState(false)
+
+  const handleEnrichClip = async (clipId) => {
+    setIsEnriching(true)
+    try {
+      const res = await ApiService.enrichClip(clipId)
+      if (res && res.success && res.clip) {
+        setSelectedClip(res.clip)
+        setAllClips((prev) => prev.map((c) => (c.id === clipId ? res.clip : c)))
+        Alert.alert('AI Deep Enrichment Complete', 'Refetched metadata, updated key takeaways and tags.')
+      } else {
+        Alert.alert('Enrichment Notice', res?.error || 'Could not enrich clip.')
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to enrich clip.')
+    } finally {
+      setIsEnriching(false)
+    }
+  }
+
+  const handleCopyContent = async (text) => {
+    if (!text) return
+    await Clipboard.setStringAsync(text)
+    Alert.alert('Copied to Clipboard', 'Text copied successfully.')
+  }
 
   const handlePickScreenshotOcr = async () => {
     try {
@@ -275,7 +303,11 @@ export function ClipVaultScreen({ onNavigateTab }) {
     const channelBadge = getChannelBadge(clip)
 
     return (
-      <View style={styles.clipCard}>
+      <TouchableOpacity
+        style={styles.clipCard}
+        activeOpacity={0.88}
+        onPress={() => setSelectedClip(clip)}
+      >
         {/* Header */}
         <View style={styles.clipHeader}>
           <View style={styles.headerLeftBadges}>
@@ -291,6 +323,15 @@ export function ClipVaultScreen({ onNavigateTab }) {
           </View>
           <Text style={styles.clipTime}>{formatTime(clip.copiedAt || clip.createdAt)}</Text>
         </View>
+
+        {/* Multi-Link Parent Reference Badge */}
+        {clip.entities?.parentPost && (
+          <View style={styles.parentPostMiniChip}>
+            <Text style={styles.parentPostMiniText}>
+              🔗 Link #{clip.entities.parentPost.linkIndex} of {clip.entities.parentPost.totalLinks} from multi-link post
+            </Text>
+          </View>
+        )}
 
         {/* Title */}
         <Text style={styles.clipTitle} numberOfLines={2}>{clip.title}</Text>
@@ -382,7 +423,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     )
   }
 
@@ -505,6 +546,192 @@ export function ClipVaultScreen({ onNavigateTab }) {
           }
         />
       )}
+
+      {/* Full Clip Inspector Modal */}
+      <Modal
+        visible={!!selectedClip}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSelectedClip(null)}
+      >
+        {selectedClip && (
+          <View style={styles.modalContainer}>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                <View style={[styles.typeBadge, { backgroundColor: getTypeColor(selectedClip.contentType) + '25', borderColor: getTypeColor(selectedClip.contentType) + '50' }]}>
+                  <Text style={{ fontSize: 11 }}>{CONTENT_TYPES.find((t) => t.id === selectedClip.contentType)?.icon || '📋'}</Text>
+                  <Text style={[styles.typeBadgeText, { color: getTypeColor(selectedClip.contentType) }]}>
+                    {CONTENT_TYPES.find((t) => t.id === selectedClip.contentType)?.label || 'Clip'}
+                  </Text>
+                </View>
+                {getChannelBadge(selectedClip) && (
+                  <View style={[styles.channelMiniBadge, { backgroundColor: getChannelBadge(selectedClip).bg }]}>
+                    <Text style={[styles.channelMiniText, { color: getChannelBadge(selectedClip).color }]}>
+                      {getChannelBadge(selectedClip).label}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setSelectedClip(null)}
+              >
+                <Text style={styles.modalCloseBtnText}>✕ Close</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.modalBody}
+              contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Full Title */}
+              <Text style={styles.modalTitle}>{selectedClip.title}</Text>
+
+              {/* Source Info Row */}
+              <View style={styles.modalMetaRow}>
+                <Text style={styles.modalMetaText}>
+                  {getDomainEmoji(selectedClip.sourceDomain)} {selectedClip.sourceDomain || 'clipboard'}
+                </Text>
+                <Text style={styles.modalMetaText}>
+                  {selectedClip.sourceDevice === 'mobile' ? '📱 Mobile' : '🖥️ Desktop'}
+                </Text>
+                <Text style={styles.modalMetaText}>
+                  🕒 {formatTime(selectedClip.copiedAt || selectedClip.createdAt)}
+                </Text>
+              </View>
+
+              {/* Action Buttons Bar */}
+              <View style={styles.modalActionsBar}>
+                <TouchableOpacity
+                  style={styles.modalEnrichBtn}
+                  onPress={() => handleEnrichClip(selectedClip.id)}
+                  disabled={isEnriching}
+                >
+                  {isEnriching ? (
+                    <ActivityIndicator size="small" color="#09090b" />
+                  ) : (
+                    <Text style={styles.modalEnrichBtnText}>⚡ Deep AI Enrich / Re-scrape</Text>
+                  )}
+                </TouchableOpacity>
+
+                {selectedClip.sourceUrl ? (
+                  <TouchableOpacity
+                    style={styles.modalSecondaryBtn}
+                    onPress={() => Linking.openURL(selectedClip.sourceUrl)}
+                  >
+                    <Text style={styles.modalSecondaryBtnText}>🔗 Open Source Link</Text>
+                  </TouchableOpacity>
+                ) : null}
+
+                <TouchableOpacity
+                  style={styles.modalSecondaryBtn}
+                  onPress={() => handleCopyContent(selectedClip.content || selectedClip.summary)}
+                >
+                  <Text style={styles.modalSecondaryBtnText}>📋 Copy Text</Text>
+                </TouchableOpacity>
+
+                {(selectedClip.contentType === 'job_offer' || selectedClip.isJobOffer) && !selectedClip.convertedToOffer && (
+                  <TouchableOpacity
+                    style={styles.modalRouteBtn}
+                    onPress={async () => {
+                      await handleConvertToOffer(selectedClip.id)
+                      setSelectedClip((prev) => ({ ...prev, convertedToOffer: true }))
+                    }}
+                  >
+                    <Text style={styles.modalRouteBtnText}>💼 Route to Job Pipeline</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Multi-Link Parent Post Context */}
+              {selectedClip.entities?.parentPost && (
+                <View style={styles.parentPostCard}>
+                  <Text style={styles.parentPostHeader}>
+                    🔗 Multi-Link Source Post (Link #{selectedClip.entities.parentPost.linkIndex} of {selectedClip.entities.parentPost.totalLinks})
+                  </Text>
+                  <Text style={styles.parentPostSnippet}>
+                    "{selectedClip.entities.parentPost.sourceSnippet}"
+                  </Text>
+                </View>
+              )}
+
+              {/* Executive Summary */}
+              {selectedClip.summary ? (
+                <View style={styles.sectionCard}>
+                  <Text style={styles.sectionLabel}>EXECUTIVE SUMMARY</Text>
+                  <Text style={styles.summaryText}>{selectedClip.summary}</Text>
+                </View>
+              ) : null}
+
+              {/* Educational Video Breakdown & Key Takeaways */}
+              {(selectedClip.contentType === 'educational_video' || selectedClip.entities?.videoData) && (
+                <View style={styles.eduDetailCard}>
+                  <Text style={styles.eduDetailHeader}>🎬 Video Breakdown & Key Takeaways</Text>
+                  {selectedClip.entities?.videoData?.creator ? (
+                    <Text style={styles.eduCreatorDetail}>Creator: {selectedClip.entities.videoData.creator}</Text>
+                  ) : null}
+                  {selectedClip.entities?.videoData?.coreConcept ? (
+                    <Text style={styles.eduConceptDetail}>Core Concept: {selectedClip.entities.videoData.coreConcept}</Text>
+                  ) : null}
+
+                  {Array.isArray(selectedClip.entities?.videoData?.keyTakeaways) && selectedClip.entities.videoData.keyTakeaways.length > 0 && (
+                    <View style={{ marginTop: 8 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#f59e0b', marginBottom: 4 }}>KEY POINTS:</Text>
+                      {selectedClip.entities.videoData.keyTakeaways.map((pt, idx) => (
+                        <Text key={idx} style={styles.eduTakeawayDetailItem}>• {pt}</Text>
+                      ))}
+                    </View>
+                  )}
+
+                  {Array.isArray(selectedClip.entities?.videoData?.toolsMentioned) && selectedClip.entities.videoData.toolsMentioned.length > 0 && (
+                    <View style={{ marginTop: 10 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#f59e0b', marginBottom: 4 }}>TOOLS & FRAMEWORKS:</Text>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                        {selectedClip.entities.videoData.toolsMentioned.map((tool, idx) => (
+                          <View key={idx} style={styles.toolTagDetail}>
+                            <Text style={styles.toolTagDetailText}>{tool}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* Full Content / Transcript / Page Text */}
+              <View style={styles.sectionCard}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={styles.sectionLabel}>FULL SCRAPED CONTENT & TRANSCRIPT</Text>
+                  <TouchableOpacity onPress={() => handleCopyContent(selectedClip.content)}>
+                    <Text style={{ fontSize: 11, color: '#10b981', fontWeight: '700' }}>Copy Full Text</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.fullContentBox}>
+                  <Text style={styles.fullContentText} selectable>
+                    {selectedClip.content}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Tags */}
+              {Array.isArray(selectedClip.tags) && selectedClip.tags.length > 0 && (
+                <View style={styles.sectionCard}>
+                  <Text style={styles.sectionLabel}>SEMANTIC TAGS</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                    {selectedClip.tags.map((t, idx) => (
+                      <View key={idx} style={styles.tagChipDetail}>
+                        <Text style={styles.tagTextDetail}>{t}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        )}
+      </Modal>
     </View>
   )
 }
@@ -885,5 +1112,240 @@ const styles = StyleSheet.create({
   toolTagText: {
     fontSize: 9.5,
     color: THEME.colors.textPrimary,
+  },
+
+  // Multi-link Mini Badge on Card
+  parentPostMiniChip: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    alignSelf: 'flex-start',
+    marginBottom: 6,
+  },
+  parentPostMiniText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: THEME.colors.textSecondary,
+  },
+
+  // Full Inspector Modal Styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: THEME.colors.bgDark,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: THEME.colors.border,
+    backgroundColor: THEME.colors.bgCard,
+  },
+  modalCloseBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+  },
+  modalCloseBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  modalBody: {
+    flex: 1,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: THEME.colors.textPrimary,
+    lineHeight: 24,
+    marginBottom: 8,
+  },
+  modalMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 14,
+  },
+  modalMetaText: {
+    fontSize: 11,
+    color: THEME.colors.textMuted,
+  },
+  modalActionsBar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: THEME.colors.border,
+  },
+  modalEnrichBtn: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalEnrichBtnText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#09090b',
+  },
+  modalSecondaryBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  modalSecondaryBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  modalRouteBtn: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  modalRouteBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#10b981',
+  },
+
+  // Multi-link Parent Card
+  parentPostCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 14,
+  },
+  parentPostHeader: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  parentPostSnippet: {
+    fontSize: 11,
+    color: THEME.colors.textSecondary,
+    fontStyle: 'italic',
+    lineHeight: 16,
+  },
+
+  // Section Cards
+  sectionCard: {
+    backgroundColor: THEME.colors.bgCard,
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+  },
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: THEME.colors.textMuted,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  summaryText: {
+    fontSize: 13,
+    color: THEME.colors.textPrimary,
+    lineHeight: 19,
+  },
+
+  // Educational Detail Card
+  eduDetailCard: {
+    backgroundColor: 'rgba(245, 158, 11, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.25)',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+  },
+  eduDetailHeader: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#f59e0b',
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  eduCreatorDetail: {
+    fontSize: 11.5,
+    color: THEME.colors.textSecondary,
+    marginBottom: 4,
+  },
+  eduConceptDetail: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: THEME.colors.textPrimary,
+    marginBottom: 4,
+  },
+  eduTakeawayDetailItem: {
+    fontSize: 11.5,
+    color: THEME.colors.textSecondary,
+    lineHeight: 17,
+    marginBottom: 3,
+  },
+  toolTagDetail: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  toolTagDetailText: {
+    fontSize: 10.5,
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+
+  // Full Content Monospace Box
+  fullContentBox: {
+    backgroundColor: THEME.colors.bgElevated,
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+    maxHeight: 280,
+  },
+  fullContentText: {
+    fontSize: 11.5,
+    color: THEME.colors.textPrimary,
+    lineHeight: 17,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+
+  // Tags
+  tagChipDetail: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  tagTextDetail: {
+    fontSize: 11,
+    color: THEME.colors.textSecondary,
   },
 })
