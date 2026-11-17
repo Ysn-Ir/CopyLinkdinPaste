@@ -1,10 +1,10 @@
 {
-  "name": "PFE Hunter • Career & Application Command Center",
-  "short_name": "PFE Hunter",
+  "name": "RADAR • AI Career Signal & Instant Opportunity Intelligence",
+  "short_name": "RADAR",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0d0f17",
-  "theme_color": "#0ea5e9",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "icons": [
     {
       "src": "/favicon.svg",

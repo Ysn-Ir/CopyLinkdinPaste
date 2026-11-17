@@ -25,6 +25,7 @@ import {
   Plus,
   Radio,
 } from 'lucide-react'
+import { RadarLogo } from './RadarLogo.jsx'
 import { CATEGORIES } from '../data/categories.js'
 
 const CATEGORY_ICONS = {
@@ -84,7 +85,7 @@ export function Sidebar({
       <div className="sidebar-header">
         <div className="brand-badge" onClick={() => onNavigate('command-center')} style={{ cursor: 'pointer' }}>
           <div className="brand-icon-box">
-            <Radio size={14} color="#ffffff" />
+            <RadarLogo size={28} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
             <span className="brand-radar-text">RADAR</span>
