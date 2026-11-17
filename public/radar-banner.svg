@@ -1,0 +1,188 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" fill="none">
+  <defs>
+    <!-- Background Ambient Glow -->
+    <radialGradient id="bg-glow" cx="180" cy="180" r="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#27B7F5" stop-opacity="0.18"/>
+      <stop offset="50%" stop-color="#786BFF" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Master Signal Gradient (Electric Cyan -> Azure Blue -> Cyber Violet) -->
+    <linearGradient id="signal" x1="52" y1="48" x2="292" y2="292" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#55F3D2"/>
+      <stop offset="48%" stop-color="#27B7F5"/>
+      <stop offset="100%" stop-color="#786BFF"/>
+    </linearGradient>
+
+    <!-- High-Definition Radar Sweep Sector Gradient -->
+    <linearGradient id="sweep" x1="180" y1="180" x2="306" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#27B7F5" stop-opacity="0.04"/>
+      <stop offset="50%" stop-color="#2CD8D0" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#55F3D2" stop-opacity="0.55"/>
+    </linearGradient>
+
+    <!-- Wordmark Lustrous Metallic Cyan Gradient -->
+    <linearGradient id="word" x1="365" y1="90" x2="980" y2="230" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="40%" stop-color="#F0FDFA"/>
+      <stop offset="75%" stop-color="#C7F5EC"/>
+      <stop offset="100%" stop-color="#80E5FF"/>
+    </linearGradient>
+
+    <!-- Line Gradient -->
+    <linearGradient id="line-grad" x1="370" y1="248" x2="890" y2="248" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#55F3D2"/>
+      <stop offset="60%" stop-color="#27B7F5"/>
+      <stop offset="100%" stop-color="#786BFF"/>
+    </linearGradient>
+
+    <!-- Precision Signal Neon Glow -->
+    <filter id="radar-glow" x="20" y="20" width="320" height="320" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.15   0 0 0 0 0.85   0 0 0 0 0.95   0 0 0 0.45 0" result="colored"/>
+      <feMerge>
+        <feMergeNode in="colored"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Target Hit Beacon Pulse Glow -->
+    <filter id="beacon-glow" x="200" y="70" width="100" height="100" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="5" result="b1"/>
+      <feGaussianBlur stdDeviation="10" result="b2"/>
+      <feMerge>
+        <feMergeNode in="b2"/>
+        <feMergeNode in="b1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Deep OLED Black Canvas Backdrop -->
+  <rect width="1200" height="360" fill="#000000"/>
+
+  <!-- Ambient Radar Atmospheric Aura -->
+  <circle cx="180" cy="180" r="170" fill="url(#bg-glow)"/>
+
+  <!-- ==================== RADAR SYMBOL ==================== -->
+  <g filter="url(#radar-glow)">
+    <!-- Scope Outer Framing Ring -->
+    <circle cx="180" cy="180" r="142" stroke="#27B7F5" stroke-opacity="0.12" stroke-width="1.5" stroke-dasharray="4 6"/>
+    
+    <!-- Precision Compass Degree Ticks -->
+    <line x1="309.0" y1="180.0" x2="317.0" y2="180.0" stroke="#55F3D2" stroke-width="2.0" stroke-linecap="round" opacity="0.7" />
+    <line x1="304.6" y1="213.4" x2="308.0" y2="214.3" stroke="#78DCD9" stroke-width="1.0" stroke-linecap="round" opacity="0.25" />
+    <line x1="291.7" y1="244.5" x2="296.9" y2="247.5" stroke="#78DCD9" stroke-width="1.5" stroke-linecap="round" opacity="0.45" />
+    <line x1="271.2" y1="271.2" x2="273.7" y2="273.7" stroke="#78DCD9" stroke-width="1.0" stroke-linecap="round" opacity="0.25" />
+    <line x1="244.5" y1="291.7" x2="247.5" y2="296.9" stroke="#78DCD9" stroke-width="1.5" stroke-linecap="round" opacity="0.45" />
+    <line x1="213.4" y1="304.6" x2="214.3" y2="308.0" stroke="#78DCD9" stroke-width="1.0" stroke-linecap="round" opacity="0.25" />
+    <line x1="180.0" y1="309.0" x2="180.0" y2="317.0" stroke="#55F3D2" stroke-width="2.0" stroke-linecap="round" opacity="0.7" />
+    <line x1="146.6" y1="304.6" x2="145.7" y2="308.0" stroke="#78DCD9" stroke-width="1.0" stroke-linecap="round" opacity="0.25" />
+    <line x1="115.5" y1="291.7" x2="112.5" y2="296.9" stroke="#78DCD9" stroke-width="1.5" stroke-linecap="round" opacity="0.45" />
+    <line x1="88.8" y1="271.2" x2="86.3" y2="273.7" stroke="#78DCD9" stroke-width="1.0" stroke-linecap="round" opacity="0.25" />
+    <line x1="68.3" y1="244.5" x2="63.1" y2="247.5" stroke="#78DCD9" stroke-width="1.5" stroke-linecap="round" opacity="0.45" />
+    <line x1="55.4" y1="213.4" x2="52.0" y2="214.3" stroke="#78DCD9" stroke-width="1.0" stroke-linecap="round" opacity="0.25" />
+    <line x1="51.0" y1="180.0" x2="43.0" y2="180.0" stroke="#55F3D2" stroke-width="2.0" stroke-linecap="round" opacity="0.7" />
+    <line x1="55.4" y1="146.6" x2="52.0" y2="145.7" stroke="#78DCD9" stroke-width="1.0" stroke-linecap="round" opacity="0.25" />
+    <line x1="68.3" y1="115.5" x2="63.1" y2="112.5" stroke="#78DCD9" stroke-width="1.5" stroke-linecap="round" opacity="0.45" />
+    <line x1="88.8" y1="88.8" x2="86.3" y2="86.3" stroke="#78DCD9" stroke-width="1.0" stroke-linecap="round" opacity="0.25" />
+    <line x1="115.5" y1="68.3" x2="112.5" y2="63.1" stroke="#78DCD9" stroke-width="1.5" stroke-linecap="round" opacity="0.45" />
+    <line x1="146.6" y1="55.4" x2="145.7" y2="52.0" stroke="#78DCD9" stroke-width="1.0" stroke-linecap="round" opacity="0.25" />
+    <line x1="180.0" y1="51.0" x2="180.0" y2="43.0" stroke="#55F3D2" stroke-width="2.0" stroke-linecap="round" opacity="0.7" />
+    <line x1="213.4" y1="55.4" x2="214.3" y2="52.0" stroke="#78DCD9" stroke-width="1.0" stroke-linecap="round" opacity="0.25" />
+    <line x1="244.5" y1="68.3" x2="247.5" y2="63.1" stroke="#78DCD9" stroke-width="1.5" stroke-linecap="round" opacity="0.45" />
+    <line x1="271.2" y1="88.8" x2="273.7" y2="86.3" stroke="#78DCD9" stroke-width="1.0" stroke-linecap="round" opacity="0.25" />
+    <line x1="291.7" y1="115.5" x2="296.9" y2="112.5" stroke="#78DCD9" stroke-width="1.5" stroke-linecap="round" opacity="0.45" />
+    <line x1="304.6" y1="146.6" x2="308.0" y2="145.7" stroke="#78DCD9" stroke-width="1.0" stroke-linecap="round" opacity="0.25" />
+
+    <!-- Cardinal Direction Labels [N, E, S, W] -->
+    <text x="180" y="34" font-family="'JetBrains Mono', 'Inter', monospace" font-size="9" font-weight="700" fill="#55F3D2" opacity="0.75" text-anchor="middle">N</text>
+    <text x="330" y="183" font-family="'JetBrains Mono', 'Inter', monospace" font-size="9" font-weight="700" fill="#27B7F5" opacity="0.65" text-anchor="middle">E</text>
+    <text x="180" y="334" font-family="'JetBrains Mono', 'Inter', monospace" font-size="9" font-weight="700" fill="#786BFF" opacity="0.65" text-anchor="middle">S</text>
+    <text x="30" y="183" font-family="'JetBrains Mono', 'Inter', monospace" font-size="9" font-weight="700" fill="#55F3D2" opacity="0.65" text-anchor="middle">W</text>
+
+    <!-- Master Scope Boundary Ring -->
+    <circle cx="180" cy="180" r="126" stroke="url(#signal)" stroke-width="8"/>
+    
+    <!-- Range Rings (Concentric Signal Rings) -->
+    <circle cx="180" cy="180" r="91" stroke="#55F3D2" stroke-opacity="0.32" stroke-width="2.5"/>
+    <circle cx="180" cy="180" r="55" stroke="#27B7F5" stroke-opacity="0.28" stroke-width="2"/>
+    <circle cx="180" cy="180" r="26" stroke="#786BFF" stroke-opacity="0.22" stroke-width="1.5" stroke-dasharray="3 3"/>
+
+    <!-- Reticle Crosshair Axes -->
+    <path d="M180 46V314M46 180H314" stroke="#78DCD9" stroke-opacity="0.18" stroke-width="2"/>
+    
+    <!-- 45-degree Diagonal Alignment Ticks -->
+    <path d="M112 75L126 89M234 234L248 248" stroke="#58D9D8" stroke-opacity="0.5" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M248 112L234 126M126 234L112 248" stroke="#58D9D8" stroke-opacity="0.25" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- Active 90-Degree Radar Sweep Sector (12 to 3 o'clock) -->
+    <path d="M180 180 L180 54 A126 126 0 0 1 306 180 Z" fill="url(#sweep)"/>
+
+    <!-- Sweep Trailing Edge Ray -->
+    <path d="M180 180 L180 54" stroke="#6BEBD6" stroke-opacity="0.55" stroke-width="2.5" stroke-linecap="round"/>
+
+    <!-- High-Intensity Leading Sweep Ray -->
+    <path d="M180 180 L269 91" stroke="url(#signal)" stroke-width="5" stroke-linecap="round"/>
+
+    <!-- Luminous Energized Arc along outer perimeter under sweep -->
+    <path d="M180 54 A126 126 0 0 1 269 91" fill="none" stroke="#55F3D2" stroke-width="10" stroke-linecap="round"/>
+
+    <!-- Central Radar Transceiver / Emitter Core -->
+    <circle cx="180" cy="180" r="14" fill="#000000" stroke="#55F3D2" stroke-width="3"/>
+    <circle cx="180" cy="180" r="8" fill="#F4FFFF"/>
+    <circle cx="180" cy="180" r="4" fill="#20C9CE"/>
+
+    <!-- Peripheral Detected Hits -->
+    <circle cx="111" cy="211" r="5" fill="#55CFF1"/>
+    <circle cx="217" cy="246" r="4.5" fill="#8C83FF"/>
+    <circle cx="132" cy="128" r="3.5" fill="#55F3D2" opacity="0.6"/>
+  </g>
+
+  <!-- Primary Target Acquired (The Career Opportunity Beacon!) -->
+  <g transform="translate(244, 116)" filter="url(#beacon-glow)">
+    <!-- Expanding Pulse Ripple Rings -->
+    <circle cx="0" cy="0" r="18" fill="none" stroke="#55F3D2" stroke-opacity="0.3" stroke-width="2" stroke-dasharray="4 3"/>
+    <circle cx="0" cy="0" r="11" fill="#55F3D2" fill-opacity="0.25"/>
+    <!-- 4-Point Signal Star Core -->
+    <path d="M 0 -11 Q 0 0 -11 0 Q 0 0 0 11 Q 0 0 11 0 Q 0 0 0 -11 Z" fill="#FFFFFF"/>
+    <circle cx="0" cy="0" r="3" fill="#FFFFFF"/>
+  </g>
+
+  <!-- ==================== TYPOGRAPHY & WORDMARK ==================== -->
+  <g transform="translate(372, 0)">
+    <!-- Main RADAR Title Wordmark -->
+    <text x="0" y="210" 
+          font-family="'Outfit', 'Inter', -apple-system, sans-serif"
+          font-size="124" 
+          font-weight="900" 
+          letter-spacing="9" 
+          fill="url(#word)">RADAR</text>
+
+    <!-- Upper Signal Status Pill Badge -->
+    <g transform="translate(560, 112)">
+      <rect x="0" y="0" width="108" height="26" rx="13" fill="#27B7F5" fill-opacity="0.12" stroke="#55F3D2" stroke-opacity="0.4" stroke-width="1.5"/>
+      <circle cx="16" cy="13" r="4" fill="#55F3D2"/>
+      <text x="28" y="17" font-family="'JetBrains Mono', 'Inter', monospace" font-size="11" font-weight="700" letter-spacing="1.5" fill="#55F3D2">ACTIVE</text>
+    </g>
+
+    <!-- Precision Divider Signal Track -->
+    <line x1="2" y1="248" x2="520" y2="248" stroke="url(#line-grad)" stroke-width="4" stroke-linecap="round"/>
+    
+    <!-- Trailing Signal Data Points on the Track -->
+    <circle cx="538" cy="248" r="5" fill="#55F3D2"/>
+    <circle cx="538" cy="248" r="9" stroke="#55F3D2" stroke-opacity="0.35" stroke-width="1.5"/>
+    <circle cx="558" cy="248" r="3" fill="#27B7F5" opacity="0.6"/>
+    <circle cx="572" cy="248" r="2" fill="#786BFF" opacity="0.4"/>
+
+    <!-- Tagline: CAPTURE · UNDERSTAND · ORGANIZE -->
+    <text x="4" y="292" 
+          font-family="'Inter', -apple-system, sans-serif"
+          font-size="22" 
+          font-weight="700" 
+          letter-spacing="6" 
+          fill="#8FA9BA">
+      CAPTURE  <tspan fill="#55F3D2">·</tspan>  UNDERSTAND  <tspan fill="#27B7F5">·</tspan>  ORGANIZE
+    </text>
+  </g>
+</svg>
