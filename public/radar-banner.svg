@@ -1,136 +1,75 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" fill="none">
-  <defs>
-    <!-- Deep Space / Holographic Ambient Backlight -->
-    <radialGradient id="holo-backlight" cx="180" cy="180" r="150" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#27B7F5" stop-opacity="0.20"/>
-      <stop offset="50%" stop-color="#786BFF" stop-opacity="0.08"/>
-      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
-    </radialGradient>
-
-    <!-- Master Signal Gradient (Neon Mint -> Electric Azure -> Cyber Violet) -->
-    <linearGradient id="signal" x1="52" y1="48" x2="292" y2="292" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#55F3D2"/>
-      <stop offset="50%" stop-color="#27B7F5"/>
-      <stop offset="100%" stop-color="#786BFF"/>
-    </linearGradient>
-
-    <!-- Dynamic Sweep: Volumetric Angular Gradient (Fading Trail to Intense Leading Edge) -->
-    <linearGradient id="dynamic-sweep" x1="180" y1="180" x2="306" y2="90" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#27B7F5" stop-opacity="0.02"/>
-      <stop offset="45%" stop-color="#2CD8D0" stop-opacity="0.18"/>
-      <stop offset="85%" stop-color="#55F3D2" stop-opacity="0.48"/>
-      <stop offset="100%" stop-color="#55F3D2" stop-opacity="0.65"/>
-    </linearGradient>
-
-    <!-- Leading Ray Beam Gradient -->
-    <linearGradient id="lead-ray" x1="180" y1="180" x2="269" y2="91" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
-      <stop offset="40%" stop-color="#55F3D2" stop-opacity="0.9"/>
-      <stop offset="100%" stop-color="#27B7F5" stop-opacity="0.8"/>
-    </linearGradient>
-
-    <!-- Clean Wordmark Metallic Gradient -->
-    <linearGradient id="word" x1="370" y1="98" x2="910" y2="268" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="50%" stop-color="#F2FAFA"/>
-      <stop offset="100%" stop-color="#B9D5E8"/>
-    </linearGradient>
-
-    <!-- Holographic Lens Glow Filter -->
-    <filter id="lens-glow" x="25" y="25" width="310" height="310" filterUnits="userSpaceOnUse">
-      <feGaussianBlur stdDeviation="8" result="soft-blur"/>
-      <feColorMatrix in="soft-blur" type="matrix" values="0 0 0 0 0.18  0 0 0 0 0.88  0 0 0 0 0.94  0 0 0 0.40 0" result="colored"/>
-      <feMerge>
-        <feMergeNode in="colored"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-
-    <!-- Target Hit Holographic Ripple Glow -->
-    <filter id="hit-flare" x="200" y="80" width="90" height="90" filterUnits="userSpaceOnUse">
-      <feGaussianBlur stdDeviation="4" result="b1"/>
-      <feGaussianBlur stdDeviation="9" result="b2"/>
-      <feMerge>
-        <feMergeNode in="b2"/>
-        <feMergeNode in="b1"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-  </defs>
-
-  <!-- Deep OLED Black Background -->
+  <!-- Pitch Black Solid Background -->
   <rect width="1200" height="360" fill="#000000"/>
 
-  <!-- Holographic Ambient Backlight behind Radar -->
-  <circle cx="180" cy="180" r="145" fill="url(#holo-backlight)"/>
-
   <!-- ==================== RADAR SYMBOL ==================== -->
-  <g filter="url(#lens-glow)">
-    <!-- Outer Scope Ring -->
-    <circle cx="180" cy="180" r="126" stroke="url(#signal)" stroke-width="8"/>
+  <g>
+    <!-- Scope Boundary Ring: Solid Stark White -->
+    <circle cx="180" cy="180" r="126" stroke="#FFFFFF" stroke-width="8" fill="none"/>
 
-    <!-- Concentric Holographic Range Rings -->
-    <circle cx="180" cy="180" r="91" stroke="#55F3D2" stroke-opacity="0.32" stroke-width="2.5"/>
-    <circle cx="180" cy="180" r="55" stroke="#27B7F5" stroke-opacity="0.25" stroke-width="2"/>
-    <circle cx="180" cy="180" r="28" stroke="#786BFF" stroke-opacity="0.18" stroke-width="1.5" stroke-dasharray="3 3"/>
+    <!-- Concentric Range Rings: Technical Muted Grays -->
+    <circle cx="180" cy="180" r="91" stroke="#383838" stroke-width="2" fill="none"/>
+    <circle cx="180" cy="180" r="55" stroke="#2B2B2B" stroke-width="2" fill="none"/>
 
     <!-- Reticle Crosshair Axes -->
-    <path d="M180 50V310M50 180H310" stroke="#78DCD9" stroke-opacity="0.16" stroke-width="2"/>
+    <path d="M180 54V306M54 180H306" stroke="#2E2E2E" stroke-width="2"/>
 
     <!-- Diagonal Sensor Ticks -->
-    <path d="M112 75L128 91M248 269L264 285" stroke="#58D9D8" stroke-opacity="0.55" stroke-width="3" stroke-linecap="round"/>
+    <path d="M112 75L128 91M248 269L264 285" stroke="#484848" stroke-width="3" stroke-linecap="round"/>
 
-    <!-- Dynamic Radar Sweep Sector (90° Quadrant from 12 to 3 o'clock) -->
-    <path d="M180 180 L180 54 A126 126 0 0 1 306 180 Z" fill="url(#dynamic-sweep)"/>
+    <!-- 90-Degree Radar Sweep Sector (Translucent Flat White, Zero Gradient) -->
+    <path d="M180 180 L180 54 A126 126 0 0 1 306 180 Z" fill="#FFFFFF" fill-opacity="0.08"/>
 
     <!-- Sweep Trailing Edge Ray -->
-    <path d="M180 180 L180 54" stroke="#6BEBD6" stroke-opacity="0.5" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M180 180 L180 54" stroke="#555555" stroke-width="2" stroke-linecap="round"/>
 
-    <!-- High-Intensity Dynamic Leading Sweep Ray -->
-    <path d="M180 180 L269 91" stroke="url(#lead-ray)" stroke-width="5" stroke-linecap="round"/>
+    <!-- Solid Stark White Leading Sweep Ray -->
+    <path d="M180 180 L269 91" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round"/>
 
-    <!-- Luminous Energized Arc along outer rim where beam passes -->
-    <path d="M180 54 A126 126 0 0 1 269 91" fill="none" stroke="#55F3D2" stroke-width="9" stroke-linecap="round"/>
+    <!-- Outer Rim Arc under sweep -->
+    <path d="M180 54 A126 126 0 0 1 269 91" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" fill="none"/>
 
-    <!-- Central Holographic Emitter Core -->
-    <circle cx="180" cy="180" r="12" fill="#000000" stroke="#55F3D2" stroke-width="2.5"/>
-    <circle cx="180" cy="180" r="8" fill="#F4FFFF"/>
-    <circle cx="180" cy="180" r="4" fill="#20C9CE"/>
+    <!-- Center Transceiver Core: Solid White & Black -->
+    <circle cx="180" cy="180" r="12" fill="#000000" stroke="#FFFFFF" stroke-width="3"/>
+    <circle cx="180" cy="180" r="5" fill="#FFFFFF"/>
 
-    <!-- Peripheral Detected Hits (Data Interceptions) -->
-    <circle cx="111" cy="211" r="5" fill="#55CFF1"/>
-    <circle cx="217" cy="246" r="4.5" fill="#8C83FF"/>
-    <circle cx="132" cy="132" r="3.5" fill="#55F3D2" opacity="0.6"/>
+    <!-- Faint Peripheral Signal Hits (Monochrome Technical Grays) -->
+    <circle cx="111" cy="211" r="4.5" fill="#505050"/>
+    <circle cx="217" cy="246" r="4" fill="#3D3D3D"/>
   </g>
 
-  <!-- Primary Target Acquired (The Opportunity Beacon with Holographic Pulse Echo) -->
-  <g transform="translate(244, 116)" filter="url(#hit-flare)">
-    <!-- Expanding Pulse Ping Ring -->
-    <circle cx="0" cy="0" r="16" fill="none" stroke="#55F3D2" stroke-opacity="0.35" stroke-width="2" stroke-dasharray="4 3"/>
-    <circle cx="0" cy="0" r="10" fill="#6AF0D5" fill-opacity="0.25"/>
-    <!-- Target Core Node -->
-    <circle cx="0" cy="0" r="6" fill="#6AF0D5"/>
+  <!-- ==================== SINGLE CRISP TACTICAL ACCENT BEACON ==================== -->
+  <g transform="translate(244, 116)">
+    <!-- Ping Ripple Ring -->
+    <circle cx="0" cy="0" r="16" fill="none" stroke="#FF3B30" stroke-width="2" stroke-dasharray="4 3" opacity="0.65"/>
+    <!-- Solid Red Beacon Node -->
+    <circle cx="0" cy="0" r="7" fill="#FF3B30"/>
+    <!-- Crisp White Core -->
     <circle cx="0" cy="0" r="2.5" fill="#FFFFFF"/>
   </g>
 
-  <!-- ==================== CLEAN WORDMARK & LAYOUT ==================== -->
-  <!-- Wordmark -->
-  <text x="365" y="211" 
-        font-family="'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-        font-size="126" 
-        font-weight="800" 
-        letter-spacing="8" 
-        fill="url(#word)">RADAR</text>
+  <!-- ==================== CLEAN MONOCHROME TYPOGRAPHY ==================== -->
+  <g>
+    <!-- Solid Stark White Wordmark -->
+    <text x="365" y="211" 
+          font-family="'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+          font-size="126" 
+          font-weight="800" 
+          letter-spacing="8" 
+          fill="#FFFFFF">RADAR</text>
 
-  <!-- Signal Divider Track -->
-  <path d="M370 250H850" stroke="url(#signal)" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="865" cy="250" r="4.5" fill="#55E6D2"/>
+    <!-- Clean Track Divider -->
+    <path d="M370 250H850" stroke="#2B2B2B" stroke-width="3" stroke-linecap="round"/>
+    
+    <!-- Accent Terminal Point -->
+    <circle cx="862" cy="250" r="4.5" fill="#FF3B30"/>
 
-  <!-- Subtitle Tagline -->
-  <text x="370" y="294" 
-        font-family="'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-        font-size="24" 
-        font-weight="600" 
-        letter-spacing="6" 
-        fill="#8FA9BA">CAPTURE  ·  UNDERSTAND  ·  ORGANIZE</text>
+    <!-- Solid Clean Tagline -->
+    <text x="370" y="294" 
+          font-family="'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+          font-size="24" 
+          font-weight="600" 
+          letter-spacing="6" 
+          fill="#737373">CAPTURE  <tspan fill="#FF3B30">·</tspan>  UNDERSTAND  <tspan fill="#FF3B30">·</tspan>  ORGANIZE</text>
+  </g>
 </svg>
