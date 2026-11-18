@@ -151,12 +151,12 @@ export function ScraperStudioView({ candidateProfile, onOfferCreated, onTailorCv
   })
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: '1440px', margin: '0 auto', color: '#FFFFFF' }}>
+    <div style={{ padding: '28px 36px 80px 36px', maxWidth: '1440px', margin: '0 auto', color: '#FFFFFF', width: '100%', boxSizing: 'border-box' }}>
       {/* Top Banner */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-            <span style={{ fontSize: '22px' }}>🛰️</span>
+            <Globe size={24} color="#FF3B30" />
             <h1 style={{ fontSize: '24px', fontWeight: '800', letterSpacing: '-0.5px', margin: 0 }}>
               Autonomous Job Scraper
             </h1>

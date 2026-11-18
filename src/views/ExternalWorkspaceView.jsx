@@ -136,7 +136,7 @@ Output the cover letter content formatted cleanly in paragraphs without greeting
   }
 
   return (
-    <div className="workspace-view" style={{ padding: '16px' }}>
+    <div style={{ padding: '20px 24px 80px 24px', width: '100%', boxSizing: 'border-box' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '16px', height: '100%' }}>
         {/* Left Column: List of External Offers */}
         <div className="kpi-card" style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }}>

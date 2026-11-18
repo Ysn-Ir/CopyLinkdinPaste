@@ -121,9 +121,9 @@ export function HomeView({
   }
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: '1440px', margin: '0 auto', color: '#FFFFFF' }}>
+    <div style={{ padding: '28px 36px 80px 36px', maxWidth: '1440px', margin: '0 auto', color: '#FFFFFF', width: '100%', boxSizing: 'border-box' }}>
       {/* 1. Calm Executive Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '4px', backgroundColor: '#FF3B30' }} />
@@ -202,8 +202,8 @@ export function HomeView({
         </div>
       </div>
 
-      {/* 2. Key Metrics Row (4 Clean Cards) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '28px' }}>
+      {/* 2. Key Metrics Row (4 Clean Adaptive Cards) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px', marginBottom: '28px' }}>
         <div style={{ backgroundColor: '#0D0D0D', border: '1px solid #27272A', borderRadius: '8px', padding: '18px 20px' }}>
           <div style={{ color: '#71717A', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '8px' }}>
             Tracked Opportunities
@@ -253,12 +253,12 @@ export function HomeView({
         </div>
       </div>
 
-      {/* 3. Main Operational View (2-Column Balanced Layout) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '24px', alignItems: 'start' }}>
+      {/* 3. Main Operational View (2-Column Balanced Layout with Zero Overflow) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.55fr) minmax(0, 1fr)', gap: '24px', alignItems: 'start' }}>
         {/* Left Column: Visual Funnel + Recent Stream */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
           {/* Conversion Funnel */}
-          <div style={{ backgroundColor: '#0D0D0D', border: '1px solid #27272A', borderRadius: '8px', padding: '20px' }}>
+          <div style={{ backgroundColor: '#0D0D0D', border: '1px solid #27272A', borderRadius: '8px', padding: '20px', minWidth: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div>
                 <h2 style={{ fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.6px', margin: 0 }}>
@@ -270,7 +270,7 @@ export function HomeView({
               </div>
             </div>
 
-            <div style={{ width: '100%', height: '180px' }}>
+            <div style={{ width: '100%', height: '180px', minWidth: 0, overflow: 'hidden' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={funnelData} margin={{ top: 8, right: 10, left: -25, bottom: 0 }}>
                   <XAxis dataKey="stage" stroke="#3F3F46" tick={{ fill: '#A1A1AA', fontSize: 11 }} />
@@ -286,7 +286,7 @@ export function HomeView({
           </div>
 
           {/* Recent Opportunities Table */}
-          <div style={{ backgroundColor: '#0D0D0D', border: '1px solid #27272A', borderRadius: '8px', padding: '20px' }}>
+          <div style={{ backgroundColor: '#0D0D0D', border: '1px solid #27272A', borderRadius: '8px', padding: '20px', minWidth: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div>
                 <h2 style={{ fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.6px', margin: 0 }}>
@@ -328,18 +328,20 @@ export function HomeView({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
+                    gap: '12px',
+                    minWidth: 0,
                   }}
                 >
-                  <div style={{ flex: 1, minWidth: 0, marginRight: '16px' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '13px', fontWeight: '600', color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {offer.title}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#71717A', marginTop: '2px' }}>
+                    <div style={{ fontSize: '11px', color: '#71717A', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {offer.company || 'Direct Organization'} · {offer.location || 'Remote'}
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                     <span
                       style={{
                         fontSize: '10px',
@@ -378,9 +380,9 @@ export function HomeView({
         </div>
 
         {/* Right Column: Channels + Domains + Instant Ingest */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
           {/* Quick Terminal Ingest */}
-          <div style={{ backgroundColor: '#0D0D0D', border: '1px solid #27272A', borderRadius: '8px', padding: '16px' }}>
+          <div style={{ backgroundColor: '#0D0D0D', border: '1px solid #27272A', borderRadius: '8px', padding: '16px', minWidth: 0 }}>
             <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.6px', color: '#71717A', marginBottom: '8px' }}>
               Quick Ingest Signal
             </div>
@@ -392,6 +394,7 @@ export function HomeView({
                 placeholder="Paste URL, job post, or note..."
                 style={{
                   flex: 1,
+                  minWidth: 0,
                   height: '34px',
                   padding: '0 10px',
                   backgroundColor: '#18181B',

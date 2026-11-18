@@ -265,9 +265,9 @@ State Engineering University -- Magna Cum Laude
   }
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: '1600px', margin: '0 auto', color: '#FFFFFF' }}>
+    <div style={{ padding: '28px 36px 80px 36px', maxWidth: '1600px', margin: '0 auto', color: '#FFFFFF', width: '100%', boxSizing: 'border-box' }}>
       {/* 1. Header & Status */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
             <FileCode size={24} color="#FF3B30" />
@@ -295,9 +295,9 @@ State Engineering University -- Magna Cum Laude
       </div>
 
       {/* 2. Main Workspace Split: Left Controls & Code, Right Live PDF & Match Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.05fr 1fr', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.05fr) minmax(0, 1fr)', gap: '24px' }}>
         {/* Left Column: Target Configuration, Input Base CV, and Action Suite */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
           {/* Target Role & Mode Switcher */}
           <div
             style={{
@@ -769,7 +769,7 @@ State Engineering University -- Magna Cum Laude
         </div>
 
         {/* Right Column: Live Vector PDF Preview & ATS Match Analysis */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
           {/* ATS Keyword Match Stats Card */}
           <div
             style={{

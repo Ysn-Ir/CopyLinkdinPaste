@@ -70,7 +70,7 @@ export function AgentConsoleView({
   }
 
   return (
-    <div className="workspace-view" style={{ padding: '16px' }}>
+    <div style={{ padding: '20px 24px 80px 24px', width: '100%', boxSizing: 'border-box' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '16px', height: 'calc(100vh - 120px)' }}>
         {/* Left Column: Interactive Chat & Tool Execution */}
         <div className="kpi-card" style={{ display: 'flex', flexDirection: 'column', padding: '16px', gap: '12px' }}>

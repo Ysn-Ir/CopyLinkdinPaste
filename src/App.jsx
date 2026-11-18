@@ -612,8 +612,9 @@ export default function App() {
           </div>
         </header>
 
-        {/* Dynamic View Router */}
-        {activeView === 'home' && (
+        {/* Dynamic View Router wrapped in adaptive scroll/split viewport */}
+        <main className={`main-content-scroll ${['command-center', 'pipeline'].includes(activeView) ? 'mode-split' : 'mode-scroll'}`}>
+          {activeView === 'home' && (
           <HomeView
             offers={offers}
             clips={clips}
@@ -706,7 +707,7 @@ export default function App() {
         )}
 
         {activeView === 'cv-vault' && (
-          <div className="workspace-view">
+          <div style={{ padding: '24px 28px 80px 28px', width: '100%', boxSizing: 'border-box' }}>
             <div className="kpi-card" style={{ padding: '20px', maxWidth: '780px', margin: '0 auto' }}>
               <div className="section-header" style={{ marginBottom: '14px' }}>
                 <span className="section-title">CV Vault & Category Auto-Matching</span>
@@ -834,6 +835,7 @@ export default function App() {
             onOpenMobileConnect={() => setIsMobileModalOpen(true)}
           />
         )}
+        </main>
       </div>
 
       {/* Global Command Palette */}

@@ -64,9 +64,9 @@ export function DashboardView({ offers = [], onNavigate }) {
   const followUps = offers.filter((o) => o.status === 'follow_up' || o.status === 'applied')
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: '1600px', margin: '0 auto', color: '#FFFFFF' }}>
+    <div style={{ padding: '28px 36px 80px 36px', maxWidth: '1440px', margin: '0 auto', color: '#FFFFFF', width: '100%', boxSizing: 'border-box' }}>
       {/* Executive Header with 1-Click CSV Export */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '4px', backgroundColor: '#FF3B30' }} />
@@ -101,7 +101,7 @@ export function DashboardView({ offers = [], onNavigate }) {
       </div>
 
       {/* KPI Metric Grid - Spacious 4-Card Deck */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '18px', marginBottom: '28px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '18px', marginBottom: '28px' }}>
         <div style={{ backgroundColor: '#0D0D0D', border: '1px solid #27272A', borderRadius: '10px', padding: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
             <span style={{ fontSize: '11px', fontWeight: '700', color: '#71717A', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
@@ -148,9 +148,9 @@ export function DashboardView({ offers = [], onNavigate }) {
       </div>
 
       {/* Analytics Charts Grid - Spacious 2-Column Deck */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '22px', marginBottom: '28px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: '22px', marginBottom: '28px' }}>
         {/* Pipeline Funnel Bar Chart */}
-        <div style={{ backgroundColor: '#0D0D0D', border: '1px solid #27272A', borderRadius: '10px', padding: '22px', height: '340px' }}>
+        <div style={{ backgroundColor: '#0D0D0D', border: '1px solid #27272A', borderRadius: '10px', padding: '22px', height: '340px', minWidth: 0, overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <div>
               <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
@@ -188,7 +188,7 @@ export function DashboardView({ offers = [], onNavigate }) {
         </div>
 
         {/* Channel Breakdown Donut */}
-        <div style={{ backgroundColor: '#0D0D0D', border: '1px solid #27272A', borderRadius: '10px', padding: '22px', height: '340px' }}>
+        <div style={{ backgroundColor: '#0D0D0D', border: '1px solid #27272A', borderRadius: '10px', padding: '22px', height: '340px', minWidth: 0, overflow: 'hidden' }}>
           <div style={{ marginBottom: '16px' }}>
             <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
               Channel Distribution

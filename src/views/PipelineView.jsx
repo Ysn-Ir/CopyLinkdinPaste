@@ -158,7 +158,7 @@ export function PipelineView({
   }, [offers, selectedCategory, selectedChannel, searchQuery])
 
   return (
-    <div className="workspace-view" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div className="workspace-view" style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden', padding: 0, gap: 0, minWidth: 0, minHeight: 0 }}>
       {/* 1. TOP PIPELINE TOOLBAR */}
       <div
         style={{

@@ -268,7 +268,7 @@ export function ClipVaultView({
   }
 
   return (
-    <div className="workspace-view" style={{ padding: '20px 24px', overflowY: 'auto' }}>
+    <div style={{ padding: '24px 28px 80px 28px', maxWidth: '1440px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>

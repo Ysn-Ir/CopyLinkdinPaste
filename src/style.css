@@ -301,8 +301,32 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
+  height: 100vh;
   overflow: hidden;
   background-color: var(--bg-app);
+  min-width: 0;
+}
+
+/* Dynamic Viewport Scroll Container */
+.main-content-scroll {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-color: var(--bg-app);
+}
+
+.main-content-scroll.mode-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.main-content-scroll.mode-split {
+  overflow: hidden;
 }
 
 /* Top Command Bar */

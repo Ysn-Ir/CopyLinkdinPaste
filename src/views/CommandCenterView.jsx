@@ -418,7 +418,7 @@ export function CommandCenterView({
   const externalOffersCount = offers.filter((o) => o.channel === 'external').length
 
   return (
-    <div className="workspace-view" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div className="workspace-view" style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden', padding: 0, gap: 0, minWidth: 0, minHeight: 0 }}>
       {/* 1. UNIVERSAL INGESTION HERO BAR */}
       <section
         style={{
@@ -991,6 +991,7 @@ export function CommandCenterView({
           className={`command-inspector-pane ${mobilePane === 'list' ? 'mobile-hidden' : ''}`}
           style={{
             flex: 1,
+            minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
             background: 'var(--bg-app)',
