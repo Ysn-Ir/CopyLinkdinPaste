@@ -341,8 +341,9 @@ Output ONLY valid JSON. No markdown backticks.
         return fallback_analyze_clip(raw_text, source_url, extracted_domain)
 
 
-def fallback_analyze_clip(raw_text: str, source_url: str = None, extracted_domain: str = "clipboard") -> dict:
+def fallback_analyze_clip(raw_text: str, source_url: str = None, extracted_domain: str = "clipboard", candidate_profile: dict = None) -> dict:
     """Deterministic heuristic fallback when Groq LLM is unavailable or offline."""
+    candidate_name = (candidate_profile or {}).get("fullName", "Candidate")
     lower = raw_text.lower()
     emails = re.findall(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', raw_text)
     phones = re.findall(r'(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}', raw_text)
@@ -385,7 +386,7 @@ def fallback_analyze_clip(raw_text: str, source_url: str = None, extracted_domai
             "requirements": [],
             "atsScoreEstimate": 80,
             "tailoredEmailSubject": f"Application: {first_line}",
-            "tailoredEmailBody": f"Dear Hiring Team,\n\nI am writing to express my strong interest in the {first_line} role at {extracted_domain}.\n\nBest regards,\nKhalil",
+            "tailoredEmailBody": f"Dear Hiring Team,\n\nI am writing to express my strong interest in the {first_line} role at {extracted_domain}.\n\nBest regards,\n{candidate_name}",
             "linkedInNote": f"Hi! Reaching out regarding your {first_line} opening."
         }
 
@@ -451,11 +452,11 @@ async def generate_latex_cv_for_offer(job_title: str, job_description: str, cand
     Uses modern, cleanly compilable LaTeX formatting with quantified impact bullets matching the job requirements.
     """
     prof = candidate_profile or {}
-    name = prof.get("fullName", "Khalil Dev")
-    email = prof.get("email", "khalil@example.com")
-    phone = prof.get("phone", "+1 234 567 890")
-    linkedin = prof.get("linkedIn", "linkedin.com/in/khalil-dev")
-    github = prof.get("github", "github.com/khalil-dev")
+    name = prof.get("fullName", "Candidate Name")
+    email = prof.get("email", "candidate@email.com")
+    phone = prof.get("phone", "+1 (555) 019-2834")
+    linkedin = prof.get("linkedIn", "linkedin.com/in/candidate")
+    github = prof.get("github", "github.com/candidate")
     degree = prof.get("degree", "M.S. in Software Engineering & AI")
     skills = prof.get("skills", "Python, PyTorch, FastAPI, React, PostgreSQL, Docker, AWS")
 
@@ -601,7 +602,7 @@ Extract and output ONLY a valid JSON object with the following keys:
 - "confidence": Float between 0.70 and 0.99 indicating certainty of classification
 
 Candidate Profile:
-Name: {profile.get('fullName', 'Khalil')}
+Name: {profile.get('fullName', 'Candidate')}
 Degree: {profile.get('degree', 'Software & AI Engineer')}
 Skills: {profile.get('skills', 'Python, PyTorch, LLMs, NLP, React, FastAPI')}
 

@@ -2108,6 +2108,12 @@ async def tailor_cv_latex_endpoint(req: TailorCvRequest, db: Session = Depends(g
     return {"success": True, **result}
 
 
+@app.post("/api/ai/tailor-cv")
+async def tailor_cv_alias(req: TailorCvRequest, db: Session = Depends(get_db)):
+    """API alias for LaTeX CV tailoring."""
+    return await tailor_cv_latex_endpoint(req, db)
+
+
 # ==============================================================================
 # SCRAPER ENDPOINT
 # ==============================================================================

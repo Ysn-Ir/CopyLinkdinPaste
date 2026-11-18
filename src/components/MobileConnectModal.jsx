@@ -46,8 +46,8 @@ export function MobileConnectModal({ isOpen, onClose }) {
   const fetchPairingInfo = async () => {
     setIsLoading(true)
     try {
-      const res = await fetch('http://127.0.0.1:8003/api/mobile/pairing')
-      if (res.ok) {
+      const res = await fetch('/api/mobile/pairing').catch(() => fetch('http://127.0.0.1:8003/api/mobile/pairing'))
+      if (res && res.ok) {
         const data = await res.json()
         setPairingData(data)
         const ip = data.primaryIp || (data.localIps && data.localIps[0]) || '192.168.1.12'
