@@ -54,7 +54,7 @@ export function ConnectScreen({ onConnected, onCancel }) {
       if (showAlert) {
         Alert.alert(
           'Connection Successful 🎉',
-          `Connected to ${res.data.hostname || 'OmniHunt Server'} (${elapsed}ms latency)!\n${res.data.counts?.offers || 0} career offers synced.`
+          `Connected to ${res.data.hostname || 'RADAR Server'} (${elapsed}ms latency)!\n${res.data.counts?.offers || 0} career offers synced.`
         )
       }
       checkOfflineQueue()
@@ -82,8 +82,8 @@ export function ConnectScreen({ onConnected, onCancel }) {
   }
 
   const PRESETS = [
-    { label: '🌐 Render Cloud', url: 'https://omnihunt-backend.onrender.com' },
-    { label: '⚡ Localtunnel (4G)', url: 'https://pfe-hunter.loca.lt' },
+    { label: '🌐 Render Cloud', url: 'https://radar-backend.onrender.com' },
+    { label: '⚡ Localtunnel (4G)', url: 'https://radar.loca.lt' },
     { label: '🏠 Wi-Fi LAN', url: 'http://192.168.1.12:8003' },
     { label: '🔒 Tailscale Mesh', url: 'http://100.89.108.117:8003' },
     { label: '📱 Android VM', url: 'http://10.0.2.2:8003' },
@@ -98,7 +98,7 @@ export function ConnectScreen({ onConnected, onCancel }) {
         </View>
         <Text style={styles.title}>Network & Cloud Sync</Text>
         <Text style={styles.subtitle}>
-          Connect OmniHunt Mobile to your backend over Cloud Render, Local 4G Tunnel, or Home Wi-Fi.
+          Connect RADAR Mobile to your backend over Cloud Render, Local 4G Tunnel, or Home Wi-Fi.
         </Text>
       </View>
 

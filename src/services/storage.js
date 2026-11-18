@@ -14,21 +14,21 @@ const KEYS = {
 }
 
 const DEFAULT_PROFILE = {
-  fullName: 'Khalil Ingénieur PFE',
-  headline: 'Élève Ingénieur en Génie Logiciel & IA',
-  email: 'khalil.pfe@gmail.com',
-  phone: '+33 6 12 34 56 78',
-  whatsapp: '+33 6 12 34 56 78',
-  linkedIn: 'https://linkedin.com/in/khalil-pfe',
-  github: 'https://github.com/khalil-dev',
-  portfolio: 'https://khalil.dev',
-  degree: 'Master 2 / Diplôme d\'Ingénieur en Génie Logiciel & IA',
-  city: 'Paris, France / Télétravail',
-  skills: 'Python, PyTorch, LLMs, NLP, React, Node.js, Docker, FastAPI',
-  projects: 'Agentic AI Workflows, NLP Semantic Search, PFE Application Command Center',
+  fullName: 'Radar Operator',
+  headline: 'Software Engineer & Autonomous Systems Developer',
+  email: 'operator@radar.local',
+  phone: '+1 (555) 019-2834',
+  whatsapp: '+1 (555) 019-2834',
+  linkedIn: 'https://linkedin.com',
+  github: 'https://github.com',
+  portfolio: 'https://radar.local',
+  degree: 'B.S. / M.S. in Computer Science & AI Systems',
+  city: 'Remote / Global',
+  skills: 'Python, PyTorch, LLMs, NLP, React, Node.js, Docker, FastAPI, PostgreSQL',
+  projects: 'RADAR Autonomous Signal Intelligence, ATS LaTeX Tailor, Neural Search Engine',
   tonePreference: 'Direct, confident, technical, and high-impact',
-  customInstructions: 'Give maximum freedom. Prioritize NLP, Generative AI, and software engineering applications.',
-  bio: 'Futur ingénieur passionné par le traitement du langage naturel, les architectures d\'agents autonomes et l\'ingénierie logicielle.',
+  customInstructions: 'Prioritize NLP, Generative AI, machine learning infrastructure, and software engineering roles.',
+  bio: 'High-agency engineer building autonomous intelligence tools, real-time sync systems, and production LLM applications.',
   customLinks: [],
 }
 
@@ -335,7 +335,7 @@ export const StorageService = {
     } catch (e) {}
     return {
       engine: 'postgresql',
-      dbPath: 'PostgreSQL (localhost:5432/pfe_hunter)',
+      dbPath: 'PostgreSQL (5432)',
       fileSizeKb: 0,
       counts: { offers: 0, cvs: 0, hasProfile: false },
       connected: true,
@@ -359,7 +359,7 @@ export const StorageService = {
 
     const backup = {
       version: '2.0',
-      database: 'sqlite-synced',
+      database: 'radar-synced',
       exportedAt: new Date().toISOString(),
       offers,
       cvs,
@@ -374,7 +374,7 @@ export const StorageService = {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `pfe_hunter_database_backup_${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `radar_database_backup_${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
   },
@@ -479,6 +479,58 @@ export const StorageService = {
       if (res.ok) return await res.json()
     } catch (e) {
       console.error('Enrich clip failed:', e)
+    }
+    return null
+  },
+
+  async updateClip(clipId, data) {
+    try {
+      const res = await fetch(`/api/clips/${clipId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (res.ok) return await res.json()
+    } catch (e) {
+      console.error('Update clip failed:', e)
+    }
+    return null
+  },
+
+  async bulkDeleteClips(ids) {
+    try {
+      const res = await fetch('/api/clips/bulk', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      })
+      if (res.ok) return await res.json()
+    } catch (e) {
+      console.error('Bulk delete clips failed:', e)
+    }
+    return { success: false }
+  },
+
+  async bulkDeleteOffers(ids) {
+    try {
+      const res = await fetch('/api/offers/bulk', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      })
+      if (res.ok) return await res.json()
+    } catch (e) {
+      console.error('Bulk delete offers failed:', e)
+    }
+    return { success: false }
+  },
+
+  async cancelHunt() {
+    try {
+      const res = await fetch('/api/scraper/cancel', { method: 'POST' })
+      if (res.ok) return await res.json()
+    } catch (e) {
+      console.error('Cancel hunt failed:', e)
     }
     return null
   },

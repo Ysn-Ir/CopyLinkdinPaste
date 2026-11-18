@@ -49,21 +49,21 @@ export function DirectContactWorkspaceView({
   // Default pre-drafted connection note (< 300 chars for LinkedIn limit)
   const defaultNote =
     currentOffer?.linkedInNote ||
-    `Bonjour ${currentOffer?.sharer?.name || ''}, étudiant en fin de cycle (${candidateProfile?.degree || 'Ingénieur'}), je serais ravi d'échanger au sujet de votre stage PFE ${currentOffer?.title || ''} chez ${currentOffer?.company || ''}. Bien cordialement.`
+    `Hi ${currentOffer?.sharer?.name || ''}, with a background in ${candidateProfile?.degree || 'Software Engineering & AI'}, I would love to connect and discuss your opening for ${currentOffer?.title || 'this role'} at ${currentOffer?.company || 'your team'}. Best regards.`
 
   const [noteText, setNoteText] = useState(defaultNote)
 
   // Full InMail pitch
-  const defaultInmail = `Bonjour ${currentOffer?.sharer?.name || 'Bonjour'},
+  const defaultInmail = `Hi ${currentOffer?.sharer?.name || 'Hiring Team'},
 
-Je me permets de vous contacter suite à votre publication concernant l'offre de Stage PFE "${currentOffer?.title || 'Stage PFE'}" au sein de ${currentOffer?.company || 'votre équipe'}.
+I am reaching out regarding the ${currentOffer?.title || 'open opportunity'} at ${currentOffer?.company || 'your team'}.
 
-Actuellement en dernière année (${candidateProfile?.degree || 'Master / Diplôme Ingénieur'}), j'ai développé des compétences solides en ${currentOffer?.skills?.join(', ') || 'technologies modernes'}.
+With hands-on experience in ${currentOffer?.skills?.join(', ') || 'modern software and AI systems'}, I have delivered end-to-end projects optimizing performance and system capabilities.
 
-Je serais très honoré de vous transmettre mon CV (${currentOffer?.attachedCvTag || 'CV PFE'}) et d'échanger quelques minutes avec vous pour vous présenter mon profil.
+I would be delighted to share my resume (${currentOffer?.attachedCvTag || 'Resume'}) and connect for a brief 10-minute introductory conversation.
 
-Bien cordialement,
-${candidateProfile?.fullName || 'Khalil'}
+Best regards,
+${candidateProfile?.fullName || 'Radar Operator'}
 ${candidateProfile?.phone || ''}
 ${candidateProfile?.linkedIn || ''}`
 
@@ -73,7 +73,7 @@ ${candidateProfile?.linkedIn || ''}`
   const cleanPhone = (currentOffer?.sharer?.phone || '').replace(/[^0-9+]/g, '')
   const defaultWhatsapp =
     currentOffer?.whatsAppMsg ||
-    `Bonjour ${currentOffer?.sharer?.name || ''}, je vous contacte suite à votre post pour le stage PFE "${currentOffer?.title || 'Stage PFE'}" chez ${currentOffer?.company || ''}. Seriez-vous disponible pour échanger brièvement ? Bien à vous, ${candidateProfile?.fullName || ''}.`
+    `Hi ${currentOffer?.sharer?.name || ''}, I am reaching out regarding your post for the ${currentOffer?.title || 'role'} at ${currentOffer?.company || ''}. Would you be open to connect briefly? Best, ${candidateProfile?.fullName || ''}.`
 
   const [whatsappText, setWhatsappText] = useState(defaultWhatsapp)
 
@@ -81,12 +81,12 @@ ${candidateProfile?.linkedIn || ''}`
     if (currentOffer) {
       setNoteText(
         currentOffer.linkedInNote ||
-          `Bonjour ${currentOffer.sharer?.name || ''}, passionné par ${currentOffer.skills?.[0] || 'la tech'}, je serais ravi d'échanger au sujet de votre stage PFE ${currentOffer.title} chez ${currentOffer.company}. Bien cordialement.`
+          `Hi ${currentOffer.sharer?.name || ''}, passionate about ${currentOffer.skills?.[0] || 'engineering'}, I would love to connect regarding ${currentOffer.title} at ${currentOffer.company}. Best regards.`
       )
       setInmailText(defaultInmail)
       setWhatsappText(
         currentOffer.whatsAppMsg ||
-          `Bonjour ${currentOffer.sharer?.name || ''}, je vous contacte suite à votre publication LinkedIn pour l'offre PFE "${currentOffer.title}" chez ${currentOffer.company}. ${candidateProfile?.fullName || ''}.`
+          `Hi ${currentOffer.sharer?.name || ''}, I am reaching out regarding the opportunity "${currentOffer.title}" at ${currentOffer.company}. Best, ${candidateProfile?.fullName || ''}.`
       )
     }
   }, [selectedOfferId, candidateProfile])

@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from .config import DATABASE_URL
 
-logger = logging.getLogger("pfe_hunter.db")
+logger = logging.getLogger("radar.db")
 
 Base = declarative_base()
 
@@ -26,7 +26,9 @@ def get_engine_and_session():
         logger.warning(f"Failed to connect to primary DB ({e}). Falling back to local SQLite.")
         data_dir = Path(__file__).resolve().parent.parent / "data"
         data_dir.mkdir(exist_ok=True)
-        sqlite_url = f"sqlite:///{data_dir / 'pfe_hunter.db'}"
+        # Keep continuity with existing sqlite file if it exists, otherwise create radar.db
+        db_file = data_dir / "pfe_hunter.db" if (data_dir / "pfe_hunter.db").exists() else data_dir / "radar.db"
+        sqlite_url = f"sqlite:///{db_file}"
         fallback_engine = create_engine(
             sqlite_url,
             connect_args={"check_same_thread": False}

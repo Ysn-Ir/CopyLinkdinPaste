@@ -18,7 +18,7 @@ export function MobileConnectModal({ isOpen, onClose }) {
   const [pairingData, setPairingData] = useState(null)
   const [selectedIp, setSelectedIp] = useState('')
   const [tunnelUrl, setTunnelUrl] = useState('')
-  const [renderUrl, setRenderUrl] = useState('https://omnihunt-backend.onrender.com')
+  const [renderUrl, setRenderUrl] = useState('https://radar-backend.onrender.com')
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [copied, setCopied] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -35,10 +35,10 @@ export function MobileConnectModal({ isOpen, onClose }) {
       const ip = selectedIp || pairingData?.primaryIp || '192.168.1.12'
       generateQrForUrl(`http://${ip}:${pairingData?.backendPort || 8003}`)
     } else if (activeTab === 'tunnel') {
-      const url = tunnelUrl.trim() || 'https://pfe-hunter.loca.lt'
+      const url = tunnelUrl.trim() || 'https://radar.loca.lt'
       generateQrForUrl(url)
     } else if (activeTab === 'render') {
-      const url = renderUrl.trim() || 'https://omnihunt-backend.onrender.com'
+      const url = renderUrl.trim() || 'https://radar-backend.onrender.com'
       generateQrForUrl(url)
     }
   }, [activeTab, selectedIp, tunnelUrl, renderUrl, pairingData])
@@ -79,7 +79,7 @@ export function MobileConnectModal({ isOpen, onClose }) {
   const generateQrForUrl = async (serverUrl) => {
     const cleanUrl = serverUrl.replace(/\/+$/, '')
     const payload = JSON.stringify({
-      app: 'omnihunt',
+      app: 'radar',
       version: '2.0.0',
       serverUrl: cleanUrl,
       apiUrl: `${cleanUrl}/api`,
@@ -106,8 +106,8 @@ export function MobileConnectModal({ isOpen, onClose }) {
     activeTab === 'lan'
       ? `http://${selectedIp || '192.168.1.12'}:${pairingData?.backendPort || 8003}`
       : activeTab === 'tunnel'
-      ? tunnelUrl || 'https://pfe-hunter.loca.lt'
-      : renderUrl || 'https://omnihunt-backend.onrender.com'
+      ? tunnelUrl || 'https://radar.loca.lt'
+      : renderUrl || 'https://radar-backend.onrender.com'
 
   const handleCopy = () => {
     navigator.clipboard.writeText(currentDisplayUrl)
@@ -301,7 +301,7 @@ export function MobileConnectModal({ isOpen, onClose }) {
                 {qrDataUrl ? (
                   <img
                     src={qrDataUrl}
-                    alt="OmniHunt Mobile Pairing QR"
+                    alt="RADAR Mobile Pairing QR"
                     style={{ width: '160px', height: '160px', display: 'block' }}
                   />
                 ) : (
@@ -503,7 +503,7 @@ export function MobileConnectModal({ isOpen, onClose }) {
                         type="text"
                         value={renderUrl}
                         onChange={(e) => setRenderUrl(e.target.value)}
-                        placeholder="https://omnihunt-backend.onrender.com"
+                        placeholder="https://radar-backend.onrender.com"
                         style={{
                           background: 'transparent',
                           border: 'none',

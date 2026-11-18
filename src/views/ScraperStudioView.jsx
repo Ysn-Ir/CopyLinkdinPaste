@@ -17,6 +17,7 @@ import {
   Clock,
   Send,
   Zap,
+  X,
 } from 'lucide-react'
 
 export function ScraperStudioView({ candidateProfile, onOfferCreated, onTailorCv }) {
@@ -93,6 +94,16 @@ export function ScraperStudioView({ candidateProfile, onOfferCreated, onTailorCv
     } catch (err) {
       setHuntStatus('error')
       setStatusMessage('Network error triggering scraper')
+    }
+  }
+
+  const handleCancelHunt = async () => {
+    try {
+      await fetch('/api/scraper/cancel', { method: 'POST' })
+      setHuntStatus('idle')
+      setStatusMessage('Autonomous hunt cancelled.')
+    } catch (err) {
+      console.error('Cancel hunt failed:', err)
     }
   }
 
@@ -181,6 +192,29 @@ export function ScraperStudioView({ candidateProfile, onOfferCreated, onTailorCv
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
+          {huntStatus === 'running' && (
+            <button
+              type="button"
+              onClick={handleCancelHunt}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '10px 16px',
+                backgroundColor: '#18181B',
+                color: '#FF3B30',
+                border: '1px solid #FF3B30',
+                borderRadius: '6px',
+                fontWeight: '700',
+                fontSize: '13px',
+                cursor: 'pointer',
+              }}
+            >
+              <X size={15} />
+              Cancel Hunt
+            </button>
+          )}
+
           <button
             onClick={() => handleLaunchHunt()}
             disabled={huntStatus === 'running'}
@@ -596,3 +630,4 @@ export function ScraperStudioView({ candidateProfile, onOfferCreated, onTailorCv
     </div>
   )
 }
+

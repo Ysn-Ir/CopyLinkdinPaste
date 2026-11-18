@@ -91,9 +91,9 @@ class CategorySchema(BaseModel):
     id: Optional[str] = None
     label: str
     shortLabel: Optional[str] = None
-    color: Optional[str] = "#3b82f6"
-    bgColor: Optional[str] = "rgba(59, 130, 246, 0.12)"
-    borderColor: Optional[str] = "rgba(59, 130, 246, 0.35)"
+    color: Optional[str] = "#FFFFFF"
+    bgColor: Optional[str] = "rgba(255, 255, 255, 0.08)"
+    borderColor: Optional[str] = "rgba(255, 255, 255, 0.2)"
     defaultCvTag: Optional[str] = ""
     keywords: Optional[List[str]] = []
     isCustom: Optional[bool] = True
@@ -104,6 +104,14 @@ class ClipIngestSchema(BaseModel):
     sourceDomain: Optional[str] = ""
     sourceDevice: Optional[str] = "desktop"
     copiedAt: Optional[str] = None
+
+class ClipUpdateSchema(BaseModel):
+    title: Optional[str] = None
+    summary: Optional[str] = None
+    contentType: Optional[str] = None
+    tags: Optional[List[str]] = None
+    entities: Optional[Dict[str, Any]] = None
+    isStarred: Optional[bool] = None
 
 class ClipSchema(BaseModel):
     id: Optional[str] = None
@@ -141,6 +149,25 @@ class BulkIngestSchema(BaseModel):
     content: Optional[str] = None
     urls: Optional[List[str]] = []
     sourceDevice: Optional[str] = "desktop"
+
+class BulkDeleteSchema(BaseModel):
+    ids: List[str]
+
+class HuntRequestSchema(BaseModel):
+    sites: Optional[List[str]] = ["linkedin", "indeed"]
+    searchTerm: str = "Software Engineer"
+    location: Optional[str] = "Remote"
+    resultsWanted: Optional[int] = 20
+    isRemote: Optional[bool] = False
+    countryIndeed: Optional[str] = "usa"
+
+class SaveHuntJobSchema(BaseModel):
+    job: Dict[str, Any]
+
+class TailorCvRequest(BaseModel):
+    jobTitle: str
+    jobDescription: str
+    candidateProfile: Optional[Dict[str, Any]] = None
 
 
 

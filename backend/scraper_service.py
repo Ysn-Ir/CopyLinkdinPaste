@@ -5,7 +5,7 @@ import httpx
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 
-logger = logging.getLogger("pfe_hunter.scraper")
+logger = logging.getLogger("radar.scraper")
 
 def extract_youtube_id(url: str) -> str:
     """Extract 11-char YouTube video ID from watch URLs, shorts, or youtu.be links"""
@@ -335,6 +335,7 @@ async def scrape_url_metadata(target_url: str):
                 "url": clean_url,
                 "title": title or f"Page on {domain}",
                 "description": description or "",
+                "text": combined_text[:4500],
                 "bodyText": combined_text[:4500],
                 "image": image,
                 "siteName": site_name,
@@ -348,6 +349,7 @@ async def scrape_url_metadata(target_url: str):
             "url": clean_url,
             "title": f"Link on {domain}",
             "description": "",
+            "text": "",
             "bodyText": "",
             "image": None,
             "siteName": domain,

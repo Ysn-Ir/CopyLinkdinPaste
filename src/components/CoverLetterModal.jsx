@@ -212,7 +212,7 @@ export function CoverLetterModal({
                 </div>
 
                 <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.9rem', color: '#111827' }}>
-                  Objet : Candidature Stage PFE – {offer.title}
+                  Subject: Application for {offer.title}
                 </div>
 
                 {/* Paragraphs */}

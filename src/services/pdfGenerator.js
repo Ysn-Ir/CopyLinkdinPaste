@@ -103,7 +103,7 @@ export const PdfGenerator = {
     doc.setFont(font, 'bold')
     doc.setFontSize(10.5)
     doc.setTextColor(20, 20, 20)
-    const subjectText = `Objet : Candidature Stage PFE – ${offer.title}`
+    const subjectText = `Subject: Application for ${offer.title}`
     doc.text(subjectText, margin, y)
     y += 7
 

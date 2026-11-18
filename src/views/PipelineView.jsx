@@ -93,25 +93,25 @@ export function PipelineView({
   // Quick Action: Draft .EML
   const handleQuickDraftEml = (offer) => {
     const tpl = EMAIL_TEMPLATES[0]
-    const skillsText = (offer.skills || []).join(', ') || candidateProfile.skills || 'IA et Software Engineering'
+    const skillsText = (offer.skills || []).join(', ') || candidateProfile.skills || 'Software & AI Systems'
     const cat = domainCategories.find((c) => c.id === offer.category)
 
-    const subject = offer.customEmailSubject || `Candidature Stage PFE - ${offer.title} - ${candidateProfile.fullName || 'Khalil'}`
+    const subject = offer.customEmailSubject || `Application: ${offer.title} - ${candidateProfile.fullName || 'Applicant'}`
     const body = offer.customEmailBody || tpl.body
-      .replace(/\[RECIPIENT_NAME\]/g, offer.sharer?.name || offer.recruiterName || 'Madame, Monsieur')
+      .replace(/\[RECIPIENT_NAME\]/g, offer.sharer?.name || offer.recruiterName || 'Hiring Team')
       .replace(/\[ROLE\]/g, offer.title)
       .replace(/\[COMPANY\]/g, offer.company)
-      .replace(/\[DOMAIN\]/g, cat?.label || 'Informatique & Ingénierie')
+      .replace(/\[DOMAIN\]/g, cat?.label || 'Engineering')
       .replace(/\[SKILLS\]/g, skillsText)
-      .replace(/\[ATTACHED_CV\]/g, offer.attachedCvTag || 'CV Ingénieur')
-      .replace(/\[CANDIDATE_NAME\]/g, candidateProfile.fullName || 'Khalil')
+      .replace(/\[ATTACHED_CV\]/g, offer.attachedCvTag || 'Resume')
+      .replace(/\[CANDIDATE_NAME\]/g, candidateProfile.fullName || 'Applicant')
       .replace(/\[CANDIDATE_PHONE\]/g, candidateProfile.phone || '')
       .replace(/\[CANDIDATE_LINKEDIN\]/g, candidateProfile.linkedIn || '')
-      .replace(/\[APPLICATION_DATE\]/g, new Date().toLocaleDateString('fr-FR'))
+      .replace(/\[APPLICATION_DATE\]/g, new Date().toLocaleDateString('en-US'))
 
     EmlGenerator.downloadEml({
-      to: offer.recruiterEmail || 'recrutement@entreprise.com',
-      from: candidateProfile.email || 'khalil.pfe@gmail.com',
+      to: offer.recruiterEmail || 'recruiting@company.com',
+      from: candidateProfile.email || 'applicant@radar.ai',
       subject,
       body,
       attachedCvTag: offer.attachedCvTag,
@@ -124,7 +124,7 @@ export function PipelineView({
   // Quick Action: Direct Contact WhatsApp / InMail
   const handleQuickDirectOutreach = (offer) => {
     const phone = offer.sharer?.phone?.replace(/[^0-9+]/g, '')
-    const msg = offer.whatsAppMsg || `Bonjour ${offer.sharer?.name || ''}, je vous contacte au sujet de votre offre de stage PFE chez ${offer.company}.`
+    const msg = offer.whatsAppMsg || `Hi ${offer.sharer?.name || ''}, I am reaching out regarding the ${offer.title} position at ${offer.company}.`
 
     if (phone) {
       window.open(`https://wa.me/${phone.replace('+', '')}?text=${encodeURIComponent(msg)}`, '_blank')

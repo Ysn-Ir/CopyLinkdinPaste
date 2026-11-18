@@ -431,3 +431,4 @@ export function AtsResumeStudioView({ offers = [], candidateProfile, initialJob 
     </div>
   )
 }
+

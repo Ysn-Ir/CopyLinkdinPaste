@@ -360,7 +360,7 @@ export const ApiService = {
   },
 
   /**
-   * Converts a generic clip into a full PFE Hunter job offer
+   * Converts a generic clip into a full RADAR job offer
    */
   async convertClipToOffer(clipId) {
     const url = `${currentServerUrl}/api/clips/${clipId}/convert-to-offer`

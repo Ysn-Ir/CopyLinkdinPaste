@@ -1,37 +1,16 @@
 export const EMAIL_TEMPLATES = [
   {
-    id: 'fr-pfe-standard',
-    name: 'Candidature PFE - Recommandé (FR)',
-    language: 'FR',
-    subject: 'Candidature Stage PFE – [ROLE] – [CANDIDATE_NAME]',
-    body: `Madame, Monsieur [RECIPIENT_NAME],
-
-Actuellement étudiant en dernière année d'ingénierie / Master spécialisé en [DOMAIN], je me permets de vous contacter afin de vous soumettre ma candidature pour l'opportunité de Stage PFE en tant que [ROLE] au sein de [COMPANY].
-
-Particulièrement motivé par les projets menés par vos équipes, je dispose de compétences solides en [SKILLS]. J'ai eu l'occasion de mettre en pratique ces connaissances lors de mes projets académiques et expériences précédentes.
-
-Vous trouverez ci-joint mon Curriculum Vitae ([ATTACHED_CV]) détaillant mon parcours et mes réalisations.
-
-Je serais honoré d'échanger avec vous lors d'un entretien afin de vous présenter plus en détail ma motivation et la valeur que je peux apporter à [COMPANY].
-
-Dans l'attente de votre retour, je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées.
-
-[CANDIDATE_NAME]
-[CANDIDATE_PHONE]
-[CANDIDATE_LINKEDIN]`,
-  },
-  {
-    id: 'en-pfe-standard',
-    name: 'Graduation Internship (PFE) - Impactful (EN)',
+    id: 'en-standard-impact',
+    name: 'Direct Application - Impactful (EN)',
     language: 'EN',
-    subject: 'Application: Final Year Internship (PFE) – [ROLE] – [CANDIDATE_NAME]',
+    subject: 'Application: [ROLE] – [CANDIDATE_NAME]',
     body: `Dear [RECIPIENT_NAME],
 
-I am writing to express my strong interest in the [ROLE] graduation internship (PFE) at [COMPANY], as advertised on LinkedIn.
+I am writing to express my strong interest in the [ROLE] position at [COMPANY].
 
-Currently completing my Master's Degree / Engineering program in [DOMAIN], I have developed hands-on expertise in [SKILLS]. I am enthusiastic about the innovative work being done at [COMPANY] and eager to contribute effectively to your upcoming roadmap.
+With a rigorous background in [DOMAIN] and hands-on expertise across [SKILLS], I have led end-to-end projects delivering robust, scalable solutions. I am particularly drawn to [COMPANY]'s engineering philosophy and would love to contribute directly to your roadmap.
 
-I have attached my resume ([ATTACHED_CV]) for your review. I would welcome the opportunity to discuss how my profile aligns with your team's objectives.
+I have attached my resume ([ATTACHED_CV]) detailing my experience and achievements. I would welcome the opportunity to discuss how my skillset aligns with your team's objectives.
 
 Thank you for your time and consideration.
 
@@ -42,19 +21,40 @@ Best regards,
 [CANDIDATE_LINKEDIN]`,
   },
   {
-    id: 'fr-pfe-ai-data',
-    name: 'Spécialisé IA & Data Science (FR)',
+    id: 'en-tech-ai-systems',
+    name: 'AI & Systems Specialist (EN)',
+    language: 'EN',
+    subject: '[ROLE] – Engineering Application – [CANDIDATE_NAME]',
+    body: `Hi [RECIPIENT_NAME],
+
+I noticed your opening for [ROLE] at [COMPANY] and wanted to reach out directly.
+
+I specialize in building intelligent, high-throughput systems with a primary focus on [SKILLS]. In previous technical initiatives, I architected and deployed solutions optimizing performance, latency, and operational efficiency.
+
+My resume is attached ([ATTACHED_CV]). Are you available for a brief 10-minute introductory conversation this week?
+
+Best regards,
+
+[CANDIDATE_NAME]
+[CANDIDATE_PHONE]
+[CANDIDATE_LINKEDIN]`,
+  },
+  {
+    id: 'fr-standard-pro',
+    name: 'Candidature Professionnelle (FR)',
     language: 'FR',
-    subject: 'Candidature PFE IA & Data : [ROLE] – [CANDIDATE_NAME]',
-    body: `Bonjour [RECIPIENT_NAME],
+    subject: 'Candidature : [ROLE] – [CANDIDATE_NAME]',
+    body: `Madame, Monsieur [RECIPIENT_NAME],
 
-Passionné par l'Intelligence Artificielle et la valorisation des données, je vous sollicite pour le stage PFE [ROLE] chez [COMPANY].
+Je me permets de vous soumettre ma candidature pour le poste de [ROLE] au sein de [COMPANY].
 
-Mon parcours m'a permis d'aborder des problématiques concrètes autour de [SKILLS], notamment à travers la conception de modèles, le traitement de données et l'implémentation de solutions scalables. Je suis convaincu que mon autonomie et ma rigueur seront des atouts immédiats pour vos projets.
+Diplômé et expérimenté dans le domaine de [DOMAIN], je dispose de compétences solides en [SKILLS]. Passionné par la conception de solutions performantes, je souhaite mettre ma rigueur et mon autonomie au service de vos défis techniques.
 
-Mon CV est joint à ce message ([ATTACHED_CV]). Je serais ravi d'échanger avec vous lors d'un bref appel pour approfondir les défis techniques de ce stage.
+Vous trouverez ci-joint mon Curriculum Vitae ([ATTACHED_CV]) retraçant mon parcours et mes réalisations.
 
-Bien cordialement,
+Je serais honoré d'échanger avec vous lors d'un entretien afin d'approfondir l'adéquation de mon profil avec vos besoins.
+
+Dans cette attente, je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées.
 
 [CANDIDATE_NAME]
 [CANDIDATE_PHONE]
@@ -62,21 +62,24 @@ Bien cordialement,
   },
   {
     id: 'follow-up',
-    name: 'Relance Professionnelle / Follow-up (FR)',
-    language: 'FR',
-    subject: 'Relance – Candidature PFE [ROLE] – [CANDIDATE_NAME]',
-    body: `Bonjour [RECIPIENT_NAME],
+    name: 'Professional Follow-up / Relance',
+    language: 'EN',
+    subject: 'Follow-up: [ROLE] Application – [CANDIDATE_NAME]',
+    body: `Dear [RECIPIENT_NAME],
 
-Je me permets de revenir vers vous concernant ma candidature transmise le [APPLICATION_DATE] pour l'offre de stage PFE [ROLE] au sein de [COMPANY].
+I hope you are having a productive week.
 
-Toujours vivement intéressé par cette opportunité et la vision de votre entreprise, je souhaitais savoir si le processus de sélection avait avancé ou si vous aviez besoin d'éléments complémentaires sur mon profil.
+I am following up on my application submitted on [APPLICATION_DATE] for the [ROLE] opening at [COMPANY].
 
-Je vous remercie chaleureusement pour votre temps et vous souhaite une excellente journée.
+I remain very enthusiastic about your team's mission and would be glad to provide any additional work samples, references, or context regarding my background in [SKILLS].
 
-Bien cordialement,
+Thank you again for your time and consideration.
+
+Best regards,
 
 [CANDIDATE_NAME]
-[CANDIDATE_PHONE]`,
+[CANDIDATE_PHONE]
+[CANDIDATE_LINKEDIN]`,
   },
 ]
 
@@ -88,11 +91,11 @@ export const COVER_LETTER_TEMPLATES = [
     headerStyle: 'latex',
     defaultText: `To the Hiring Team at [COMPANY],
 
-Subject: Application for [ROLE] (Final Year Internship / PFE)
+Subject: Application for [ROLE]
 
-I am writing to formally submit my application for the [ROLE] position at [COMPANY]. As an engineering student entering my final graduation semester, I am eager to contribute my technical knowledge and problem-solving skills to your team.
+I am writing to formally submit my application for the [ROLE] position at [COMPANY]. With a strong technical background and a disciplined engineering methodology, I am eager to contribute to your engineering objectives.
 
-Throughout my studies and technical projects, I have developed expertise across [SKILLS]. What specifically draws me to [COMPANY] is your high standard of engineering and commitment to impactful technical solutions. I am eager to apply rigorous methodologies in a professional setting while learning from seasoned mentors.
+Throughout my career and technical projects, I have developed expertise across [SKILLS]. What specifically draws me to [COMPANY] is your high standard of engineering, mission, and commitment to impactful technical solutions.
 
 During my previous work, I spearheaded several technical milestones, including architectural design, clean coding practices, and cross-functional collaboration. I pride myself on self-driven learning, speed of execution, and an analytical mindset that allows me to quickly deconstruct complex challenges.
 
@@ -109,7 +112,7 @@ Sincerely,
     headerStyle: 'modern',
     defaultText: `Dear Hiring Manager,
 
-I am thrilled to apply for the [ROLE] position at [COMPANY]. Having followed your recent developments, I am inspired by the challenges you tackle and would love to dedicate my PFE journey to delivering value alongside your team.
+I am thrilled to apply for the [ROLE] position at [COMPANY]. Having followed your recent developments, I am inspired by the challenges you tackle and would love to deliver value alongside your team.
 
 With a strong foundation in [SKILLS], I bring a blend of theoretical rigor and hands-on delivery. I thrive when building robust, scalable solutions and collaborating in fast-paced environments.
 

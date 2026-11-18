@@ -50,3 +50,4 @@ class EventBroadcaster:
 
 # Global broadcaster instance
 broadcaster = EventBroadcaster()
+

@@ -540,7 +540,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
               <Text style={styles.emptyIcon}>📋</Text>
               <Text style={styles.emptyTitle}>Vault is empty</Text>
               <Text style={styles.emptySubtitle}>
-                Copy any text on mobile or PC — OmniHunt classifies and routes job offers automatically.
+                Copy any text on mobile or PC — RADAR classifies and routes job offers automatically.
               </Text>
             </View>
           }

@@ -62,14 +62,14 @@ export const AiService = {
 
     const userCustomDirective = config.customSystemPrompt || candidateProfile.customInstructions || ''
 
-    const systemPrompt = `You are an elite career agent specializing in graduation internships (PFE), research roles, and tech jobs.
+    const systemPrompt = `You are an elite career agent specializing in tech roles, research opportunities, and engineering jobs.
 Your task is to analyze raw recruiter posts from LinkedIn, Indeed, Twitter/X, or company career portals.
 You have COMPLETE FREEDOM to adapt and classify without rigid restrictions.
 
 ${userCustomDirective ? `USER MASTER INSTRUCTIONS (HIGHEST PRIORITY - STRICTLY COMPLY):\n${userCustomDirective}\n` : ''}
 
 Extract and output a JSON object with these keys:
-- "title": Job title (e.g. "Stage PFE : Ingénieur IA & NLP")
+- "title": Job title (e.g. "AI Systems Engineer" or "Staff Fullstack Engineer")
 - "company": Company name
 - "location": Work location, city, and hybrid/remote status
 - "category": Match the best domain from the user's active categories:
@@ -95,9 +95,9 @@ If none strictly match, choose the closest or propose a concise new slug.
 - "confidence": Float between 0.60 and 0.99 indicating your classification certainty.
 
 Candidate Profile for personalization:
-Name: ${candidateProfile.fullName || 'Candidat PFE'}
-Headline: ${candidateProfile.headline || 'Ingénieur PFE'}
-Degree: ${candidateProfile.degree || 'Master / Diplôme Ingénieur'}
+Name: ${candidateProfile.fullName || 'Candidate'}
+Headline: ${candidateProfile.headline || 'Software & AI Engineer'}
+Degree: ${candidateProfile.degree || 'Master / Engineering Degree'}
 Target Skills: ${candidateProfile.skills || 'AI, Software, Cloud'}
 Tone Preference: ${candidateProfile.tonePreference || 'Direct, confident, high-agency'}
 
@@ -121,7 +121,7 @@ Respond ONLY with the JSON object.`
         const parsed = await backendRes.json()
         const categoryObj = activeCategories.find((c) => c.id === parsed.category)
         return {
-          title: parsed.title || 'Stage PFE',
+          title: parsed.title || 'Engineering Opportunity',
           company: parsed.company || 'Entreprise Confidentielle',
           location: parsed.location || 'Paris / Hybride',
           category: parsed.category || 'dev-fullstack',
@@ -179,9 +179,9 @@ Respond ONLY with the JSON object.`
       const categoryObj = activeCategories.find((c) => c.id === parsed.category)
 
       return {
-        title: parsed.title || 'Stage PFE',
-        company: parsed.company || 'Entreprise Confidentielle',
-        location: parsed.location || 'Paris / Hybride',
+        title: parsed.title || 'Engineering Opportunity',
+        company: parsed.company || 'Confidential Company',
+        location: parsed.location || 'Remote / Hybrid',
         category: parsed.category || 'dev-fullstack',
         categoryReasoning: parsed.categoryReasoning || '',
         top3Guesses: Array.isArray(parsed.top3Guesses) && parsed.top3Guesses.length > 0 ? parsed.top3Guesses : [parsed.category || 'dev-fullstack'],
@@ -295,7 +295,7 @@ Respond ONLY with the JSON object.`
 
     const userDirective = config.customSystemPrompt || candidateProfile?.customInstructions || ''
 
-    const systemPrompt = `You are OmniHunt Career Agent, an autonomous career copilot with complete freedom.
+    const systemPrompt = `You are the RADAR Autonomous Agent, an intelligent companion and career copilot.
 ${userDirective ? `USER MASTER INSTRUCTIONS:\n${userDirective}\n` : ''}
 Offers in pipeline: ${(offers || []).length}
 Candidate: ${candidateProfile?.fullName || 'Candidate'} (${candidateProfile?.headline || candidateProfile?.degree || ''})

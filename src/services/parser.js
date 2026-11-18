@@ -161,8 +161,8 @@ export const ParserService = {
     const attachedCvTag = categoryObj ? categoryObj.defaultCvTag : 'CV - General Engineering'
 
     return {
-      title: title || 'Stage PFE',
-      company: company || 'Entreprise Confidentielle',
+      title: title || 'Job Opportunity',
+      company: company || 'Company',
       location,
       category: bestCategory,
       channel,

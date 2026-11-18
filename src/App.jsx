@@ -61,18 +61,18 @@ export default function App() {
   const [cvList, setCvList] = useState([])
   const [categories, setCategories] = useState([])
   const [candidateProfile, setCandidateProfile] = useState({
-    fullName: 'Khalil Ingénieur PFE',
-    email: 'khalil.pfe@gmail.com',
-    phone: '+33 6 12 34 56 78',
-    linkedIn: 'linkedin.com/in/khalil-pfe',
-    degree: 'Master 2 / Diplôme d\'Ingénieur en Génie Logiciel & IA',
-    city: 'Paris, France',
-    customInstructions: 'Give maximum freedom to the user. Prioritize NLP and AI applications.',
-    bio: 'Étudiant ingénieur passionné par l\'IA et le développement logiciel',
+    fullName: 'Radar Operator',
+    email: 'operator@radar.local',
+    phone: '+1 (555) 019-2834',
+    linkedIn: 'https://linkedin.com',
+    degree: 'B.S. / M.S. Software Engineering & AI',
+    city: 'Remote / Global',
+    customInstructions: 'Prioritize high-impact software engineering, machine learning, and AI infrastructure roles.',
+    bio: 'Software & AI engineer specialized in high-performance autonomous systems and full-stack software development.',
   })
   const [aiConfig, setAiConfig] = useState({
     apiKey: '',
-    model: 'llama-3.3-70b-versatile',
+    model: 'openai/gpt-oss-120b',
     provider: 'groq',
     temperature: 0.2,
     customSystemPrompt: '',
@@ -106,12 +106,26 @@ export default function App() {
               type: payload.data.contentType || 'note',
               isJobOffer: payload.data.contentType === 'job_offer',
             })
+          } else if (payload.type === 'CLIP_UPDATED' && payload.data) {
+            setClips((prev) => prev.map((c) => (c.id === payload.data.id ? payload.data : c)))
+          } else if (payload.type === 'CLIP_DELETED' && payload.data?.id) {
+            setClips((prev) => prev.filter((c) => c.id !== payload.data.id))
+          } else if (payload.type === 'CLIPS_BULK_DELETED' && Array.isArray(payload.data?.ids)) {
+            const idSet = new Set(payload.data.ids)
+            setClips((prev) => prev.filter((c) => !idSet.has(c.id)))
           } else if (payload.type === 'OFFER_CREATED' && payload.data) {
             setOffers((prev) => {
               const exists = prev.some((o) => o.id === payload.data.id)
               if (exists) return prev
               return [payload.data, ...prev]
             })
+          } else if (payload.type === 'OFFER_UPDATED' && payload.data) {
+            setOffers((prev) => prev.map((o) => (o.id === payload.data.id ? payload.data : o)))
+          } else if (payload.type === 'OFFER_DELETED' && payload.data?.id) {
+            setOffers((prev) => prev.filter((o) => o.id !== payload.data.id))
+          } else if (payload.type === 'OFFERS_BULK_DELETED' && Array.isArray(payload.data?.ids)) {
+            const idSet = new Set(payload.data.ids)
+            setOffers((prev) => prev.filter((o) => !idSet.has(o.id)))
           }
         } catch (e) {}
       }
@@ -464,13 +478,13 @@ export default function App() {
                 fontSize: '11px',
                 padding: '3px 8px',
                 borderRadius: '4px',
-                background: 'rgba(34, 197, 94, 0.1)',
-                border: '1px solid rgba(34, 197, 94, 0.3)',
-                color: '#4ade80',
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: '#FFFFFF',
                 fontWeight: 500,
               }}
             >
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e' }} />
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#FFFFFF' }} />
               <span>Groq AI ({aiConfig.model || 'openai/gpt-oss-120b'})</span>
             </div>
             
@@ -482,14 +496,14 @@ export default function App() {
                 fontSize: '11px',
                 padding: '3px 8px',
                 borderRadius: '4px',
-                background: 'rgba(16, 185, 129, 0.1)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                color: '#10b981',
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: '#D4D4D8',
                 fontWeight: 500,
               }}
             >
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
-              <span>{dbInfo?.engine === 'postgresql' ? 'PostgreSQL: pfe_hunter (5432)' : 'FastAPI Backend'}</span>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#A1A1AA' }} />
+              <span>{dbInfo?.engine === 'postgresql' ? 'PostgreSQL (5432)' : 'FastAPI Backend'}</span>
             </div>
 
             <button
@@ -531,22 +545,22 @@ export default function App() {
                 borderRadius: '6px',
                 background:
                   notificationStatus === 'granted'
-                    ? 'rgba(16, 185, 129, 0.1)'
+                    ? 'rgba(255, 255, 255, 0.08)'
                     : notificationStatus === 'denied'
-                    ? 'rgba(239, 68, 68, 0.15)'
-                    : 'rgba(245, 158, 11, 0.12)',
+                    ? 'rgba(255, 59, 48, 0.15)'
+                    : 'rgba(255, 255, 255, 0.05)',
                 border:
                   notificationStatus === 'granted'
-                    ? '1px solid rgba(16, 185, 129, 0.3)'
+                    ? '1px solid rgba(255, 255, 255, 0.25)'
                     : notificationStatus === 'denied'
-                    ? '1px solid rgba(239, 68, 68, 0.35)'
-                    : '1px solid rgba(245, 158, 11, 0.3)',
+                    ? '1px solid rgba(255, 59, 48, 0.4)'
+                    : '1px solid rgba(255, 255, 255, 0.15)',
                 color:
                   notificationStatus === 'granted'
-                    ? '#10b981'
+                    ? '#FFFFFF'
                     : notificationStatus === 'denied'
-                    ? '#ef4444'
-                    : '#fbbf24',
+                    ? '#FF3B30'
+                    : '#A1A1AA',
                 cursor: 'pointer',
                 fontWeight: 600,
                 transition: 'all 0.15s ease',
@@ -561,17 +575,17 @@ export default function App() {
             >
               {notificationStatus === 'granted' ? (
                 <>
-                  <Bell size={12} color="#10b981" />
+                  <Bell size={12} color="#FFFFFF" />
                   <span>Alerts Active</span>
                 </>
               ) : notificationStatus === 'denied' ? (
                 <>
-                  <BellOff size={12} color="#ef4444" />
+                  <BellOff size={12} color="#FF3B30" />
                   <span>Alerts Blocked (Unblock)</span>
                 </>
               ) : (
                 <>
-                  <Bell size={12} color="#fbbf24" />
+                  <Bell size={12} color="#A1A1AA" />
                   <span>Enable Alerts</span>
                 </>
               )}
@@ -726,8 +740,17 @@ export default function App() {
           <ClipVaultView
             clips={clips}
             onRefresh={loadClips}
+            onNavigate={setActiveView}
+            onTailorCv={(job) => {
+              setTailorTargetJob(job)
+              setActiveView('resume-studio')
+            }}
             onDeleteClip={async (id) => {
               await StorageService.deleteClip(id)
+              await loadClips()
+            }}
+            onBulkDeleteClips={async (ids) => {
+              await StorageService.bulkDeleteClips(ids)
               await loadClips()
             }}
             onStarClip={async (id) => {
@@ -887,8 +910,8 @@ export default function App() {
               width: '32px',
               height: '32px',
               borderRadius: '8px',
-              background: clipToast.isJobOffer ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.08)',
-              border: `1px solid ${clipToast.isJobOffer ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255, 255, 255, 0.12)'}`,
+              background: clipToast.isJobOffer ? 'rgba(255, 59, 48, 0.15)' : 'rgba(255, 255, 255, 0.08)',
+              border: `1px solid ${clipToast.isJobOffer ? 'rgba(255, 59, 48, 0.35)' : 'rgba(255, 255, 255, 0.12)'}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -899,7 +922,7 @@ export default function App() {
             {clipToast.isJobOffer ? '🎯' : '📋'}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '11px', color: clipToast.isJobOffer ? '#10b981' : '#a1a1aa', fontWeight: 600, marginBottom: '2px' }}>
+            <div style={{ fontSize: '11px', color: clipToast.isJobOffer ? '#FF3B30' : '#a1a1aa', fontWeight: 600, marginBottom: '2px' }}>
               {clipToast.isJobOffer ? 'Job Offer Detected & Routed' : 'Clip Auto-Captured to Vault'}
             </div>
             <div style={{ fontSize: '12.5px', color: '#f4f4f5', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

@@ -426,9 +426,6 @@ class RadarDesktopApp:
         os._exit(0)
 
     def start_hotkeys(self):
-        def for_canonical(f):
-            return lambda k: f(l.canonical(k))
-
         hotkey_map = {
             "<alt>+s": self.on_alt_s,
             "<alt>+r": self.on_alt_r,
@@ -475,3 +472,4 @@ class RadarDesktopApp:
 if __name__ == "__main__":
     app = RadarDesktopApp()
     app.run()
+

@@ -69,9 +69,9 @@ export function Sidebar({
   ]
 
   const channelWorkspaces = [
-    { id: 'email-workspace', label: 'Direct Email Studio', icon: Mail, count: emailOffersCount, color: '#10b981' },
-    { id: 'direct-contact', label: 'Direct DM & WhatsApp', icon: MessageSquare, count: directOffersCount, color: '#f59e0b' },
-    { id: 'external-workspace', label: 'External Portals & ATS', icon: Globe, count: externalOffersCount, color: '#a1a1aa' },
+    { id: 'email-workspace', label: 'Direct Email Studio', icon: Mail, count: emailOffersCount, color: '#D4D4D8' },
+    { id: 'direct-contact', label: 'Direct DM & WhatsApp', icon: MessageSquare, count: directOffersCount, color: '#E4E4E7' },
+    { id: 'external-workspace', label: 'External Portals & ATS', icon: Globe, count: externalOffersCount, color: '#A1A1AA' },
   ]
 
   const toolViews = [
@@ -290,7 +290,7 @@ export function Sidebar({
         title="Open RADAR mobile pairing & QR code"
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Smartphone size={13} color="#0095f6" />
+          <Smartphone size={13} color="#E4E4E7" />
           <span style={{ color: '#ffffff', fontWeight: 600 }}>RADAR Mobile</span>
         </div>
         <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontSize: '10px' }}>

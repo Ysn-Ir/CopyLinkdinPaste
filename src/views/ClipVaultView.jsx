@@ -25,6 +25,7 @@ import {
   Copy,
   Layers,
   Check,
+  Download,
 } from 'lucide-react'
 import { StorageService } from '../services/storage.js'
 
@@ -71,23 +72,26 @@ function getDomainIcon(domain) {
 function detectClipChannel(clip) {
   const text = (clip.content || '') + ' ' + (clip.summary || '')
   if (/[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+/.test(text)) {
-    return { id: 'email', label: 'Email Channel', color: '#34d399' }
+    return { id: 'email', label: 'Email Channel', color: '#FFFFFF' }
   }
   if (/(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}/.test(text) || /whatsapp|linkedin\.com\/in/i.test(text)) {
-    return { id: 'direct_contact', label: 'Direct DM / WA', color: '#2dd4bf' }
+    return { id: 'direct_contact', label: 'Direct DM / WA', color: '#D4D4D8' }
   }
-  return { id: 'external', label: 'ATS Portal', color: '#94a3b8' }
+  return { id: 'external', label: 'ATS Portal', color: '#A1A1AA' }
 }
 
 export function ClipVaultView({
   clips,
   onRefresh,
   onDeleteClip,
+  onBulkDeleteClips,
   onStarClip,
   onConvertToOffer,
   onSyncAllClips,
   clipboardMonitorActive,
   onToggleMonitor,
+  onNavigate,
+  onTailorCv,
 }) {
   const [search, setSearch] = useState('')
   const [activeType, setActiveType] = useState('all')
@@ -101,6 +105,7 @@ export function ClipVaultView({
   const [bulkInputText, setBulkInputText] = useState('')
   const [isBulkProcessing, setIsBulkProcessing] = useState(false)
   const [copiedId, setCopiedId] = useState(null)
+  const [selectedClipIds, setSelectedClipIds] = useState(new Set())
   const fileInputRef = useRef(null)
 
   const handleEnrichClip = async (clipId) => {
@@ -141,6 +146,43 @@ export function ClipVaultView({
     navigator.clipboard.writeText(text)
     setCopiedId(id || 'copied')
     setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  const handleExportLeadsCsv = () => {
+    const leads = clips.filter((c) => c.contentType === 'contact_lead')
+    if (leads.length === 0) {
+      alert('No recruiter or contact leads found in vault to export.')
+      return
+    }
+    const headers = ['ID', 'Title', 'Contact Name', 'Role', 'Company', 'Email', 'Phone', 'Source URL', 'Captured At', 'Summary']
+    const rows = leads.map((c) => {
+      const e = c.entities || {}
+      const email = (e.emails && e.emails[0]) || ''
+      const phone = (e.phones && e.phones[0]) || ''
+      const name = e.contactName || (e.people && e.people[0]) || ''
+      const role = e.role || ''
+      const company = (e.organizations && e.organizations[0]) || c.sourceDomain || ''
+      return [
+        `"${c.id}"`,
+        `"${(c.title || '').replace(/"/g, '""')}"`,
+        `"${name.replace(/"/g, '""')}"`,
+        `"${role.replace(/"/g, '""')}"`,
+        `"${company.replace(/"/g, '""')}"`,
+        `"${email.replace(/"/g, '""')}"`,
+        `"${phone.replace(/"/g, '""')}"`,
+        `"${(c.sourceUrl || '').replace(/"/g, '""')}"`,
+        `"${c.createdAt || ''}"`,
+        `"${(c.summary || '').replace(/"/g, '""')}"`,
+      ].join(',')
+    })
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n')
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', `radar_recruiter_leads_${Date.now()}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   const handleScreenshotUpload = async (e) => {
@@ -286,6 +328,31 @@ export function ClipVaultView({
             <Layers size={13} />
             <span>Bulk Clean & Import</span>
           </button>
+
+          {/* Export Leads CSV */}
+          {clips.some((c) => c.contentType === 'contact_lead') && (
+            <button
+              onClick={handleExportLeadsCsv}
+              title="Export all parsed recruiter contacts and leads to CSV"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '8px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--border-default)',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: 600,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Download size={13} />
+              <span>Export Leads (CSV)</span>
+            </button>
+          )}
 
           {/* Monitor toggle */}
           <button
@@ -519,7 +586,96 @@ export function ClipVaultView({
         <span><strong style={{ color: '#10b981' }}>{clips.filter((c) => c.convertedToOffer).length}</strong> routed to offers</span>
         <span><strong style={{ color: '#e2e8f0' }}>{domains.length - 1}</strong> web sources</span>
         <span>Showing: <strong>{filteredClips.length}</strong></span>
+        {filteredClips.length > 0 && (
+          <button
+            onClick={() => {
+              if (selectedClipIds.size === filteredClips.length) {
+                setSelectedClipIds(new Set())
+              } else {
+                setSelectedClipIds(new Set(filteredClips.map((c) => c.id)))
+              }
+            }}
+            style={{
+              marginLeft: 'auto',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              border: '1px solid var(--border-default)',
+              background: 'transparent',
+              color: 'var(--text-secondary)',
+              fontSize: '11px',
+              cursor: 'pointer',
+            }}
+          >
+            {selectedClipIds.size === filteredClips.length ? 'Deselect All' : 'Select All'}
+          </button>
+        )}
       </div>
+
+      {/* Bulk Selection Action Bar */}
+      {selectedClipIds.size > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '10px 16px',
+            backgroundColor: '#18181B',
+            border: '1px solid #FF3B30',
+            borderRadius: '8px',
+            marginBottom: '14px',
+            flexWrap: 'wrap',
+            gap: '10px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#FFFFFF' }}>
+              {selectedClipIds.size} signal{selectedClipIds.size > 1 ? 's' : ''} selected
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => {
+                if (window.confirm(`Delete ${selectedClipIds.size} selected signals permanently?`)) {
+                  if (onBulkDeleteClips) {
+                    onBulkDeleteClips(Array.from(selectedClipIds))
+                    setSelectedClipIds(new Set())
+                  }
+                }
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                backgroundColor: '#FF3B30',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
+              }}
+            >
+              <Trash2 size={13} />
+              Delete Selected ({selectedClipIds.size})
+            </button>
+            <button
+              onClick={() => setSelectedClipIds(new Set())}
+              style={{
+                padding: '6px 12px',
+                backgroundColor: 'transparent',
+                color: '#A1A1AA',
+                border: '1px solid #27272A',
+                borderRadius: '6px',
+                fontSize: '12px',
+                cursor: 'pointer',
+              }}
+            >
+              Clear Selection
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Clips Grid */}
       {filteredClips.length === 0 ? (
@@ -536,7 +692,7 @@ export function ClipVaultView({
           <p style={{ fontSize: '14px', fontWeight: 600 }}>No clips captured yet</p>
           <p style={{ fontSize: '12px', maxWidth: '350px', marginTop: '6px' }}>
             {clipboardMonitorActive
-              ? 'Copy text from any site or app — OmniMemory AI will classify and organize it automatically.'
+              ? 'Copy text from any site or app — RADAR Signal Engine will classify and organize it automatically.'
               : 'Turn on Auto-Capture above to automatically remember everything you copy.'}
           </p>
         </div>
@@ -564,6 +720,26 @@ export function ClipVaultView({
                 {/* Top row: Type + Channel Badge + Title + Actions */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0, flexWrap: 'wrap' }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedClipIds.has(clip.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        e.stopPropagation()
+                        const next = new Set(selectedClipIds)
+                        if (next.has(clip.id)) next.delete(clip.id)
+                        else next.add(clip.id)
+                        setSelectedClipIds(next)
+                      }}
+                      style={{
+                        accentColor: '#FF3B30',
+                        cursor: 'pointer',
+                        width: '14px',
+                        height: '14px',
+                        marginRight: '2px',
+                      }}
+                    />
+
                     {/* Type badge */}
                     <span style={{
                       display: 'inline-flex',
@@ -1026,9 +1202,43 @@ export function ClipVaultView({
                     cursor: 'pointer',
                   }}
                 >
-                  {copiedId === 'modal-content' ? <Check size={13} style={{ color: '#10b981' }} /> : <Copy size={13} />}
+                  {copiedId === 'modal-content' ? <Check size={13} style={{ color: '#FFFFFF' }} /> : <Copy size={13} />}
                   <span>{copiedId === 'modal-content' ? 'Copied!' : 'Copy Full Text'}</span>
                 </button>
+
+                {/* Direct Action: Tailor ATS Resume with LaTeX */}
+                {(selectedClip.contentType === 'job_offer' || /engineer|developer|intern|job|stage|hiring|recrute/i.test(selectedClip.content)) && onTailorCv && (
+                  <button
+                    onClick={() => {
+                      const jobObj = {
+                        title: selectedClip.title,
+                        company: selectedClip.entities?.jobData?.company || selectedClip.sourceDomain || 'Target Company',
+                        location: selectedClip.entities?.jobData?.location || 'Remote / Hybrid',
+                        description: selectedClip.content,
+                        category: selectedClip.entities?.jobData?.category || 'dev-fullstack',
+                        skills: selectedClip.tags || [],
+                      }
+                      onTailorCv(jobObj)
+                      setSelectedClip(null)
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      background: '#FF3B30',
+                      border: 'none',
+                      color: '#FFFFFF',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <FileText size={13} />
+                    <span>Tailor ATS Resume (LaTeX)</span>
+                  </button>
+                )}
 
                 {!selectedClip.convertedToOffer && (selectedClip.contentType === 'job_offer' || /stage|pfe|recrute|hiring|candidat|poste|cdi|internship|job/i.test(selectedClip.content)) && (
                   <button
@@ -1042,9 +1252,9 @@ export function ClipVaultView({
                       gap: '5px',
                       padding: '7px 14px',
                       borderRadius: '8px',
-                      background: 'rgba(16, 185, 129, 0.15)',
-                      border: '1px solid rgba(16, 185, 129, 0.4)',
-                      color: '#10b981',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      color: '#FFFFFF',
                       fontSize: '12px',
                       fontWeight: 700,
                       cursor: 'pointer',
@@ -1055,6 +1265,90 @@ export function ClipVaultView({
                   </button>
                 )}
               </div>
+
+              {/* Recruiter / Contact Lead Entity Card */}
+              {(selectedClip.contentType === 'contact_lead' || selectedClip.entities?.contactData) && (
+                <div style={{ padding: '14px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '10px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 800, color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                    👤 Recruiter & Contact Lead Intelligence
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', fontSize: '12px' }}>
+                    {selectedClip.entities?.contactData?.name && (
+                      <div><strong style={{ color: '#A1A1AA' }}>Name:</strong> <span style={{ color: '#FFFFFF' }}>{selectedClip.entities.contactData.name}</span></div>
+                    )}
+                    {selectedClip.entities?.contactData?.role && (
+                      <div><strong style={{ color: '#A1A1AA' }}>Role:</strong> <span style={{ color: '#FFFFFF' }}>{selectedClip.entities.contactData.role}</span></div>
+                    )}
+                    {selectedClip.entities?.contactData?.company && (
+                      <div><strong style={{ color: '#A1A1AA' }}>Company:</strong> <span style={{ color: '#FFFFFF' }}>{selectedClip.entities.contactData.company}</span></div>
+                    )}
+                    {selectedClip.entities?.contactData?.email && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <strong style={{ color: '#A1A1AA' }}>Email:</strong>
+                        <button
+                          onClick={() => handleCopyText(selectedClip.entities.contactData.email, 'recruiter-email')}
+                          style={{ background: 'transparent', border: 'none', color: '#FFFFFF', textDecoration: 'underline', cursor: 'pointer', padding: 0, fontSize: '12px' }}
+                        >
+                          {selectedClip.entities.contactData.email} {copiedId === 'recruiter-email' ? '✓' : ''}
+                        </button>
+                      </div>
+                    )}
+                    {selectedClip.entities?.contactData?.phone && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <strong style={{ color: '#A1A1AA' }}>Phone / WA:</strong>
+                        <button
+                          onClick={() => handleCopyText(selectedClip.entities.contactData.phone, 'recruiter-phone')}
+                          style={{ background: 'transparent', border: 'none', color: '#FFFFFF', textDecoration: 'underline', cursor: 'pointer', padding: 0, fontSize: '12px' }}
+                        >
+                          {selectedClip.entities.contactData.phone} {copiedId === 'recruiter-phone' ? '✓' : ''}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {selectedClip.entities?.contactData?.outreachIcebreaker && (
+                    <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '11px', color: '#A1A1AA', fontWeight: 600 }}>Suggested Icebreaker Note:</span>
+                        <button
+                          onClick={() => handleCopyText(selectedClip.entities.contactData.outreachIcebreaker, 'icebreaker')}
+                          style={{ background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                        >
+                          {copiedId === 'icebreaker' ? 'Copied!' : 'Copy Icebreaker'}
+                        </button>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '12px', fontStyle: 'italic', color: '#D4D4D8', lineHeight: 1.5 }}>
+                        "{selectedClip.entities.contactData.outreachIcebreaker}"
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Media, Game & Movie Intelligence Card */}
+              {(selectedClip.contentType === 'general_media' || selectedClip.entities?.mediaData) && (
+                <div style={{ padding: '14px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '10px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 800, color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                    🎮 Media, Gaming & Entertainment Intelligence
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px', fontSize: '12px' }}>
+                    {selectedClip.entities?.mediaData?.title && (
+                      <div><strong style={{ color: '#A1A1AA' }}>Title:</strong> <span style={{ color: '#FFFFFF' }}>{selectedClip.entities.mediaData.title}</span></div>
+                    )}
+                    {selectedClip.entities?.mediaData?.medium && (
+                      <div><strong style={{ color: '#A1A1AA' }}>Medium:</strong> <span style={{ color: '#FFFFFF' }}>{selectedClip.entities.mediaData.medium}</span></div>
+                    )}
+                    {selectedClip.entities?.mediaData?.genre && (
+                      <div><strong style={{ color: '#A1A1AA' }}>Genre:</strong> <span style={{ color: '#FFFFFF' }}>{selectedClip.entities.mediaData.genre}</span></div>
+                    )}
+                    {selectedClip.entities?.mediaData?.rating && (
+                      <div><strong style={{ color: '#A1A1AA' }}>Rating / Score:</strong> <span style={{ color: '#FFFFFF' }}>{selectedClip.entities.mediaData.rating}</span></div>
+                    )}
+                    {selectedClip.entities?.mediaData?.platformOrNetwork && (
+                      <div><strong style={{ color: '#A1A1AA' }}>Platform / Network:</strong> <span style={{ color: '#FFFFFF' }}>{selectedClip.entities.mediaData.platformOrNetwork}</span></div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Multi-link Parent Reference Card */}
               {selectedClip.entities?.parentPost && (
@@ -1089,9 +1383,9 @@ export function ClipVaultView({
 
               {/* Video Takeaways */}
               {(selectedClip.contentType === 'educational_video' || selectedClip.entities?.videoData) && (
-                <div style={{ padding: '14px', background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '10px' }}>
+                <div style={{ padding: '14px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '10px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                       🎬 Video Key Takeaways & Educational Breakdown
                     </span>
                     {selectedClip.entities?.videoData?.creator && (
@@ -1114,7 +1408,7 @@ export function ClipVaultView({
                   )}
                   {Array.isArray(selectedClip.entities?.videoData?.toolsMentioned) && selectedClip.entities.videoData.toolsMentioned.length > 0 && (
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', marginTop: '8px' }}>
-                      <span style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 700 }}>Tools Mentioned:</span>
+                      <span style={{ fontSize: '11px', color: '#D4D4D8', fontWeight: 700 }}>Tools Mentioned:</span>
                       {selectedClip.entities.videoData.toolsMentioned.map((t, idx) => (
                         <span key={idx} style={{ fontSize: '11px', padding: '2px 7px', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.08)', color: '#ffffff' }}>
                           {t}
@@ -1133,7 +1427,7 @@ export function ClipVaultView({
                   </div>
                   <button
                     onClick={() => handleCopyText(selectedClip.content, 'full-text')}
-                    style={{ background: 'transparent', border: 'none', color: '#10b981', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                    style={{ background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
                   >
                     Copy Text
                   </button>
@@ -1224,7 +1518,7 @@ export function ClipVaultView({
                   Bulk Multi-Link & Text Cleaner
                 </h3>
                 <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: '4px 0 0 0' }}>
-                  Paste a messy block of text, newsletter, or list of URLs. OmniHunt isolates each link, scrapes each page, and saves discrete items.
+                  Paste a messy block of text, newsletter, or list of URLs. RADAR isolates each link, scrapes each page, and saves discrete items.
                 </p>
               </div>
               <button

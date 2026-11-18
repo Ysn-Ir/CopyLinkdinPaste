@@ -256,3 +256,18 @@ async def run_hunt_async(
             "completedAt": datetime.utcnow().isoformat()
         })
         return []
+
+
+def cancel_active_hunt() -> bool:
+    """Cancels the active autonomous scrape."""
+    if active_hunt_state.get("status") == "running":
+        active_hunt_state.update({
+            "status": "cancelled",
+            "progress": 0,
+            "completedAt": datetime.utcnow().isoformat()
+        })
+        logger.info("Active hunt was cancelled.")
+        return True
+    return False
+
+

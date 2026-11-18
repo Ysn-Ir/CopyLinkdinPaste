@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from .config import HOST, PORT, GROQ_API_KEY, DEFAULT_MODEL
-from .database import engine, Base, get_db, DB_ENGINE_TYPE
+from .database import engine, Base, get_db, SessionLocal, DB_ENGINE_TYPE
 from .models import OfferModel, CvVaultModel, UserProfileModel, AiConfigModel, CategoryModel, ClipVaultModel
 from .schemas import (
     OfferSchema,
@@ -24,9 +24,14 @@ from .schemas import (
     CategorySchema,
     ClipSchema,
     ClipIngestSchema,
+    ClipUpdateSchema,
     AiChatRequest,
     ClipOcrRequest,
     BulkIngestSchema,
+    BulkDeleteSchema,
+    HuntRequestSchema,
+    SaveHuntJobSchema,
+    TailorCvRequest,
 )
 from .ai_service import (
     call_groq_chat,
@@ -38,17 +43,17 @@ from .ai_service import (
 )
 from .scraper_service import scrape_url_metadata
 from .events import broadcaster
-from .scraper_jobspy import run_hunt_async, active_hunt_state
+from .scraper_jobspy import run_hunt_async, active_hunt_state, cancel_active_hunt
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("pfe_hunter.api")
+logger = logging.getLogger("radar.api")
 
 # Create all database tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="PFE Hunter • Career Command Center API",
-    description="High-performance FastAPI & PostgreSQL backend for LinkedIn & PFE offer extraction",
+    title="RADAR • Autonomous Intelligence & Career Command Center API",
+    description="High-performance FastAPI backend for RADAR autonomous clipboard vault, screen capture, ATS resume intelligence, and multi-source job hunting",
     version="2.0.0"
 )
 
@@ -56,7 +61,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -67,9 +72,9 @@ INITIAL_CATEGORIES = [
         "id": "ai-ml",
         "label": "AI & Machine Learning",
         "short_label": "AI / ML",
-        "color": "#0ea5e9",
-        "bg_color": "rgba(14, 165, 233, 0.12)",
-        "border_color": "rgba(14, 165, 233, 0.35)",
+        "color": "#FFFFFF",
+        "bg_color": "rgba(255, 255, 255, 0.08)",
+        "border_color": "rgba(255, 255, 255, 0.2)",
         "default_cv_tag": "CV - AI & Machine Learning",
         "keywords": ["ai", "ia", "machine learning", "deep learning", "nlp", "llm", "computer vision", "pytorch", "transformers", "genai", "rag"],
         "is_custom": False,
@@ -78,9 +83,9 @@ INITIAL_CATEGORIES = [
         "id": "data",
         "label": "Data Science & Engineering",
         "short_label": "Data",
-        "color": "#06b6d4",
-        "bg_color": "rgba(6, 182, 212, 0.12)",
-        "border_color": "rgba(6, 182, 212, 0.35)",
+        "color": "#E4E4E7",
+        "bg_color": "rgba(255, 255, 255, 0.06)",
+        "border_color": "rgba(255, 255, 255, 0.15)",
         "default_cv_tag": "CV - Data Science & Analytics",
         "keywords": ["data", "data engineer", "data scientist", "bi", "spark", "sql", "etl", "analytics", "big data", "snowflake"],
         "is_custom": False,
@@ -89,20 +94,20 @@ INITIAL_CATEGORIES = [
         "id": "dev-fullstack",
         "label": "Software & Fullstack Dev",
         "short_label": "Software Dev",
-        "color": "#3b82f6",
-        "bg_color": "rgba(59, 130, 246, 0.12)",
-        "border_color": "rgba(59, 130, 246, 0.35)",
+        "color": "#FFFFFF",
+        "bg_color": "rgba(255, 255, 255, 0.08)",
+        "border_color": "rgba(255, 255, 255, 0.2)",
         "default_cv_tag": "CV - Software & Fullstack Dev",
-        "keywords": ["dev", "developer", "développeur", "software", "fullstack", "frontend", "backend", "react", "node", "python", "java", "golang", "typescript"],
+        "keywords": ["dev", "developer", "software", "fullstack", "frontend", "backend", "react", "node", "python", "java", "golang", "typescript"],
         "is_custom": False,
     },
     {
         "id": "devops-cloud",
         "label": "DevOps & Cloud Infrastructure",
         "short_label": "DevOps / Cloud",
-        "color": "#10b981",
-        "bg_color": "rgba(16, 185, 129, 0.12)",
-        "border_color": "rgba(16, 185, 129, 0.35)",
+        "color": "#D4D4D8",
+        "bg_color": "rgba(255, 255, 255, 0.06)",
+        "border_color": "rgba(255, 255, 255, 0.15)",
         "default_cv_tag": "CV - Cloud & DevOps",
         "keywords": ["devops", "cloud", "aws", "azure", "gcp", "docker", "kubernetes", "k8s", "terraform", "ci/cd"],
         "is_custom": False,
@@ -111,31 +116,31 @@ INITIAL_CATEGORIES = [
         "id": "cybersecurity",
         "label": "Cybersecurity & InfoSec",
         "short_label": "Cybersecurity",
-        "color": "#f43f5e",
-        "bg_color": "rgba(244, 63, 94, 0.12)",
-        "border_color": "rgba(244, 63, 94, 0.35)",
+        "color": "#FF3B30",
+        "bg_color": "rgba(255, 59, 48, 0.1)",
+        "border_color": "rgba(255, 59, 48, 0.3)",
         "default_cv_tag": "CV - Cybersecurity",
-        "keywords": ["cyber", "cybersecurity", "sécurité", "security", "pentest", "soc", "siem", "cryptography"],
+        "keywords": ["cyber", "cybersecurity", "security", "pentest", "soc", "siem", "cryptography"],
         "is_custom": False,
     },
     {
         "id": "embedded-iot",
         "label": "Embedded & IoT / Systems",
         "short_label": "Embedded / IoT",
-        "color": "#f59e0b",
-        "bg_color": "rgba(245, 158, 11, 0.12)",
-        "border_color": "rgba(245, 158, 11, 0.35)",
+        "color": "#A1A1AA",
+        "bg_color": "rgba(255, 255, 255, 0.05)",
+        "border_color": "rgba(255, 255, 255, 0.12)",
         "default_cv_tag": "CV - Embedded Systems",
-        "keywords": ["embarqué", "embedded", "iot", "c/c++", "firmware", "stm32", "microcontroller", "robotics"],
+        "keywords": ["embedded", "iot", "c/c++", "firmware", "stm32", "microcontroller", "robotics"],
         "is_custom": False,
     },
     {
         "id": "other",
         "label": "General / Other Domains",
         "short_label": "Other",
-        "color": "#8b5cf6",
-        "bg_color": "rgba(139, 92, 246, 0.12)",
-        "border_color": "rgba(139, 92, 246, 0.35)",
+        "color": "#71717A",
+        "bg_color": "rgba(255, 255, 255, 0.04)",
+        "border_color": "rgba(255, 255, 255, 0.1)",
         "default_cv_tag": "CV - General Engineering",
         "keywords": [],
         "is_custom": False,
@@ -153,90 +158,88 @@ INITIAL_CV_LIST = [
 INITIAL_OFFERS = [
     {
         "id": "offer-1",
-        "title": "Stage PFE - Ingénieur R&D en Traitement du Langage Naturel & LLM",
+        "title": "Machine Learning Engineer - Autonomous LLM Infrastructure",
         "company": "Mistral AI",
-        "location": "Paris, France (Hybride)",
+        "location": "Remote / Paris, France",
         "category": "ai-ml",
-        "categoryReasoning": "Focus direct sur le NLP, architectures Transformers et modèles fondations.",
+        "categoryReasoning": "Focus on transformer inference architectures, vLLM acceleration, and large models.",
         "channel": "email",
-        "recruiterEmail": "recrutement-pfe@mistral.ai",
+        "recruiterEmail": "careers@mistral.ai",
         "recruiterName": "Alexandre Dupont",
         "sharer": {
             "name": "Alexandre Dupont",
-            "title": "Lead Tech Recruiter & AI Partnerships @ Mistral AI",
+            "title": "Lead Technical Recruiter @ Mistral AI",
             "profileUrl": "https://linkedin.com/in/alexandre-dupont-mistral",
             "phone": "+33 6 42 18 90 12"
         },
         "skills": ["Python", "PyTorch", "Transformers", "NLP", "LLMs", "vLLM", "FlashAttention"],
-        "description": "Nous recherchons un(e) stagiaire PFE passionné(e) par l'entraînement et l'optimisation des grands modèles de langage. Contactez Alexandre Dupont sur LinkedIn ou envoyez directement votre candidature à recrutement-pfe@mistral.ai.",
-        "sourceUrl": "https://linkedin.com/posts/mistral-ai-pfe-nlp-2025",
-        "imageUrl": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
+        "description": "We are seeking a Machine Learning Engineer passionate about training and optimizing foundation models and low-latency inference pipelines. Email your CV and GitHub to careers@mistral.ai.",
+        "sourceUrl": "https://linkedin.com/posts/mistral-ai-llm-infra",
+        "imageUrl": "",
         "status": "ready",
         "attachedCvTag": "CV - AI & Machine Learning",
         "confidence": 0.98,
-        "linkedInNote": "Bonjour Alexandre, élève ingénieur passionné par le NLP et les architectures transformers, je serais ravi d'échanger au sujet du stage PFE chez Mistral AI.",
-        "whatsAppMsg": "Bonjour Alexandre, je vous contacte suite à votre offre de stage PFE R&D NLP chez Mistral AI. Je serais ravi de vous présenter mon parcours en Deep Learning.",
-        "notes": "Poste prioritaire ! Alexandre est actif sur LinkedIn le matin."
+        "linkedInNote": "Hi Alexandre, I saw your post regarding LLM infrastructure at Mistral AI. I specialize in transformer optimization and distributed inference and would love to connect.",
+        "whatsAppMsg": "Hi Alexandre, I saw your LinkedIn post for the ML Infrastructure role at Mistral AI. I would be thrilled to discuss how my distributed systems and NLP background aligns.",
+        "notes": "High priority target role."
     },
     {
         "id": "offer-2",
-        "title": "Stage PFE - Deep Learning & Vision par Ordinateur Temps Réel",
+        "title": "Real-Time Computer Vision & Edge AI Engineer",
         "company": "NeuroVision Systems",
-        "location": "Lyon, France / Télétravail",
+        "location": "Remote / Global",
         "category": "ai-ml",
-        "categoryReasoning": "Algorithmes de détection d'objets, YOLOv10 et segmentation d'images.",
+        "categoryReasoning": "Object detection algorithms, YOLOv10 and edge segmentation pipelines.",
         "channel": "direct_contact",
         "recruiterEmail": "",
         "recruiterName": "Karim Mansouri",
         "sharer": {
             "name": "Karim Mansouri",
-            "title": "Directeur R&D & Fondateur @ NeuroVision",
+            "title": "VP Engineering @ NeuroVision",
             "profileUrl": "https://linkedin.com/in/karim-mansouri-vision",
             "phone": "+33 6 98 76 54 32"
         },
         "skills": ["Python", "OpenCV", "TensorFlow", "YOLO", "Edge AI", "CUDA"],
-        "description": "Pour postuler : m'envoyer directement un message privé sur LinkedIn ou WhatsApp au 06 98 76 54 32 avec votre lien GitHub et vos réalisations.",
-        "sourceUrl": "https://linkedin.com/posts/karim-mansouri-neurovision-pfe",
-        "imageUrl": "https://images.unsplash.com/photo-1507146426996-ef05306b995a?auto=format&fit=crop&w=1200&q=80",
+        "description": "Apply directly via DM on LinkedIn or WhatsApp at +33 6 98 76 54 32 with your GitHub repository link and top achievements.",
+        "sourceUrl": "https://linkedin.com/posts/karim-mansouri-neurovision-edge",
+        "imageUrl": "",
         "status": "saved",
         "attachedCvTag": "CV - AI & Machine Learning",
         "confidence": 0.95,
-        "linkedInNote": "Bonjour Karim, passionné par la Computer Vision et le Deep Learning temps réel, je serais honoré d'échanger sur votre stage chez NeuroVision.",
-        "whatsAppMsg": "Bonjour Karim, je vous contacte suite à votre post LinkedIn concernant le stage PFE Vision par Ordinateur chez NeuroVision Systems.",
-        "notes": "Demande directe via WhatsApp possible."
+        "linkedInNote": "Hi Karim, I came across your post for the Edge AI Computer Vision role at NeuroVision. I have extensive experience in TensorRT and real-time streaming detection.",
+        "whatsAppMsg": "Hi Karim, following up on your post regarding the Computer Vision Engineer role at NeuroVision Systems. Here is my profile and portfolio.",
+        "notes": "Direct contact via WhatsApp enabled."
     },
     {
         "id": "offer-3",
-        "title": "Stage PFE - Ingénieur Fullstack & Plateforme Distribuée",
-        "company": "Datadog Tech",
-        "location": "Paris, France",
+        "title": "Staff Fullstack & Distributed Platform Engineer",
+        "company": "Datadog",
+        "location": "Remote / New York",
         "category": "dev-fullstack",
-        "categoryReasoning": "Développement backend Node.js / Go et interfaces React haute performance.",
+        "categoryReasoning": "High-throughput telemetry ingestion, Go backends, and low-latency React visualization.",
         "channel": "external",
         "recruiterEmail": "",
         "recruiterName": "Sophie Laurent",
         "sharer": {
             "name": "Sophie Laurent",
-            "title": "University Recruiting Lead @ Datadog",
+            "title": "Staff Engineering Recruiter @ Datadog",
             "profileUrl": "https://linkedin.com/in/sophie-laurent-datadog",
             "phone": ""
         },
         "skills": ["TypeScript", "React", "Go", "Distributed Systems", "Docker", "GraphQL"],
-        "description": "Postulez directement sur notre portail Workday Carrières. Lettre de motivation en anglais ou français demandée.",
-        "sourceUrl": "https://careers.datadoghq.com/detail/pfe-intern-distributed-systems",
-        "imageUrl": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",
+        "description": "Apply directly via our career portal. Looking for engineers experienced in highly concurrent distributed services and real-time frontend architectures.",
+        "sourceUrl": "https://careers.datadoghq.com/detail/distributed-systems-engineer",
+        "imageUrl": "",
         "status": "saved",
         "attachedCvTag": "CV - Software & Fullstack Dev",
         "confidence": 0.93,
-        "linkedInNote": "Bonjour Sophie, très intéressé par l'architecture des systèmes distribués chez Datadog, je viens de déposer mon dossier sur le portail carrières.",
-        "notes": "Lettre de motivation LaTeX générée et prête pour le portail."
+        "linkedInNote": "Hi Sophie, very interested in distributed telemetry architectures at Datadog. I have submitted my tailored application through the career portal.",
+        "notes": "LaTeX ATS-optimized resume ready for submission."
     }
 ]
 
 @app.on_event("startup")
 def seed_database():
-    db = SessionLocal = None
-    from .database import SessionLocal
     db = SessionLocal()
     try:
         # Check offers
@@ -353,7 +356,7 @@ def get_db_stats(db: Session = Depends(get_db)):
     return {
         "engine": DB_ENGINE_TYPE,
         "database": "postgresql" if DB_ENGINE_TYPE == "postgresql" else "sqlite",
-        "dbPath": "PostgreSQL (localhost:5432/pfe_hunter)" if DB_ENGINE_TYPE == "postgresql" else "data/pfe_hunter.db",
+        "dbPath": "PostgreSQL (5432)" if DB_ENGINE_TYPE == "postgresql" else "data/radar.db",
         "connected": True,
         "counts": {
             "offers": offer_count,
@@ -412,7 +415,7 @@ def get_mobile_pairing(db: Session = Depends(get_db)):
 
     return {
         "status": "online",
-        "app": "PFE Hunter • Career Command Center",
+        "app": "RADAR • Autonomous Intelligence Command Center",
         "version": "2.0.0",
         "hostname": hostname,
         "primaryIp": primary_ip,
@@ -540,7 +543,7 @@ def export_offers_csv(
         ])
 
     csv_content = output.getvalue()
-    filename = f"omnihunt_offers_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+    filename = f"radar_offers_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
 
     return Response(
         content="\ufeff" + csv_content,
@@ -567,7 +570,7 @@ def sync_offers(payload: dict, db: Session = Depends(get_db)):
         top3_str = json.dumps(item.get("top3Guesses") or [])
 
         data = {
-            "title": item.get("title") or "Stage PFE",
+            "title": item.get("title") or "Engineering Opportunity",
             "company": item.get("company") or "",
             "location": item.get("location") or "",
             "category": item.get("category") or "dev-fullstack",
@@ -606,6 +609,15 @@ def sync_offers(payload: dict, db: Session = Depends(get_db)):
 
     db.commit()
     return {"success": True, "count": len(updated), "offers": [o.to_dict() for o in updated]}
+
+
+@app.get("/api/offers/{offer_id}")
+def get_offer_by_id(offer_id: str, db: Session = Depends(get_db)):
+    """Fetch individual offer details by offer ID"""
+    offer = db.query(OfferModel).filter_by(id=offer_id).first()
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer not found")
+    return offer.to_dict()
 
 
 @app.post("/api/offers", status_code=status.HTTP_201_CREATED)
@@ -648,6 +660,7 @@ def create_offer(offer: OfferSchema, db: Session = Depends(get_db)):
     db.add(m)
     db.commit()
     db.refresh(m)
+    broadcaster.broadcast("OFFER_CREATED", m.to_dict())
     return m.to_dict()
 
 
@@ -657,34 +670,55 @@ def update_offer(offer_id: str, offer: OfferSchema, db: Session = Depends(get_db
     if not existing:
         raise HTTPException(status_code=404, detail="Offer not found")
 
-    existing.title = offer.title
-    existing.company = offer.company or ""
-    existing.location = offer.location or ""
-    existing.category = offer.category or existing.category
-    existing.category_reasoning = offer.categoryReasoning or existing.category_reasoning
-    existing.channel = offer.channel or existing.channel
-    existing.recruiter_email = offer.recruiterEmail or ""
-    existing.recruiter_name = offer.recruiterName or ""
-    if offer.sharer:
+    if offer.title is not None:
+        existing.title = offer.title
+    if offer.company is not None:
+        existing.company = offer.company
+    if offer.location is not None:
+        existing.location = offer.location
+    if offer.category is not None:
+        existing.category = offer.category
+    if offer.categoryReasoning is not None:
+        existing.category_reasoning = offer.categoryReasoning
+    if offer.channel is not None:
+        existing.channel = offer.channel
+    if offer.recruiterEmail is not None:
+        existing.recruiter_email = offer.recruiterEmail
+    if offer.recruiterName is not None:
+        existing.recruiter_name = offer.recruiterName
+    if offer.sharer is not None:
         existing.sharer_json = json.dumps(offer.sharer)
     if offer.skills is not None:
         existing.skills_json = json.dumps(offer.skills)
-    existing.description = offer.description or existing.description
-    existing.source_url = offer.sourceUrl or existing.source_url
-    existing.image_url = offer.imageUrl or existing.image_url
-    existing.status = offer.status or existing.status
-    existing.attached_cv_tag = offer.attachedCvTag or existing.attached_cv_tag
-    existing.attached_cv_id = offer.attachedCvId or existing.attached_cv_id
-    existing.linked_in_note = offer.linkedInNote or existing.linked_in_note
-    existing.whats_app_msg = offer.whatsAppMsg or existing.whats_app_msg
-    existing.custom_email_subject = offer.customEmailSubject or existing.custom_email_subject
-    existing.custom_email_body = offer.customEmailBody or existing.custom_email_body
-    existing.custom_cover_letter = offer.customCoverLetter or existing.custom_cover_letter
-    existing.notes = offer.notes or existing.notes
+    if offer.description is not None:
+        existing.description = offer.description
+    if offer.sourceUrl is not None:
+        existing.source_url = offer.sourceUrl
+    if offer.imageUrl is not None:
+        existing.image_url = offer.imageUrl
+    if offer.status is not None:
+        existing.status = offer.status
+    if offer.attachedCvTag is not None:
+        existing.attached_cv_tag = offer.attachedCvTag
+    if offer.attachedCvId is not None:
+        existing.attached_cv_id = offer.attachedCvId
+    if offer.linkedInNote is not None:
+        existing.linked_in_note = offer.linkedInNote
+    if offer.whatsAppMsg is not None:
+        existing.whats_app_msg = offer.whatsAppMsg
+    if offer.customEmailSubject is not None:
+        existing.custom_email_subject = offer.customEmailSubject
+    if offer.customEmailBody is not None:
+        existing.custom_email_body = offer.customEmailBody
+    if offer.customCoverLetter is not None:
+        existing.custom_cover_letter = offer.customCoverLetter
+    if offer.notes is not None:
+        existing.notes = offer.notes
     existing.updated_at = datetime.utcnow().isoformat()
 
     db.commit()
     db.refresh(existing)
+    broadcaster.broadcast("OFFER_UPDATED", existing.to_dict())
     return existing.to_dict()
 
 
@@ -695,7 +729,19 @@ def delete_offer(offer_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Offer not found")
     db.delete(existing)
     db.commit()
+    broadcaster.broadcast("OFFER_DELETED", {"id": offer_id})
     return {"success": True, "id": offer_id}
+
+
+@app.delete("/api/offers/bulk")
+def bulk_delete_offers(req: BulkDeleteSchema, db: Session = Depends(get_db)):
+    """Deletes multiple offers in a single batch operation"""
+    if not req.ids:
+        return {"success": True, "deletedCount": 0}
+    db.query(OfferModel).filter(OfferModel.id.in_(req.ids)).delete(synchronize_session=False)
+    db.commit()
+    broadcaster.broadcast("OFFERS_BULK_DELETED", {"ids": req.ids})
+    return {"success": True, "deletedCount": len(req.ids)}
 
 
 @app.patch("/api/offers/{offer_id}/status")
@@ -711,6 +757,7 @@ def update_offer_status(offer_id: str, payload: dict, db: Session = Depends(get_
     existing.updated_at = datetime.utcnow().isoformat()
     db.commit()
     db.refresh(existing)
+    broadcaster.broadcast("OFFER_UPDATED", existing.to_dict())
     return {"success": True, "id": offer_id, "status": existing.status, "offer": existing.to_dict()}
 
 
@@ -727,8 +774,8 @@ async def mobile_ingest_post(payload: dict, db: Session = Depends(get_db)):
     if len(raw_text) < 50 and source_url.startswith("http"):
         try:
             scraped = await scrape_url_metadata(source_url)
-            if scraped.get("text"):
-                raw_text = scraped["text"]
+            if scraped.get("bodyText") or scraped.get("text"):
+                raw_text = scraped.get("bodyText") or scraped.get("text")
             elif scraped.get("title") and not raw_text:
                 raw_text = f"{scraped.get('title')}\n{scraped.get('description', '')}"
         except Exception as e:
@@ -757,18 +804,18 @@ async def mobile_ingest_post(payload: dict, db: Session = Depends(get_db)):
 
     # Fallback if AI parsing wasn't executed or failed
     if not analyzed or not isinstance(analyzed, dict):
-        first_line = raw_text.split("\n")[0][:80] if raw_text else "Nouvelle offre LinkedIn"
+        first_line = raw_text.split("\n")[0][:80] if raw_text else "New Career Opportunity"
         analyzed = {
-            "title": first_line if first_line else "Stage PFE Ingénieur",
-            "company": "Entreprise (à préciser)",
-            "location": "Hybride / Télétravail",
+            "title": first_line if first_line else "Engineering Opportunity",
+            "company": "Company",
+            "location": "Remote / Hybrid",
             "category": "dev-fullstack",
-            "categoryReasoning": "Catégorisation automatique mobile",
+            "categoryReasoning": "Automated mobile capture",
             "channel": "direct_contact",
             "recruiterEmail": "",
             "recruiterName": "",
-            "skills": ["LinkedIn", "Mobile Import"],
-            "description": raw_text[:500] if raw_text else "Importé depuis le mobile",
+            "skills": ["Software Engineering", "Mobile Ingest"],
+            "description": raw_text[:500] if raw_text else "Captured from mobile device",
             "sourceUrl": source_url or "",
             "confidence": 0.85,
             "needsUserReview": True
@@ -786,7 +833,7 @@ async def mobile_ingest_post(payload: dict, db: Session = Depends(get_db)):
 
     new_offer = OfferModel(
         id=offer_id,
-        title=analyzed.get("title") or "Offre Ingestée Mobile",
+        title=analyzed.get("title") or "Engineering Opportunity",
         company=analyzed.get("company") or "",
         location=analyzed.get("location") or "",
         category=cat_id,
@@ -813,10 +860,11 @@ async def mobile_ingest_post(payload: dict, db: Session = Depends(get_db)):
     db.add(new_offer)
     db.commit()
     db.refresh(new_offer)
+    broadcaster.broadcast("OFFER_CREATED", new_offer.to_dict())
 
     return {
         "success": True,
-        "message": "Offre capturée et analysée avec succès !",
+        "message": "Opportunity captured and analyzed successfully",
         "offer": new_offer.to_dict()
     }
 
@@ -836,27 +884,43 @@ def get_profile(db: Session = Depends(get_db)):
 
 
 @app.post("/api/profile")
+@app.put("/api/profile")
 def update_profile(profile_data: UserProfileSchema, db: Session = Depends(get_db)):
     prof = db.query(UserProfileModel).filter_by(id="default").first()
     if not prof:
         prof = UserProfileModel(id="default")
         db.add(prof)
 
-    prof.full_name = profile_data.fullName or prof.full_name
-    prof.headline = profile_data.headline or prof.headline
-    prof.email = profile_data.email or prof.email
-    prof.phone = profile_data.phone or prof.phone
-    prof.whatsapp = profile_data.whatsapp or prof.whatsapp
-    prof.linkedin = profile_data.linkedIn or prof.linkedin
-    prof.github = profile_data.github or prof.github
-    prof.portfolio = profile_data.portfolio or prof.portfolio
-    prof.degree = profile_data.degree or prof.degree
-    prof.city = profile_data.city or prof.city
-    prof.skills = profile_data.skills or prof.skills
-    prof.projects = profile_data.projects or prof.projects
-    prof.tone_preference = profile_data.tonePreference or prof.tone_preference
-    prof.custom_instructions = profile_data.customInstructions or prof.custom_instructions
-    prof.bio = profile_data.bio or prof.bio
+    if profile_data.fullName is not None:
+        prof.full_name = profile_data.fullName
+    if profile_data.headline is not None:
+        prof.headline = profile_data.headline
+    if profile_data.email is not None:
+        prof.email = profile_data.email
+    if profile_data.phone is not None:
+        prof.phone = profile_data.phone
+    if profile_data.whatsapp is not None:
+        prof.whatsapp = profile_data.whatsapp
+    if profile_data.linkedIn is not None:
+        prof.linkedin = profile_data.linkedIn
+    if profile_data.github is not None:
+        prof.github = profile_data.github
+    if profile_data.portfolio is not None:
+        prof.portfolio = profile_data.portfolio
+    if profile_data.degree is not None:
+        prof.degree = profile_data.degree
+    if profile_data.city is not None:
+        prof.city = profile_data.city
+    if profile_data.skills is not None:
+        prof.skills = profile_data.skills
+    if profile_data.projects is not None:
+        prof.projects = profile_data.projects
+    if profile_data.tonePreference is not None:
+        prof.tone_preference = profile_data.tonePreference
+    if profile_data.customInstructions is not None:
+        prof.custom_instructions = profile_data.customInstructions
+    if profile_data.bio is not None:
+        prof.bio = profile_data.bio
     if profile_data.customLinks is not None:
         prof.custom_links_json = json.dumps(profile_data.customLinks)
     prof.updated_at = datetime.utcnow().isoformat()
@@ -873,21 +937,26 @@ def get_cvs(db: Session = Depends(get_db)):
 
 
 @app.post("/api/cvs")
+@app.put("/api/cvs")
 def save_cvs(cv_list: List[CvItemSchema], db: Session = Depends(get_db)):
-    db.query(CvVaultModel).delete()
-    for cv in cv_list:
-        m = CvVaultModel(
-            id=cv.id,
-            name=cv.name,
-            category=cv.category or "",
-            file_name=cv.fileName or f"{cv.name}.pdf",
-            file_size=cv.fileSize or "180 KB",
-            is_default=cv.isDefault or False,
-            updated_at=datetime.utcnow().isoformat()
-        )
-        db.add(m)
-    db.commit()
-    return [c.to_dict() for c in db.query(CvVaultModel).all()]
+    try:
+        db.query(CvVaultModel).delete()
+        for cv in cv_list:
+            m = CvVaultModel(
+                id=cv.id,
+                name=cv.name,
+                category=cv.category or "",
+                file_name=cv.fileName or f"{cv.name}.pdf",
+                file_size=cv.fileSize or "180 KB",
+                is_default=cv.isDefault or False,
+                updated_at=datetime.utcnow().isoformat()
+            )
+            db.add(m)
+        db.commit()
+        return [c.to_dict() for c in db.query(CvVaultModel).all()]
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update CVs: {e}")
 
 
 # ==============================================================================
@@ -1605,7 +1674,7 @@ async def chat_agent_endpoint(req: AiChatRequest, db: Session = Depends(get_db))
     """Grounded conversational AI Career Agent powered by Groq LLM without deterministic fallbacks"""
     cfg = db.query(AiConfigModel).filter_by(id="default").first()
     api_key = req.apiKey or (cfg.api_key if cfg else None) or GROQ_API_KEY
-    model = req.model or (cfg.model if cfg else None) or "llama-3.3-70b-versatile"
+    model = req.model or (cfg.model if cfg else None) or DEFAULT_MODEL
 
     if not api_key:
         raise HTTPException(status_code=500, detail="Groq API key is not configured")
@@ -1626,7 +1695,7 @@ async def chat_agent_endpoint(req: AiChatRequest, db: Session = Depends(get_db))
         for o in (offers or [])[:10]
     ])
 
-    system_prompt = f"""You are the Autonomous Career Agent & PFE Copilot for OmniHunt, powered by Groq.
+    system_prompt = f"""You are the Autonomous Career Agent & Intelligence Copilot for RADAR, powered by Groq.
 You are dynamic, sharp, candid, and highly strategic. Answer open-ended questions intelligently without rigid canned responses.
 
 Candidate Profile:
@@ -1743,7 +1812,7 @@ async def sync_all_clips_to_offers(db: Session = Depends(get_db)):
 
 @app.post("/api/clips/{clip_id}/convert-to-offer")
 async def convert_clip_to_offer(clip_id: str, db: Session = Depends(get_db)):
-    """Manually promotes any generic clip into a full PFE Hunter job offer"""
+    """Manually promotes any generic clip into a full RADAR job offer"""
     clip = db.query(ClipVaultModel).filter_by(id=clip_id).first()
     if not clip:
         raise HTTPException(status_code=404, detail="Clip not found")
@@ -1791,8 +1860,39 @@ async def convert_clip_to_offer(clip_id: str, db: Session = Depends(get_db)):
     db.add(new_offer)
     db.commit()
     db.refresh(new_offer)
+    db.refresh(clip)
+
+    broadcaster.broadcast("OFFER_CREATED", new_offer.to_dict())
+    broadcaster.broadcast("CLIP_UPDATED", clip.to_dict())
 
     return {"success": True, "offer": new_offer.to_dict()}
+
+
+@app.put("/api/clips/{clip_id}")
+def update_clip(clip_id: str, payload: ClipUpdateSchema, db: Session = Depends(get_db)):
+    """Update title, summary, category, tags, or starred status for an existing clip"""
+    clip = db.query(ClipVaultModel).filter_by(id=clip_id).first()
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+
+    if payload.title is not None:
+        clip.title = payload.title
+    if payload.summary is not None:
+        clip.summary = payload.summary
+    if payload.contentType is not None:
+        clip.content_type = payload.contentType
+    if payload.tags is not None:
+        clip.tags_json = json.dumps(payload.tags)
+    if payload.entities is not None:
+        clip.entities_json = json.dumps(payload.entities)
+    if payload.isStarred is not None:
+        clip.is_starred = payload.isStarred
+    clip.updated_at = datetime.utcnow().isoformat()
+
+    db.commit()
+    db.refresh(clip)
+    broadcaster.broadcast("CLIP_UPDATED", clip.to_dict())
+    return clip.to_dict()
 
 
 @app.patch("/api/clips/{clip_id}/star")
@@ -1803,6 +1903,7 @@ def toggle_star_clip(clip_id: str, db: Session = Depends(get_db)):
     clip.is_starred = not clip.is_starred
     clip.updated_at = datetime.utcnow().isoformat()
     db.commit()
+    broadcaster.broadcast("CLIP_UPDATED", clip.to_dict())
     return {"success": True, "id": clip_id, "isStarred": clip.is_starred}
 
 
@@ -1813,7 +1914,19 @@ def delete_clip(clip_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Clip not found")
     db.delete(clip)
     db.commit()
+    broadcaster.broadcast("CLIP_DELETED", {"id": clip_id})
     return {"success": True, "id": clip_id}
+
+
+@app.delete("/api/clips/bulk")
+def bulk_delete_clips(req: BulkDeleteSchema, db: Session = Depends(get_db)):
+    """Deletes multiple clips in a single batch operation"""
+    if not req.ids:
+        return {"success": True, "deletedCount": 0}
+    db.query(ClipVaultModel).filter(ClipVaultModel.id.in_(req.ids)).delete(synchronize_session=False)
+    db.commit()
+    broadcaster.broadcast("CLIPS_BULK_DELETED", {"ids": req.ids})
+    return {"success": True, "deletedCount": len(req.ids)}
 
 
 # ==============================================================================
@@ -1841,18 +1954,6 @@ async def real_time_events_stream():
 # ==============================================================================
 # AUTONOMOUS JOB SCRAPER (JobSpy) & ATS FIT SCORING
 # ==============================================================================
-
-class HuntRequestSchema(BaseModel):
-    sites: Optional[List[str]] = ["linkedin", "indeed"]
-    searchTerm: str = "Software Engineer"
-    location: Optional[str] = "Remote"
-    resultsWanted: Optional[int] = 20
-    isRemote: Optional[bool] = False
-    countryIndeed: Optional[str] = "usa"
-
-class SaveHuntJobSchema(BaseModel):
-    job: Dict[str, Any]
-
 
 @app.post("/api/scraper/hunt")
 async def trigger_job_hunt(req: HuntRequestSchema, db: Session = Depends(get_db)):
@@ -1885,6 +1986,14 @@ async def trigger_job_hunt(req: HuntRequestSchema, db: Session = Depends(get_db)
         "message": f"Hunt started for '{req.searchTerm}' across {', '.join(req.sites or [])}",
         "status": "running"
     }
+
+
+@app.post("/api/scraper/cancel")
+def cancel_hunt_endpoint():
+    """Cancels the currently running JobSpy scrape."""
+    cancelled = cancel_active_hunt()
+    broadcaster.broadcast("HUNT_CANCELLED", {"status": "cancelled"})
+    return {"success": cancelled, "status": "cancelled"}
 
 
 @app.get("/api/scraper/status")
@@ -1972,11 +2081,6 @@ async def save_hunt_job_to_vault(req: SaveHuntJobSchema, db: Session = Depends(g
 # ==============================================================================
 # ATS LATEX CV TAILORING ENGINE
 # ==============================================================================
-
-class TailorCvRequest(BaseModel):
-    jobTitle: str
-    jobDescription: str
-    candidateProfile: Optional[Dict[str, Any]] = None
 
 @app.post("/api/cv/tailor-latex")
 async def tailor_cv_latex_endpoint(req: TailorCvRequest, db: Session = Depends(get_db)):

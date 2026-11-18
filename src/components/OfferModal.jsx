@@ -331,7 +331,7 @@ export function OfferModal({
                   type="text"
                   required
                   className="form-input"
-                  placeholder="e.g. Stage PFE: Ingénieur IA & NLP"
+                  placeholder="e.g. Senior Machine Learning Engineer / Fullstack Dev"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 />

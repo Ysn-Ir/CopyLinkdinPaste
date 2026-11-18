@@ -295,18 +295,18 @@ export function CommandCenterView({
       .replace(/\[COMPANY\]/g, currentOffer.company)
       .replace(/\[DOMAIN\]/g, cat?.label || 'Informatique & Ingénierie')
       .replace(/\[SKILLS\]/g, skillsText)
-      .replace(/\[ATTACHED_CV\]/g, currentOffer.attachedCvTag || 'CV Ingénieur')
-      .replace(/\[CANDIDATE_NAME\]/g, candidateProfile.fullName || 'Khalil')
+      .replace(/\[ATTACHED_CV\]/g, currentOffer.attachedCvTag || 'Resume')
+      .replace(/\[CANDIDATE_NAME\]/g, candidateProfile.fullName || 'Candidate')
       .replace(/\[CANDIDATE_PHONE\]/g, candidateProfile.phone || '')
       .replace(/\[CANDIDATE_LINKEDIN\]/g, candidateProfile.linkedIn || '')
-      .replace(/\[APPLICATION_DATE\]/g, new Date().toLocaleDateString('fr-FR'))
+      .replace(/\[APPLICATION_DATE\]/g, new Date().toLocaleDateString('en-US'))
   }, [currentOffer, candidateProfile])
 
   // Interpolated Email Subject
   const emailDraftSubject = useMemo(() => {
     if (!currentOffer) return ''
     if (currentOffer.customEmailSubject) return currentOffer.customEmailSubject
-    return `Candidature Stage PFE : ${currentOffer.title} - ${candidateProfile.fullName || 'Khalil'}`
+    return `Application: ${currentOffer.title} - ${candidateProfile.fullName || 'Applicant'}`
   }, [currentOffer, candidateProfile])
 
   // Interpolated Cover Letter Body
@@ -314,13 +314,13 @@ export function CommandCenterView({
     if (!currentOffer) return ''
     if (currentOffer.customCoverLetter) return currentOffer.customCoverLetter
     const tpl = COVER_LETTER_TEMPLATES[0]
-    const skillsText = (currentOffer.skills || []).join(', ') || candidateProfile.skills || 'systèmes informatiques'
+    const skillsText = (currentOffer.skills || []).join(', ') || candidateProfile.skills || 'software systems'
 
     return tpl.defaultText
       .replace(/\[ROLE\]/g, currentOffer.title)
       .replace(/\[COMPANY\]/g, currentOffer.company)
       .replace(/\[SKILLS\]/g, skillsText)
-      .replace(/\[CANDIDATE_NAME\]/g, candidateProfile.fullName || 'Khalil')
+      .replace(/\[CANDIDATE_NAME\]/g, candidateProfile.fullName || 'Candidate')
   }, [currentOffer, candidateProfile])
 
   // Direct Contact notes
@@ -328,26 +328,26 @@ export function CommandCenterView({
     if (!currentOffer) return ''
     if (currentOffer.linkedInNote) return currentOffer.linkedInNote
     const firstName = currentOffer.sharer?.name ? currentOffer.sharer.name.split(' ')[0] : ''
-    const greeting = firstName ? `Bonjour ${firstName}` : 'Bonjour'
-    return `${greeting}, passionné par ${currentOffer.skills?.[0] || 'vos projets'}, je serais ravi d'échanger avec vous au sujet de l'opportunité "${currentOffer.title}" chez ${currentOffer.company}. Bien cordialement.`
+    const greeting = firstName ? `Hi ${firstName}` : 'Hello'
+    return `${greeting}, I noticed your opening for "${currentOffer.title}" at ${currentOffer.company} and would love to connect and discuss how my background aligns with your team.`
   }, [currentOffer])
 
   const whatsAppMessage = useMemo(() => {
     if (!currentOffer) return ''
     if (currentOffer.whatsAppMsg) return currentOffer.whatsAppMsg
-    return `Bonjour ${currentOffer.sharer?.name || ''}, je vous contacte suite à votre offre de stage PFE "${currentOffer.title}" chez ${currentOffer.company}. Je serais honoré d'échanger avec vous. ${candidateProfile.fullName || ''}`
+    return `Hi ${currentOffer.sharer?.name || ''}, I am reaching out regarding the ${currentOffer.title} position at ${currentOffer.company}. Would you be open for a brief conversation? ${candidateProfile.fullName || ''}`
   }, [currentOffer, candidateProfile])
 
   // Download .eml file
   const handleDownloadEml = () => {
     if (!currentOffer) return
     EmlGenerator.downloadEml({
-      to: currentOffer.recruiterEmail || 'contact@recruteur.com',
+      to: currentOffer.recruiterEmail || 'recruiter@company.com',
       subject: emailDraftSubject,
       body: emailDraftBody,
-      candidateName: candidateProfile.fullName || 'Khalil',
-      candidateEmail: candidateProfile.email || 'khalil.pfe@gmail.com',
-      cvFileName: `${(currentOffer.attachedCvTag || 'CV').replace(/\s+/g, '_')}.pdf`,
+      candidateName: candidateProfile.fullName || 'Candidate',
+      candidateEmail: candidateProfile.email || 'applicant@radar.ai',
+      cvFileName: `${(currentOffer.attachedCvTag || 'Resume').replace(/\s+/g, '_')}.pdf`,
     })
   }
 
@@ -1669,7 +1669,7 @@ export function CommandCenterView({
                     <div className="latex-paper" style={{ minHeight: '340px' }}>
                       <div style={{ textAlign: 'center', marginBottom: '16px', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px' }}>
                         <div style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '0.04em' }}>
-                          {(candidateProfile.fullName || 'Khalil').toUpperCase()}
+                          {(candidateProfile.fullName || 'Candidate Name').toUpperCase()}
                         </div>
                         <div style={{ fontSize: '10px', color: '#4b5563', marginTop: '3px' }}>
                           {[candidateProfile.email, candidateProfile.phone, candidateProfile.city].filter(Boolean).join(' • ')}

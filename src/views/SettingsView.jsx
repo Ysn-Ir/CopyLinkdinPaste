@@ -586,7 +586,7 @@ export function SettingsView({
         </div>
 
         <p style={{ fontSize: '11.5px', color: 'var(--text-tertiary)' }}>
-          Connected via SQLAlchemy to PostgreSQL (<span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>postgresql://postgres:root@localhost:5432/pfe_hunter</span>). All tables (offers, cv_vault, user_profile, ai_config) are auto-migrated on startup with seamless SQLite fallback if PostgreSQL is offline.
+          Connected via SQLAlchemy to PostgreSQL (<span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>localhost:5432</span>). All tables (offers, cv_vault, user_profile, ai_config, clips) are auto-migrated on startup with seamless SQLite fallback if PostgreSQL is offline.
         </p>
 
         {/* Database Metrics Grid */}

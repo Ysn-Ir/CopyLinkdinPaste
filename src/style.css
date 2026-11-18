@@ -258,10 +258,10 @@ body {
 }
 
 .nav-item.active {
-  background: rgba(225, 48, 108, 0.14);
+  background: #27272A;
   color: #ffffff;
   font-weight: 600;
-  box-shadow: inset 2px 0 0 #e1306c;
+  box-shadow: inset 2px 0 0 #FF3B30;
 }
 
 .nav-item-left {

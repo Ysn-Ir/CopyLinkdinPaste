@@ -1,5 +1,5 @@
 /**
- * Notification Service for OmniHunt Web Command Center
+ * Notification Service for RADAR Command Center
  * Handles browser desktop notifications, permission states, and audio alerts.
  */
 
@@ -55,7 +55,7 @@ class NotificationService {
     }
   }
 
-  notify({ title, body, icon = '/favicon.ico', tag = 'omnihunt-capture', onClick }) {
+  notify({ title, body, icon = '/favicon.svg', tag = 'radar-capture', onClick }) {
     this.playChime()
     if (!this.isSupported() || Notification.permission !== 'granted') {
       return null
