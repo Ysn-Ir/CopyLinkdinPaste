@@ -61,10 +61,11 @@ export function Sidebar({
 
   const mainWorkspaces = [
     { id: 'command-center', label: 'Command Center', icon: Layers, count: offers.length },
-    { id: 'clip-vault', label: 'Universal Clip Vault', icon: Clipboard, count: clipCount > 0 ? clipCount : null },
+    { id: 'clip-vault', label: 'Radar Feed & Vault', icon: Clipboard, count: clipCount > 0 ? clipCount : null },
+    { id: 'scraper', label: 'Autonomous Scraper', icon: Globe, count: 'JobSpy' },
+    { id: 'resume-studio', label: 'ATS Resume & LaTeX', icon: FileText, count: null },
     { id: 'inbox', label: 'Review Queue', icon: Inbox, count: reviewCount > 0 ? reviewCount : null, alert: reviewCount > 0 },
     { id: 'pipeline', label: 'Pipeline Board', icon: Kanban, count: null },
-    { id: 'dashboard', label: 'Analytics & KPIs', icon: BarChart3, count: null },
   ]
 
   const channelWorkspaces = [

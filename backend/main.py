@@ -1,11 +1,14 @@
 import json
 import socket
 import logging
+import asyncio
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from .config import HOST, PORT, GROQ_API_KEY, DEFAULT_MODEL
 from .database import engine, Base, get_db, DB_ENGINE_TYPE
@@ -25,8 +28,17 @@ from .schemas import (
     ClipOcrRequest,
     BulkIngestSchema,
 )
-from .ai_service import call_groq_chat, analyze_offer, analyze_clip, call_groq_vision, clean_repetitive_text
+from .ai_service import (
+    call_groq_chat,
+    analyze_offer,
+    analyze_clip,
+    call_groq_vision,
+    clean_repetitive_text,
+    generate_latex_cv_for_offer,
+)
 from .scraper_service import scrape_url_metadata
+from .events import broadcaster
+from .scraper_jobspy import run_hunt_async, active_hunt_state
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("pfe_hunter.api")
@@ -1287,6 +1299,15 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
     tags = analyzed.get("tags") or []
     entities = analyzed.get("entities") or {}
 
+    if analyzed.get("contactData"):
+        entities["contactData"] = analyzed["contactData"]
+    if analyzed.get("mediaData"):
+        entities["mediaData"] = analyzed["mediaData"]
+    if analyzed.get("noteData"):
+        entities["noteData"] = analyzed["noteData"]
+    if analyzed.get("jobData"):
+        entities["jobData"] = analyzed["jobData"]
+
     if analyzed.get("videoData"):
         entities["videoData"] = analyzed["videoData"]
     elif scraped_meta and scraped_meta.get("isVideo"):
@@ -1385,6 +1406,10 @@ async def ingest_clip(req: ClipIngestSchema, db: Session = Depends(get_db)):
 
     db.commit()
     db.refresh(clip)
+
+    broadcaster.broadcast("CLIP_INGESTED", clip.to_dict())
+    if auto_created_offer:
+        broadcaster.broadcast("OFFER_CREATED", auto_created_offer.to_dict())
 
     return {
         "success": True,
@@ -1789,6 +1814,194 @@ def delete_clip(clip_id: str, db: Session = Depends(get_db)):
     db.delete(clip)
     db.commit()
     return {"success": True, "id": clip_id}
+
+
+# ==============================================================================
+# REAL-TIME SYNCHRONIZATION EVENT STREAM (SSE)
+# ==============================================================================
+
+@app.get("/api/events/stream")
+async def real_time_events_stream():
+    """
+    Server-Sent Events (SSE) stream for zero-polling instant synchronization across
+    web dashboard, desktop companion, and mobile app.
+    """
+    return StreamingResponse(
+        broadcaster.subscribe(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+            "Access-Control-Allow-Origin": "*"
+        }
+    )
+
+
+# ==============================================================================
+# AUTONOMOUS JOB SCRAPER (JobSpy) & ATS FIT SCORING
+# ==============================================================================
+
+class HuntRequestSchema(BaseModel):
+    sites: Optional[List[str]] = ["linkedin", "indeed"]
+    searchTerm: str = "Software Engineer"
+    location: Optional[str] = "Remote"
+    resultsWanted: Optional[int] = 20
+    isRemote: Optional[bool] = False
+    countryIndeed: Optional[str] = "usa"
+
+class SaveHuntJobSchema(BaseModel):
+    job: Dict[str, Any]
+
+
+@app.post("/api/scraper/hunt")
+async def trigger_job_hunt(req: HuntRequestSchema, db: Session = Depends(get_db)):
+    """Triggers autonomous multi-platform job scrape via JobSpy in background worker."""
+    prof = db.query(UserProfileModel).filter_by(id="default").first()
+    candidate_skills = prof.skills if prof else ""
+
+    broadcaster.broadcast("HUNT_STARTED", {
+        "searchTerm": req.searchTerm,
+        "location": req.location,
+        "sites": req.sites,
+        "status": "running"
+    })
+
+    # Launch background task
+    asyncio.create_task(
+        run_hunt_async(
+            sites=req.sites or ["linkedin", "indeed"],
+            search_term=req.searchTerm,
+            location=req.location or "Remote",
+            results_wanted=req.resultsWanted or 20,
+            is_remote=bool(req.isRemote),
+            country_indeed=req.countryIndeed or "usa",
+            candidate_skills=candidate_skills
+        )
+    )
+
+    return {
+        "success": True,
+        "message": f"Hunt started for '{req.searchTerm}' across {', '.join(req.sites or [])}",
+        "status": "running"
+    }
+
+
+@app.get("/api/scraper/status")
+def get_hunt_status():
+    """Returns the live status, progress, and results of the active JobSpy scrape."""
+    return active_hunt_state
+
+
+@app.post("/api/scraper/save-to-vault")
+async def save_hunt_job_to_vault(req: SaveHuntJobSchema, db: Session = Depends(get_db)):
+    """Converts a scraped job from JobSpy into a tracked OfferModel and ClipVault item."""
+    job = req.job
+    if not job or not job.get("title"):
+        raise HTTPException(status_code=400, detail="Invalid job object")
+
+    offer_id = f"offer-hunt-{int(datetime.utcnow().timestamp()*1000)}"
+    cat_id = job.get("category") or "dev-fullstack"
+    db_cat = db.query(CategoryModel).filter_by(id=cat_id).first()
+    cv_tag = db_cat.default_cv_tag if db_cat else "CV - General"
+
+    emails = job.get("emails") or []
+    email_str = emails[0] if emails else (job.get("recruiterEmail") or "")
+    channel = job.get("channel") or ("email" if email_str else "external")
+
+    new_offer = OfferModel(
+        id=offer_id,
+        title=job.get("title", "Engineering Role"),
+        company=job.get("company", "Company"),
+        location=job.get("location", "Remote / Hybrid"),
+        category=cat_id,
+        category_reasoning=f"Autonomous hunt capture ({job.get('site', 'JobSpy')})",
+        channel=channel,
+        recruiter_email=email_str,
+        recruiter_name="",
+        skills_json=json.dumps(job.get("skills") or []),
+        description=job.get("description") or f"Scraped from {job.get('site', 'JobSpy')}",
+        source_url=job.get("jobUrl") or "",
+        status="saved",
+        attached_cv_tag=cv_tag,
+        confidence=float(job.get("atsFitScore", 85)) / 100.0,
+        needs_user_review=False,
+        notes=f"Captured via Autonomous Scraper ({job.get('site', 'JobSpy')}) on {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}. ATS Fit: {job.get('atsFitScore', 85)}%",
+        created_at=datetime.utcnow().isoformat(),
+        updated_at=datetime.utcnow().isoformat(),
+    )
+    db.add(new_offer)
+
+    # Also mirror into ClipVault
+    clip_id = f"clip-hunt-{int(datetime.utcnow().timestamp()*1000)}"
+    clip = ClipVaultModel(
+        id=clip_id,
+        content=f"{job.get('title')} at {job.get('company')}\n{job.get('description', '')[:500]}\nURL: {job.get('jobUrl', '')}",
+        content_type="job_offer",
+        title=job.get("title", "Engineering Role"),
+        summary=f"{job.get('title')} at {job.get('company')}. Location: {job.get('location')}. Salary: {job.get('salary', 'N/A')}",
+        source_url=job.get("jobUrl") or "",
+        source_domain=job.get("site") or "jobspy",
+        source_device="desktop_scraper",
+        tags_json=json.dumps(job.get("skills") or []),
+        entities_json=json.dumps({
+            "jobData": job,
+            "atsFitScore": job.get("atsFitScore", 85)
+        }),
+        is_starred=False,
+        converted_to_offer=True,
+        copied_at=datetime.utcnow().isoformat(),
+        created_at=datetime.utcnow().isoformat(),
+        updated_at=datetime.utcnow().isoformat(),
+    )
+    db.add(clip)
+    db.commit()
+    db.refresh(new_offer)
+    db.refresh(clip)
+
+    broadcaster.broadcast("OFFER_CREATED", new_offer.to_dict())
+    broadcaster.broadcast("CLIP_INGESTED", clip.to_dict())
+
+    return {
+        "success": True,
+        "offer": new_offer.to_dict(),
+        "clip": clip.to_dict()
+    }
+
+
+# ==============================================================================
+# ATS LATEX CV TAILORING ENGINE
+# ==============================================================================
+
+class TailorCvRequest(BaseModel):
+    jobTitle: str
+    jobDescription: str
+    candidateProfile: Optional[Dict[str, Any]] = None
+
+@app.post("/api/cv/tailor-latex")
+async def tailor_cv_latex_endpoint(req: TailorCvRequest, db: Session = Depends(get_db)):
+    """Rewrites and optimizes candidate CV in LaTeX specifically tailored to target offer."""
+    cfg = db.query(AiConfigModel).filter_by(id="default").first()
+    api_key = (cfg.api_key if cfg else None) or GROQ_API_KEY
+
+    prof = req.candidateProfile
+    if not prof:
+        db_prof = db.query(UserProfileModel).filter_by(id="default").first()
+        prof = db_prof.to_dict() if db_prof else {}
+
+    result = await generate_latex_cv_for_offer(
+        job_title=req.jobTitle,
+        job_description=req.jobDescription,
+        candidate_profile=prof,
+        api_key=api_key
+    )
+
+    broadcaster.broadcast("CV_TAILORED", {
+        "jobTitle": req.jobTitle,
+        "atsFitScore": result.get("atsFitScore", 88)
+    })
+
+    return {"success": True, **result}
 
 
 # ==============================================================================

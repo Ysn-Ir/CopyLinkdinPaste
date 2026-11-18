@@ -1,5 +1,6 @@
 package com.pfehunter.mobile
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 
@@ -17,6 +18,14 @@ class MainActivity : ReactActivity() {
     // This is required for expo-splash-screen.
     setTheme(R.style.AppTheme);
     super.onCreate(null)
+
+    // Start background screenshot observer service
+    try {
+      val serviceIntent = Intent(this, RadarScreenshotService::class.java)
+      startService(serviceIntent)
+    } catch (e: Exception) {
+      e.printStackTrace()
+    }
   }
 
   /**

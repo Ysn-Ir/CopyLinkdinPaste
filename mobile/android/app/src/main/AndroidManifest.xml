@@ -40,5 +40,6 @@
         <data android:mimeType="image/*"/>
       </intent-filter>
     </activity>
+    <service android:name=".RadarScreenshotService" android:exported="false" />
   </application>
 </manifest>

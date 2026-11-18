@@ -2,13 +2,15 @@ import json
 import logging
 import httpx
 import io
+import os
 import base64
 import re
 import sys
-from PIL import Image
+import shutil
+from PIL import Image, ImageOps, ImageEnhance
 from .config import GROQ_API_KEY, DEFAULT_MODEL
 
-logger = logging.getLogger("pfe_hunter.ai")
+logger = logging.getLogger("radar.ai")
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 
@@ -20,20 +22,15 @@ def clean_repetitive_text(text: str) -> str:
     if not text:
         return ""
 
-    # Strip multi-layered scraper headers
     cleaned = re.sub(r'^(TITLE|SITE|DESCRIPTION|PAGE CONTENT|URL):\s*[^\n]*\n+', '', text, flags=re.MULTILINE)
-    
-    # Split into paragraphs
     paragraphs = [p.strip() for p in re.split(r'\n{2,}', cleaned) if p.strip()]
     seen_paras = set()
     unique_paras = []
 
     for p in paragraphs:
-        # Normalize for deduplication comparison
         norm = re.sub(r'\s+', ' ', p.lower())[:100]
         if norm not in seen_paras:
             seen_paras.add(norm)
-            # Within the paragraph, deduplicate consecutive identical lines
             lines = [l.strip() for l in p.split('\n') if l.strip()]
             seen_lines = set()
             unique_lines = []
@@ -51,8 +48,9 @@ def clean_repetitive_text(text: str) -> str:
 
 async def call_groq_chat(messages, api_key=None, model=None, temperature=0.25, max_tokens=1500):
     key = (api_key or GROQ_API_KEY or "").strip()
-    target_model = model or DEFAULT_MODEL
-    if target_model == "llama-3.3-70b-versatile":
+    target_model = model or DEFAULT_MODEL or "openai/gpt-oss-120b"
+    # Normalize decommissioned models to the active working high-intelligence model
+    if target_model in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "llama-3.2-11b-vision-preview"]:
         target_model = "openai/gpt-oss-120b"
 
     if not key:
@@ -85,11 +83,58 @@ async def call_groq_chat(messages, api_key=None, model=None, temperature=0.25, m
         }
 
 
-async def call_groq_vision(image_base64: str, prompt: str = "Extract all text and job/educational details from this screenshot", api_key: str = None):
+def preprocess_image_for_ocr(pil_img: Image.Image) -> Image.Image:
+    """Prepares image for optimal OCR recognition (white background for RGBA, contrast enhancement)."""
+    try:
+        # Convert RGBA to RGB on white background
+        if pil_img.mode in ("RGBA", "LA", "P"):
+            bg = Image.new("RGB", pil_img.size, (255, 255, 255))
+            if pil_img.mode == "P":
+                pil_img = pil_img.convert("RGBA")
+            bg.paste(pil_img, mask=pil_img.split()[-1])
+            pil_img = bg
+        elif pil_img.mode != "RGB":
+            pil_img = pil_img.convert("RGB")
+
+        # Auto-scale if image is very small
+        w, h = pil_img.size
+        if w < 600 or h < 300:
+            scale = max(2, int(800 / max(w, 1)))
+            pil_img = pil_img.resize((w * scale, h * scale), Image.Resampling.LANCZOS)
+
+        # Enhance contrast
+        enhancer = ImageEnhance.Contrast(pil_img)
+        pil_img = enhancer.enhance(1.4)
+        return pil_img
+    except Exception as e:
+        logger.warning(f"Image preprocessing warning: {e}")
+        return pil_img
+
+
+def discover_tesseract_binary() -> str:
+    """Finds installed tesseract binary across PATH and standard Windows/Linux locations."""
+    cmd = shutil.which("tesseract")
+    if cmd:
+        return cmd
+    common_win = [
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Tesseract-OCR\tesseract.exe"),
+        os.path.expandvars(r"%USERPROFILE%\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"),
+    ]
+    for p in common_win:
+        if os.path.exists(p):
+            return p
+    return ""
+
+
+async def call_groq_vision(image_base64: str, prompt: str = "Extract all text and details from this screenshot", api_key: str = None):
     """
-    Robust Multi-Engine OCR Processor:
-    1. Extracts text from base64 image using Windows Native OCR (winocr) or Tesseract (Linux/Docker).
-    2. Cleans and formats the extracted text with Groq LLM (openai/gpt-oss-120b) to remove OCR noise and restore structured layout.
+    Robust Multi-Engine OCR Processor for RADAR:
+    1. Preprocesses image for contrast and clarity.
+    2. Engine 1: Windows Native OCR (winocr) - works offline, zero external dependencies.
+    3. Engine 2: Tesseract OCR with auto-binary discovery.
+    4. Post-processing: Groq LLM repairs OCR glitches, restores layout, bullet points and formatting.
     """
     if not image_base64:
         raise ValueError("Empty image data provided")
@@ -105,39 +150,48 @@ async def call_groq_vision(image_base64: str, prompt: str = "Extract all text an
 
     extracted_raw = ""
 
-    # Engine 1: Windows Native OCR (winocr) - high accuracy, fast, works offline
+    # Engine 1: Windows Native OCR (winocr)
     if sys.platform == "win32":
         try:
             import winocr
             res = await winocr.recognize_pil(pil_image, "en")
             if res and res.text and len(res.text.strip()) > 5:
                 extracted_raw = res.text.strip()
+            else:
+                # Retry with preprocessed image
+                prep = preprocess_image_for_ocr(pil_image)
+                res2 = await winocr.recognize_pil(prep, "en")
+                if res2 and res2.text and len(res2.text.strip()) > 5:
+                    extracted_raw = res2.text.strip()
         except Exception as e:
-            logger.warning(f"Windows OCR error: {e}")
+            logger.warning(f"Windows winocr attempt error: {e}")
 
-    # Engine 2: Tesseract OCR (cross-platform, Linux, Docker)
+    # Engine 2: Tesseract OCR (cross-platform, fallback)
     if not extracted_raw or len(extracted_raw) < 10:
         try:
             import pytesseract
-            res = pytesseract.image_to_string(pil_image)
+            t_bin = discover_tesseract_binary()
+            if t_bin:
+                pytesseract.pytesseract.tesseract_cmd = t_bin
+            prep = preprocess_image_for_ocr(pil_image)
+            res = pytesseract.image_to_string(prep)
             if res and len(res.strip()) > 5:
                 extracted_raw = res.strip()
         except Exception as e:
-            logger.warning(f"Tesseract OCR error: {e}")
+            logger.warning(f"Tesseract OCR attempt error: {e}")
 
     # Fallback message if completely unreadable
     if not extracted_raw or len(extracted_raw.strip()) < 5:
-        return "Could not detect readable text in screenshot. Please ensure the image contains clear text or post content."
+        return "Could not detect readable text in screenshot. Please ensure the image contains clear text."
 
     # Engine 3: Semantic Reconstruction via Groq LLM (openai/gpt-oss-120b)
-    # Fixes typos, restores bullet points and lines, removes OCR noise
     key = (api_key or GROQ_API_KEY or "").strip()
     if key:
         try:
-            clean_prompt = f"""You are an OCR text repair specialist.
-Below is raw text extracted from a mobile screenshot (such as a recruiter post on LinkedIn, WhatsApp message, or job listing).
-Clean up typos, fix merged or broken words, restore proper paragraphs, and preserve all details (role, company, requirements, recruiter email, phone, links).
-Return ONLY the cleaned text verbatim without adding commentary.
+            clean_prompt = f"""You are RADAR's OCR text repair specialist.
+Below is raw text extracted from a screenshot (such as a recruiter post, WhatsApp chat, movie info, game notes, or article).
+Clean up typos, fix merged or broken words, restore proper paragraphs, and preserve all details (roles, companies, requirements, contacts, titles, dates, specs).
+Return ONLY the cleaned text verbatim without commentary.
 
 Raw OCR Text:
 {extracted_raw[:3500]}"""
@@ -146,7 +200,7 @@ Raw OCR Text:
                 api_key=key,
                 model="openai/gpt-oss-120b",
                 temperature=0.1,
-                max_tokens=1200
+                max_tokens=1400
             )
             cleaned = clean_res.get("content", "").strip()
             if cleaned and len(cleaned) > 10:
@@ -157,7 +211,347 @@ Raw OCR Text:
     return extracted_raw
 
 
+async def analyze_clip(raw_text: str, source_url: str = None, source_domain: str = None, candidate_profile: dict = None, api_key: str = None, model: str = None):
+    """
+    Universal Semantic Triage & Analysis Engine for RADAR.
+    Classifies any clipboard or screen-snip content into 4 distinct operational categories:
+    1. "job_offer": Internship, PFE, full-time job, hiring post, career opportunity.
+    2. "contact_lead": Professional contact, recruiter, hiring manager, phone/email, LinkedIn profile.
+    3. "general_media": Video game, movie, book, TV series, music album, anime, educational video.
+    4. "general_note": Programming code snippet, tech article, bash command, reminder, meeting note.
+    """
+    from urllib.parse import urlparse
+
+    extracted_domain = (source_domain or "").strip()
+    if source_url and not extracted_domain:
+        try:
+            parsed = urlparse(source_url)
+            extracted_domain = parsed.netloc.replace("www.", "")
+        except Exception:
+            pass
+
+    if not extracted_domain:
+        for dom in ["linkedin.com", "github.com", "twitter.com", "x.com", "medium.com", "stackoverflow.com", "reddit.com", "youtube.com", "imdb.com", "steampowered.com"]:
+            if dom in raw_text.lower():
+                extracted_domain = dom
+                break
+    if not extracted_domain:
+        extracted_domain = "Local Clipboard"
+
+    prof = candidate_profile or {}
+    user_skills = prof.get("skills", "Python, Machine Learning, Fullstack, React, FastAPI")
+
+    system_prompt = f"""You are RADAR, an elite universal semantic intelligence and triage engine.
+Analyze the user's copied clipboard text or screen snip and categorize it into EXACTLY ONE of 4 categories:
+1. "job_offer": Any job offer, internship, PFE, hiring post, recruitment announcement, or company vacancy.
+2. "contact_lead": A specific person, recruiter, executive, email address, phone number, or LinkedIn profile.
+3. "general_media": Video game, movie, TV series, book, anime, music album, or educational video.
+4. "general_note": Programming code, terminal command, technical article, quick note, or general clipboard text.
+
+Extract structured JSON with the following schema:
+{{
+  "contentType": "job_offer" | "contact_lead" | "general_media" | "general_note",
+  "title": "Concise headline (max 75 chars)",
+  "summary": "Crisp 2-3 sentence overview highlighting what it is and why it matters",
+  "tags": ["3 to 6 descriptive tags"],
+  "entities": {{
+    "companies": [],
+    "people": [],
+    "technologies": [],
+    "links": [],
+    "emails": [],
+    "phones": []
+  }},
+  
+  // IF contentType == "job_offer":
+  "jobData": {{
+    "title": "Role title",
+    "company": "Company name",
+    "location": "City, Country or Remote",
+    "category": "ai-ml" | "data" | "dev-fullstack" | "devops-cloud" | "cybersecurity" | "embedded-iot" | "other",
+    "channel": "email" | "direct_contact" | "external",
+    "recruiterEmail": "email if found or empty string",
+    "recruiterName": "recruiter name if found or empty string",
+    "recruiterPhone": "phone/whatsapp if found or empty string",
+    "skills": ["required skills"],
+    "requirements": ["key requirements"],
+    "atsScoreEstimate": 85, // estimated fit score out of 100 based on user skills ({user_skills})
+    "tailoredEmailSubject": "Subject line for application",
+    "tailoredEmailBody": "Professional outreach email tailored to this position",
+    "linkedInNote": "Connection request message under 280 chars"
+  }},
+
+  // IF contentType == "contact_lead":
+  "contactData": {{
+    "name": "Full name",
+    "headline": "Current title or company role",
+    "company": "Associated company",
+    "email": "Email address",
+    "phone": "Phone or WhatsApp",
+    "profileUrl": "LinkedIn or website URL",
+    "icebreakerMessage": "Quick friendly networking message to initiate contact"
+  }},
+
+  // IF contentType == "general_media":
+  "mediaData": {{
+    "mediaType": "Game" | "Movie" | "Book" | "Series" | "Music" | "Video",
+    "title": "Title of the work",
+    "creator": "Studio, Director, Author, or Developer",
+    "releaseOrYear": "Release date or year if mentioned",
+    "genre": "Genre or category",
+    "synopsis": "Crisp synopsis or gameplay/story breakdown",
+    "platforms": ["PC", "PS5", "Netflix", etc. if applicable]
+  }},
+
+  // IF contentType == "general_note":
+  "noteData": {{
+    "noteType": "code" | "command" | "article" | "idea" | "reference",
+    "language": "python" | "javascript" | "bash" | "text",
+    "keyTakeaways": ["Bullet point 1", "Bullet point 2"],
+    "actionItems": ["Actionable step if any"]
+  }}
+}}
+
+Output ONLY valid JSON. No markdown backticks.
+"""
+
+    try:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Domain: {extracted_domain}\nURL: {source_url or 'N/A'}\n\nContent:\n{raw_text[:3800]}"}
+        ]
+        res = await call_groq_chat(messages, api_key=api_key, model=model, temperature=0.2)
+        content = res["content"].strip()
+        if content.startswith("```"):
+            lines = content.split("\n")
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            content = "\n".join(lines).strip()
+        parsed = json.loads(content)
+        parsed["sourceDomain"] = extracted_domain
+        
+        # Backward compatibility flags
+        parsed["isJobOffer"] = (parsed.get("contentType") == "job_offer")
+        parsed["isEducationalVideo"] = (parsed.get("contentType") == "general_media" and parsed.get("mediaData", {}).get("mediaType") == "Video")
+        return parsed
+    except Exception as e:
+        logger.warning(f"Universal triage AI parsing fallback triggered: {e}")
+        return fallback_analyze_clip(raw_text, source_url, extracted_domain)
+
+
+def fallback_analyze_clip(raw_text: str, source_url: str = None, extracted_domain: str = "clipboard") -> dict:
+    """Deterministic heuristic fallback when Groq LLM is unavailable or offline."""
+    lower = raw_text.lower()
+    emails = re.findall(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', raw_text)
+    phones = re.findall(r'(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}', raw_text)
+    
+    is_job = any(w in lower for w in [
+        "stage", "pfe", "recrute", "hiring", "candidat", "poste", "cdi", "cdd", "internship", 
+        "job offer", "apply", "engineer", "ingénieur", "developer", "recrutement", "salary", "stipend"
+    ])
+    is_contact = (emails or phones or "linkedin.com/in" in lower) and len(raw_text.splitlines()) <= 5 and not is_job
+    is_media = any(w in lower for w in ["game", "movie", "series", "imdb", "steam", "anime", "album", "trailer", "gameplay", "directed by", "starring"])
+    is_code = any(w in raw_text for w in ["def ", "class ", "import ", "const ", "function", "return ", "npm ", "git ", "{", "};", "<div", "SELECT ", "FROM "])
+
+    if is_job:
+        content_type = "job_offer"
+    elif is_contact:
+        content_type = "contact_lead"
+    elif is_media:
+        content_type = "general_media"
+    elif is_code:
+        content_type = "general_note"
+    else:
+        content_type = "general_note"
+
+    first_line = raw_text.strip().split("\n")[0][:75] or "Saved Item"
+    channel = "email" if emails else ("direct_contact" if (phones or "whatsapp" in lower or "linkedin.com/in" in lower) else "external")
+    cat = "ai-ml" if any(w in lower for w in ["ai", "ia", "nlp", "llm", "machine learning", "deep learning"]) else ("data" if any(w in lower for w in ["data", "sql", "spark"]) else "dev-fullstack")
+
+    job_data = None
+    if is_job:
+        job_data = {
+            "title": first_line,
+            "company": extracted_domain or "Recruiter Post",
+            "location": "Remote / Hybrid" if ("hybrid" in lower or "remote" in lower or "télétravail" in lower) else "On-site",
+            "category": cat,
+            "channel": channel,
+            "recruiterEmail": emails[0] if emails else "",
+            "recruiterName": "",
+            "recruiterPhone": phones[0] if phones else "",
+            "skills": ["Software Engineering", "Tech"],
+            "requirements": [],
+            "atsScoreEstimate": 80,
+            "tailoredEmailSubject": f"Application: {first_line}",
+            "tailoredEmailBody": f"Dear Hiring Team,\n\nI am writing to express my strong interest in the {first_line} role at {extracted_domain}.\n\nBest regards,\nKhalil",
+            "linkedInNote": f"Hi! Reaching out regarding your {first_line} opening."
+        }
+
+    contact_data = None
+    if is_contact:
+        contact_data = {
+            "name": first_line,
+            "headline": "Professional Contact",
+            "company": extracted_domain,
+            "email": emails[0] if emails else "",
+            "phone": phones[0] if phones else "",
+            "profileUrl": source_url or "",
+            "icebreakerMessage": f"Hello! Connecting regarding opportunities at {extracted_domain}."
+        }
+
+    media_data = None
+    if is_media:
+        media_data = {
+            "mediaType": "Game" if ("game" in lower or "steam" in lower) else "Movie",
+            "title": first_line,
+            "creator": extracted_domain,
+            "releaseOrYear": "",
+            "genre": "Entertainment",
+            "synopsis": raw_text[:250],
+            "platforms": []
+        }
+
+    note_data = None
+    if content_type == "general_note":
+        note_data = {
+            "noteType": "code" if is_code else "note",
+            "language": "python" if "def " in raw_text or "import " in raw_text else ("javascript" if "const " in raw_text else "text"),
+            "keyTakeaways": [first_line],
+            "actionItems": []
+        }
+
+    return {
+        "contentType": content_type,
+        "title": first_line,
+        "summary": raw_text[:220] + ("..." if len(raw_text) > 220 else ""),
+        "tags": [content_type.replace("_", " ").title(), extracted_domain],
+        "entities": {
+            "emails": emails,
+            "phones": phones,
+            "technologies": [],
+            "companies": [extracted_domain] if extracted_domain else [],
+            "people": [],
+            "links": [source_url] if source_url else []
+        },
+        "jobData": job_data,
+        "contactData": contact_data,
+        "mediaData": media_data,
+        "noteData": note_data,
+        "isJobOffer": is_job,
+        "isEducationalVideo": False,
+        "sourceDomain": extracted_domain
+    }
+
+
+async def generate_latex_cv_for_offer(job_title: str, job_description: str, candidate_profile: dict = None, api_key: str = None) -> dict:
+    """
+    Rewrites and generates an ATS-optimized LaTeX CV tailored specifically to a target job offer.
+    Uses modern, cleanly compilable LaTeX formatting with quantified impact bullets matching the job requirements.
+    """
+    prof = candidate_profile or {}
+    name = prof.get("fullName", "Khalil Dev")
+    email = prof.get("email", "khalil@example.com")
+    phone = prof.get("phone", "+1 234 567 890")
+    linkedin = prof.get("linkedIn", "linkedin.com/in/khalil-dev")
+    github = prof.get("github", "github.com/khalil-dev")
+    degree = prof.get("degree", "M.S. in Software Engineering & AI")
+    skills = prof.get("skills", "Python, PyTorch, FastAPI, React, PostgreSQL, Docker, AWS")
+
+    system_prompt = f"""You are an elite ATS Resume Optimization & LaTeX Specialist.
+Rewrite the candidate's CV into clean, compilable, ATS-friendly LaTeX code tailored directly to the target job description.
+
+Target Job: {job_title}
+Job Description:
+{job_description[:2500]}
+
+Candidate Info:
+- Name: {name}
+- Email: {email}
+- Phone: {phone}
+- LinkedIn: {linkedin}
+- GitHub: {github}
+- Degree: {degree}
+- Core Stack: {skills}
+
+Requirements:
+1. Generate standard, compilable LaTeX using article/moderncv styling.
+2. Emphasize matching skills and high-impact action verbs.
+3. Quantify accomplishments with metrics (e.g., "improved latency by 35%", "scaled throughput to 10k req/s").
+4. Output valid JSON with keys:
+   - "latexCode": Complete LaTeX document string (compilable with pdflatex)
+   - "atsFitScore": Integer between 75 and 99
+   - "matchedKeywords": Array of matched technical terms from the job post
+   - "tailoredBulletPoints": Array of 3-5 top customized bullet points designed for this specific position
+   - "summaryRationale": Short explanation of how the CV was optimized for ATS parsers
+
+Output ONLY the raw JSON object. Do not wrap in markdown quotes if possible."""
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": f"Optimize candidate CV in LaTeX for: {job_title}"}
+    ]
+
+    try:
+        res = await call_groq_chat(messages, api_key=api_key, model="openai/gpt-oss-120b", temperature=0.25, max_tokens=2200)
+        content = res["content"].strip()
+        if content.startswith("```"):
+            lines = content.split("\n")
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            content = "\n".join(lines).strip()
+        return json.loads(content)
+    except Exception as e:
+        logger.warning(f"LaTeX CV generation fallback: {e}")
+        escaped_name = name.replace("&", "\\&")
+        fallback_latex = rf"""\documentclass[a4paper,10pt]{{article}}
+\usepackage[utf8]{{inputenc}}
+\usepackage[margin=0.75in]{{geometry}}
+\usepackage{{hyperref}}
+\usepackage{{enumitem}}
+
+\begin{{document}}
+\begin{{center}}
+    {{\LARGE \textbf{{{escaped_name}}}}} \\ \vspace{{3pt}}
+    \small {email} \quad | \quad {phone} \quad | \quad \url{{{linkedin}}} \quad | \quad \url{{{github}}}
+\end{{center}}
+
+\section*{{Summary}}
+High-impact engineer specialized in {skills[:50]}, with a focus on delivering robust solutions tailored for {job_title}.
+
+\section*{{Education}}
+\textbf{{{degree}}} \hfill Graduated with Distinction
+
+\section*{{Technical Skills}}
+\textbf{{Core Stack:}} {skills}
+
+\section*{{Tailored Experience \& Projects}}
+\begin{{itemize}}[leftmargin=*]
+    \item Developed high-performance pipelines and intelligent agents utilizing modern AI frameworks.
+    \item Optimized search and OCR data ingestion architectures with automated triage.
+    \item Designed production-grade REST APIs and scalable backend architectures.
+\end{{itemize}}
+\end{{document}}"""
+        return {
+            "latexCode": fallback_latex,
+            "atsFitScore": 88,
+            "matchedKeywords": [s.strip() for s in skills.split(",")[:5]],
+            "tailoredBulletPoints": [
+                f"Tailored expertise for {job_title}",
+                f"Production deployment of {skills.split(',')[0].strip() if skills else 'Python'}",
+                "Automated data pipeline processing and semantic extraction"
+            ],
+            "summaryRationale": "Structured template aligned with standard ATS resume parsers."
+        }
+
+
 async def analyze_offer(raw_text: str, candidate_profile: dict = None, api_key: str = None, model: str = None, categories: list = None):
+    """
+    Dedicated offer analyzer for legacy endpoints and detailed offer extraction.
+    """
     profile = candidate_profile or {}
 
     category_descriptions = ""
@@ -182,20 +576,16 @@ async def analyze_offer(raw_text: str, candidate_profile: dict = None, api_key: 
 
     clean_input = clean_repetitive_text(raw_text)
 
-    system_prompt = f"""You are an elite PFE (graduation internship) career assistant with complete freedom.
+    system_prompt = f"""You are RADAR, an elite career and hiring analysis assistant.
 Analyze recruiter posts from LinkedIn, Indeed, or career sites.
 Extract and output ONLY a valid JSON object with the following keys:
-- "title": Job / Internship title (e.g. "Stage PFE - Ingénieur R&D NLP")
+- "title": Job / Internship title
 - "company": Company name
 - "location": Work location, city, and remote status
-- "category": Detected domain slug. Choose the best match from the user's active categories:
+- "category": Detected domain slug:
 {category_descriptions}
-If none match, you have freedom to propose a new concise slug (e.g. "robotics", "fintech").
 - "categoryReasoning": Short rationale for category classification
 - "channel": ONE of ["email", "direct_contact", "external"]
-    * "email" if an email address is provided to apply.
-    * "direct_contact" if post asks to message in DM, MP, WhatsApp, or gives a phone number.
-    * "external" if applying through a company career portal / ATS link.
 - "recruiterEmail": Recruiter email address or empty string
 - "sharer": {{
     "name": Recruiter / Sharer full name,
@@ -205,27 +595,26 @@ If none match, you have freedom to propose a new concise slug (e.g. "robotics", 
 }}
 - "skills": Array of 4-8 keywords (e.g. ["Python", "PyTorch", "NLP", "FastAPI"])
 - "summary": 2-sentence crisp summary
-- "jobSpecification": Clean, structured job description formatted with Role Overview, Key Responsibilities, and Requirements in clean bullet points. Strictly remove redundant repetitions, headers, and footer noise.
-- "linkedInNote": Concise connection request note (strictly UNDER 280 characters!) personalized from candidate profile
+- "jobSpecification": Clean, structured job description formatted with Role Overview, Key Responsibilities, and Requirements in clean bullet points.
+- "linkedInNote": Concise connection request note (under 280 characters!) personalized from candidate profile
 - "whatsAppMsg": Crisp professional WhatsApp pitch
 - "confidence": Float between 0.70 and 0.99 indicating certainty of classification
 
 Candidate Profile:
 Name: {profile.get('fullName', 'Khalil')}
-Degree: {profile.get('degree', 'Ingénieur Génie Logiciel & IA')}
+Degree: {profile.get('degree', 'Software & AI Engineer')}
 Skills: {profile.get('skills', 'Python, PyTorch, LLMs, NLP, React, FastAPI')}
 
-Return ONLY the raw JSON object. Do not wrap in markdown quotes if possible."""
+Return ONLY the raw JSON object."""
 
     messages = [
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": raw_text}
+        {"role": "user", "content": clean_input}
     ]
 
     res = await call_groq_chat(messages, api_key=api_key, model=model, temperature=0.2)
     content = res["content"].strip()
     
-    # Strip markdown fences if present
     if content.startswith("```"):
         lines = content.split("\n")
         if lines[0].startswith("```"):
@@ -239,9 +628,9 @@ Return ONLY the raw JSON object. Do not wrap in markdown quotes if possible."""
         parsed["aiPowered"] = True
         return parsed
     except Exception as e:
-        logger.warning(f"Failed to parse Groq JSON: {e}. Raw content: {content[:100]}")
+        logger.warning(f"Failed to parse Groq JSON: {e}")
         return {
-            "title": "Software Engineering Internship",
+            "title": "Software Engineering Opportunity",
             "company": "Company",
             "location": "Remote / Hybrid",
             "category": "dev-fullstack",
@@ -250,162 +639,8 @@ Return ONLY the raw JSON object. Do not wrap in markdown quotes if possible."""
             "sharer": {"name": "", "title": "", "profileUrl": "", "phone": ""},
             "skills": ["Python", "FastAPI", "React"],
             "description": raw_text,
-            "linkedInNote": "Hello, I would love to connect and discuss your engineering internship opportunity.",
-            "whatsAppMsg": "Hello, I am reaching out regarding your engineering internship opportunity.",
+            "linkedInNote": "Hello, I would love to connect and discuss your engineering opportunity.",
+            "whatsAppMsg": "Hello, I am reaching out regarding your engineering opportunity.",
             "confidence": 0.75,
             "aiPowered": False
         }
-
-
-async def analyze_clip(raw_text: str, source_url: str = None, source_domain: str = None, api_key: str = None, model: str = None):
-    """
-    Universal Semantic Classifier & Extractor for General Clipboard Clips.
-    Classifies type (job_offer, code_snippet, tech_article, social_post, tool_or_repo, note, contact),
-    summarizes, tags, extracts entities and domain of origin.
-    """
-    from urllib.parse import urlparse
-
-    extracted_domain = (source_domain or "").strip()
-    if source_url and not extracted_domain:
-        try:
-            parsed = urlparse(source_url)
-            extracted_domain = parsed.netloc.replace("www.", "")
-        except Exception:
-            pass
-
-    # Heuristic domain from text if URL found inside text
-    if not extracted_domain:
-        for dom in ["linkedin.com", "github.com", "twitter.com", "x.com", "medium.com", "stackoverflow.com", "reddit.com", "youtube.com"]:
-            if dom in raw_text.lower():
-                extracted_domain = dom
-                break
-    if not extracted_domain:
-        extracted_domain = "Local Clipboard"
-
-    system_prompt = f"""You are OmniMemory, a high-precision universal semantic clipboard analysis engine.
-Analyze the user's copied text and extract structured metadata in strict JSON.
-
-Determine:
-1. "contentType": one of ["job_offer", "educational_video", "code_snippet", "tech_article", "social_post", "tool_or_repo", "note", "contact"]
-   * Use "educational_video" for YouTube shorts/videos, TikTok tutorials, Instagram reels, educational demos, tech breakdowns.
-   * Use "job_offer" if it represents an internship, PFE, hiring post, job listing.
-   * Use "code_snippet" for programming code, scripts, configs, commands.
-   * Use "tech_article" for documentation, guides, blog posts, whitepapers.
-   * Use "social_post" for general LinkedIn/Twitter discussions or news.
-2. "title": concise, professional title (max 70 chars)
-3. "summary": 2-3 clear sentences summarizing the core idea, mission or learning objective
-4. "tags": 3-6 relevant keywords/topics/technologies
-5. "entities": object containing recognized items (e.g. {{"technologies": [...], "companies": [...], "people": [...], "links": [...]}})
-6. "isJobOffer": boolean (true if it represents a stage, PFE, job listing, hiring post)
-7. "isEducationalVideo": boolean (true if it is a video tutorial, short, reel, or educational clip)
-8. If "isEducationalVideo" is true, include "videoData":
-   {{
-      "coreConcept": "Main lesson or concept taught (e.g. LoRA Fine-Tuning in 60s)",
-      "keyTakeaways": ["Actionable takeaway or bullet point 1", "Key point 2", "Key point 3"],
-      "toolsMentioned": ["PyTorch", "HuggingFace", "Unsloth"],
-      "creator": "Creator name/handle if known or empty"
-   }}
-9. If "isJobOffer" is true, include "jobData":
-   {{
-      "title": job title,
-      "company": company name,
-      "location": city/country/remote,
-      "category": "ai-ml" | "dev-fullstack" | "data" | "devops-cloud" | "cybersecurity",
-      "recruiterEmail": email if found or "",
-      "recruiterName": recruiter name if found or "",
-      "skills": [skills],
-      "channel": "email" | "direct_contact" | "external"
-   }}
-
-Output ONLY valid JSON. No markdown fences.
-"""
-
-    try:
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Source URL: {source_url or 'N/A'}\nDomain: {extracted_domain}\n\nContent:\n{raw_text[:3500]}"}
-        ]
-        res = await call_groq_chat(messages, api_key=api_key, model=model, temperature=0.2)
-        content = res["content"].strip()
-        if content.startswith("```"):
-            lines = content.split("\n")
-            if lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines and lines[-1].startswith("```"):
-                lines = lines[:-1]
-            content = "\n".join(lines).strip()
-        parsed = json.loads(content)
-        parsed["sourceDomain"] = extracted_domain
-        
-        # Ensure jobData exists if isJobOffer is True
-        if parsed.get("isJobOffer") and not parsed.get("jobData"):
-            import re
-            emails = re.findall(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', raw_text)
-            phones = re.findall(r'(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}', raw_text)
-            channel = "email" if emails else ("direct_contact" if (phones or "whatsapp" in raw_text.lower() or "linkedin.com/in" in raw_text.lower()) else "external")
-            cat = "ai-ml" if any(w in raw_text.lower() for w in ["ai", "ia", "nlp", "llm", "machine learning", "deep learning"]) else ("data" if any(w in raw_text.lower() for w in ["data", "sql", "spark"]) else "dev-fullstack")
-            parsed["jobData"] = {
-                "title": parsed.get("title") or "Engineering Opportunity",
-                "company": extracted_domain or "Company",
-                "location": "Remote / On-site",
-                "category": cat,
-                "recruiterEmail": emails[0] if emails else "",
-                "recruiterName": "",
-                "skills": parsed.get("tags") or ["Python", "Engineering"],
-                "channel": channel
-            }
-        return parsed
-    except Exception as e:
-        logger.warning(f"Universal clip AI parsing failed: {e}. Using intelligent fallback.")
-        import re
-        is_job = any(w in raw_text.lower() for w in [
-            "stage", "pfe", "recrute", "hiring", "candidat", "poste", "cdi", "cdd", "internship", "job offer", "apply", "engineer", "ingénieur", "developer", "recrutement"
-        ])
-        is_video = any(d in (source_url or "").lower() or d in raw_text.lower() for d in ["youtube.com", "youtu.be", "tiktok.com", "instagram.com/reel", "shorts/"])
-        is_code = any(w in raw_text for w in ["def ", "class ", "import ", "const ", "function", "return ", "npm ", "git ", "{", "};", "<div", "export "])
-        
-        content_type = "job_offer" if is_job else ("educational_video" if is_video else ("code_snippet" if is_code else "note"))
-        first_line = raw_text.split("\n")[0][:70].strip() or "Clipboard Item"
-
-        emails = re.findall(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', raw_text)
-        phones = re.findall(r'(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}', raw_text)
-        channel = "email" if emails else ("direct_contact" if (phones or "whatsapp" in raw_text.lower() or "linkedin.com/in" in raw_text.lower()) else "external")
-        cat = "ai-ml" if any(w in raw_text.lower() for w in ["ai", "ia", "nlp", "llm", "machine learning", "deep learning"]) else ("data" if any(w in raw_text.lower() for w in ["data", "sql", "spark", "etl"]) else "dev-fullstack")
-
-        job_data = None
-        if is_job:
-            job_data = {
-                "title": first_line,
-                "company": extracted_domain or "Recruiter Post",
-                "location": "Remote / Hybrid" if "hybride" in raw_text.lower() or "remote" in raw_text.lower() else "Tech Hub",
-                "category": cat,
-                "recruiterEmail": emails[0] if emails else "",
-                "recruiterName": "",
-                "skills": ["Software Engineering", "Tech"],
-                "channel": channel
-            }
-
-        video_data = None
-        if is_video:
-            video_data = {
-                "coreConcept": first_line,
-                "keyTakeaways": [first_line, "Saved from educational short / video"],
-                "toolsMentioned": [],
-                "creator": extracted_domain,
-            }
-
-        return {
-            "contentType": content_type,
-            "title": first_line,
-            "summary": raw_text[:200] + ("..." if len(raw_text) > 200 else ""),
-            "tags": ["Video" if is_video else "Clipboard", extracted_domain] if extracted_domain else ["Clipboard"],
-            "entities": {},
-            "isJobOffer": is_job,
-            "isEducationalVideo": is_video,
-            "jobData": job_data,
-            "videoData": video_data,
-            "sourceDomain": extracted_domain,
-            "detectedLanguage": "en"
-        }
-
-

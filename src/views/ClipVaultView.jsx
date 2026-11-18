@@ -29,15 +29,12 @@ import {
 import { StorageService } from '../services/storage.js'
 
 const CONTENT_TYPES = [
-  { id: 'all', label: 'All', icon: '📋', color: '#94a3b8' },
-  { id: 'job_offer', label: 'Job Offers', icon: '💼', color: '#10b981' },
-  { id: 'educational_video', label: 'Videos & Shorts', icon: '🎬', color: '#f59e0b' },
-  { id: 'code_snippet', label: 'Code Snippets', icon: '💻', color: '#e2e8f0' },
-  { id: 'tech_article', label: 'Articles', icon: '📰', color: '#f59e0b' },
-  { id: 'social_post', label: 'Social', icon: '💬', color: '#14b8a6' },
-  { id: 'tool_or_repo', label: 'Tools & Repos', icon: '🔧', color: '#10b981' },
-  { id: 'note', label: 'Notes', icon: '📝', color: '#a1a1aa' },
-  { id: 'contact', label: 'Contacts', icon: '👤', color: '#f43f5e' },
+  { id: 'all', label: 'All Signals', icon: '📋', color: '#FFFFFF' },
+  { id: 'job_offer', label: 'Job Radar (ATS)', icon: '💼', color: '#FFFFFF' },
+  { id: 'contact_lead', label: 'Recruiter Leads', icon: '👤', color: '#D4D4D8' },
+  { id: 'general_media', label: 'Media, Games & Movies', icon: '🎮', color: '#E4E4E7' },
+  { id: 'general_note', label: 'Notes & Code', icon: '💻', color: '#A1A1AA' },
+  { id: 'educational_video', label: 'Videos & Shorts', icon: '🎬', color: '#D4D4D8' },
 ]
 
 function getTypeInfo(typeId) {

@@ -30,7 +30,7 @@ class MobileNotificationService {
           name: 'RADAR Opportunities & Captures',
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 100, 250],
-          lightColor: '#E1306C',
+          lightColor: '#FF3B30',
           sound: 'default',
           showBadge: true,
           lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,

@@ -1,12 +1,12 @@
 import React from 'react'
 import {
-  Compass,
   PlusCircle,
   FileText,
   Download,
   Upload,
   Sparkles,
 } from 'lucide-react'
+import { RadarLogo } from './RadarLogo.jsx'
 
 export function Navbar({ onOpenAddModal, onOpenCvVault, onExportBackup, onImportBackup, cvCount = 5 }) {
   const fileInputRef = React.useRef(null)
@@ -24,14 +24,17 @@ export function Navbar({ onOpenAddModal, onOpenCvVault, onExportBackup, onImport
   return (
     <header className="navbar">
       <div className="brand-wrapper">
-        <div className="brand-logo">
-          <Compass size={24} />
+        <div className="brand-logo" style={{ display: 'flex', alignItems: 'center' }}>
+          <RadarLogo size={26} />
         </div>
         <div>
-          <h1 className="brand-title">
-            PFE<span className="text-gradient">HUNTER</span>
+          <h1 className="brand-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            RADAR
+            <span style={{ fontSize: '10px', color: '#FF3B30', fontWeight: '800', letterSpacing: '0.05em' }}>
+              ● LIVE
+            </span>
           </h1>
-          <div className="brand-subtitle">Career & Application Command Center</div>
+          <div className="brand-subtitle">Signal Intelligence & Opportunity Vault</div>
         </div>
       </div>
 

@@ -35,6 +35,8 @@ import { PipelineView } from './views/PipelineView.jsx'
 import { AgentConsoleView } from './views/AgentConsoleView.jsx'
 import { SettingsView } from './views/SettingsView.jsx'
 import { ClipVaultView } from './views/ClipVaultView.jsx'
+import { ScraperStudioView } from './views/ScraperStudioView.jsx'
+import { AtsResumeStudioView } from './views/AtsResumeStudioView.jsx'
 
 import { StorageService } from './services/storage.js'
 import { AgentOrchestrator } from './services/agentOrchestrator.js'
@@ -83,6 +85,43 @@ export default function App() {
   const [clips, setClips] = useState([])
   const [clipMonitorActive, setClipMonitorActive] = useState(true)
   const [clipToast, setClipToast] = useState(null) // { title, type, isJobOffer }
+  const [tailorTargetJob, setTailorTargetJob] = useState(null)
+
+  // Zero-Poll Real-Time Event Stream (SSE)
+  useEffect(() => {
+    let es = null
+    try {
+      es = new EventSource('/api/events/stream')
+      es.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data)
+          if (payload.type === 'CLIP_INGESTED' && payload.data) {
+            setClips((prev) => {
+              const exists = prev.some((c) => c.id === payload.data.id)
+              if (exists) return prev
+              return [payload.data, ...prev]
+            })
+            setClipToast({
+              title: payload.data.title || 'New Ingest',
+              type: payload.data.contentType || 'note',
+              isJobOffer: payload.data.contentType === 'job_offer',
+            })
+          } else if (payload.type === 'OFFER_CREATED' && payload.data) {
+            setOffers((prev) => {
+              const exists = prev.some((o) => o.id === payload.data.id)
+              if (exists) return prev
+              return [payload.data, ...prev]
+            })
+          }
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.warn('Real-time SSE event stream unavailable:', err)
+    }
+    return () => {
+      if (es) es.close()
+    }
+  }, [])
 
   // Load from PostgreSQL / SQLite Backend + IndexedDB
   useEffect(() => {
@@ -716,6 +755,28 @@ export default function App() {
             }}
             clipboardMonitorActive={clipMonitorActive}
             onToggleMonitor={() => setClipMonitorActive(!clipMonitorActive)}
+          />
+        )}
+
+        {activeView === 'scraper' && (
+          <ScraperStudioView
+            candidateProfile={candidateProfile}
+            onOfferCreated={(newOffer) => {
+              setOffers((prev) => [newOffer, ...prev])
+              confetti({ particleCount: 30, spread: 45 })
+            }}
+            onTailorCv={(job) => {
+              setTailorTargetJob(job)
+              setActiveView('resume-studio')
+            }}
+          />
+        )}
+
+        {activeView === 'resume-studio' && (
+          <AtsResumeStudioView
+            offers={offers}
+            candidateProfile={candidateProfile}
+            initialJob={tailorTargetJob}
           />
         )}
 
