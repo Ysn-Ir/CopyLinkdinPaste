@@ -3,11 +3,14 @@
 RADAR Native Desktop Application & Intelligence Studio
 Built with CustomTkinter and embedded Matplotlib vector charts.
 Stark monochrome dark HUD design matching the RADAR Web Application.
-- Tab 1: Executive Intelligence Hub (KPI metrics, Pipeline Funnel & Channel Donut charts)
-- Tab 2: Autonomous Scraper (LinkedIn Guest API + JobSpy with live progress and results table)
-- Tab 3: ATS Resume Studio (LaTeX/Typst in-place tailoring: Summary, Bullets, Skills, PDF compile)
-- Tab 4: Signal & Clipboard Vault (Clipboard intelligence, OCR snips, direct conversions)
-- Hotkey [Alt + S]: Transparent Screen Snip & Instant OCR Ingestion
+
+Key Capabilities:
+- Direct Screenshot & Local OCR Lab (Zero LLM, 15ms Windows Media OCR, visual thumbnail, copy image/text)
+- Live OS Clipboard Control Center (Real-time clipboard inspector, rolling history, 1-click restore/copy)
+- Executive Intelligence Hub (KPI metrics, Pipeline Funnel & Channel Donut vector charts)
+- Autonomous Scraper (LinkedIn Guest API + JobSpy with live progress and results table)
+- ATS Resume Studio (LaTeX/Typst in-place tailoring: Summary, Bullets, Skills, PDF compile)
+- Hotkey [Alt + S]: Transparent Screen Snip & Instant Local OCR
 - Hotkey [Alt + R]: Bring RADAR Native HUD to Front
 - System Tray HUD with tactical beacon
 """
@@ -28,10 +31,12 @@ import webbrowser
 import subprocess
 import tempfile
 import tkinter as tk
+from tkinter import filedialog
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 
 import customtkinter as ctk
-from PIL import Image, ImageDraw, ImageGrab
+from PIL import Image, ImageDraw, ImageGrab, ImageTk
 import pyperclip
 from pynput import keyboard
 import pystray
@@ -59,11 +64,13 @@ COLOR_BG = "#000000"
 COLOR_CARD = "#0D0D0D"
 COLOR_SURFACE = "#171717"
 COLOR_BORDER = "#27272A"
+COLOR_BORDER_FOCUS = "#3F3F46"
 COLOR_TEXT_PRIMARY = "#FFFFFF"
 COLOR_TEXT_SECONDARY = "#A1A1AA"
 COLOR_TEXT_MUTED = "#71717A"
 COLOR_ACCENT_RED = "#FF3B30"
 COLOR_ACCENT_GREEN = "#4ADE80"
+COLOR_ACCENT_BLUE = "#38BDF8"
 
 
 def is_backend_healthy(url=RADAR_BACKEND_URL):
@@ -109,18 +116,55 @@ def ensure_backend_running():
 def show_toast(title: str, message: str):
     """Displays a native Windows toast notification."""
     try:
+        clean_title = title.replace('"', '`"')
+        clean_msg = message[:180].replace('"', '`"').replace("\n", " ")
         ps_script = f"""
         [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null
         $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
         $textNodes = $template.GetElementsByTagName("text")
-        $textNodes.Item(0).AppendChild($template.CreateTextNode("{title}")) > $null
-        $textNodes.Item(1).AppendChild($template.CreateTextNode("{message[:180]}")) > $null
+        $textNodes.Item(0).AppendChild($template.CreateTextNode("{clean_title}")) > $null
+        $textNodes.Item(1).AppendChild($template.CreateTextNode("{clean_msg}")) > $null
         $toast = [Windows.UI.Notifications.ToastNotification]::new($template)
         [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("RADAR").Show($toast)
         """
         subprocess.Popen(["powershell", "-NoProfile", "-Command", ps_script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception as e:
         logger.debug(f"Toast notice: {e}")
+
+
+def copy_image_to_clipboard(pil_img: Image.Image) -> bool:
+    """Puts a PIL image onto the Windows system clipboard as a device-independent bitmap."""
+    try:
+        import win32clipboard
+        output = io.BytesIO()
+        pil_img.convert("RGB").save(output, "BMP")
+        data = output.getvalue()[14:]  # BMP header offset
+        output.close()
+        win32clipboard.OpenClipboard()
+        win32clipboard.EmptyClipboard()
+        win32clipboard.SetClipboardData(win32clipboard.CF_DIB, data)
+        win32clipboard.CloseClipboard()
+        return True
+    except Exception as e:
+        logger.warning(f"Error copying image to clipboard: {e}")
+        return False
+
+
+def extract_text_local_ocr(pil_img: Image.Image, lang: str = "en") -> str:
+    """
+    Extracts text using native Windows Media OCR without any LLM.
+    Runs locally on CPU/GPU in ~20ms with zero token cost.
+    """
+    try:
+        import winocr
+        import asyncio
+        loop = asyncio.new_event_loop()
+        res = loop.run_until_complete(winocr.recognize_pil(pil_img, lang))
+        loop.close()
+        return res.text.strip() if res and res.text else ""
+    except Exception as e:
+        logger.warning(f"Local winocr extraction notice: {e}")
+        return ""
 
 
 def create_tray_icon_image() -> Image.Image:
@@ -204,17 +248,29 @@ class SnippingTool:
                 logger.error(f"ImageGrab error: {e}")
 
 
-def process_snip_image(pil_img: Image.Image):
-    """Processes snipped image with local OCR and sends to RADAR backend."""
-    threading.Thread(target=_async_process_snip, args=(pil_img,), daemon=True).start()
+def handle_snip_completed(pil_img: Image.Image):
+    """Processes snipped image with local OCR and updates Native HUD."""
+    t0 = time.time()
+    # 1. Local OCR (0 LLM, 15ms)
+    ocr_text = extract_text_local_ocr(pil_img)
+    duration_ms = round((time.time() - t0) * 1000, 1)
+
+    logger.info(f"Local winocr finished in {duration_ms}ms: {len(ocr_text)} chars extracted.")
+
+    # 2. Update Native HUD UI on main thread
+    if MAIN_APP:
+        MAIN_APP.after(0, MAIN_APP.set_latest_screenshot, pil_img, ocr_text, duration_ms)
+
+    # 3. Asynchronously persist into RADAR Vault in background
+    threading.Thread(target=_persist_snip_to_backend, args=(pil_img, ocr_text), daemon=True).start()
 
 
-def _async_process_snip(pil_img: Image.Image):
+def _persist_snip_to_backend(pil_img: Image.Image, ocr_text: str):
     buffered = io.BytesIO()
     pil_img.save(buffered, format="PNG")
     img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
-    show_toast("RADAR Snip Captured", "Analyzing screenshot via OCR...")
+    show_toast("RADAR Snip Extracted (Local OCR)", f"{len(ocr_text)} characters captured.")
 
     payload = json.dumps({
         "imageBase64": img_b64,
@@ -227,25 +283,18 @@ def _async_process_snip(pil_img: Image.Image):
         data=payload,
         headers={"Content-Type": "application/json"}
     )
-
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             if data.get("success"):
-                clip = data.get("clip", {})
-                content_type = clip.get("contentType", "note").replace("_", " ").upper()
-                show_toast(
-                    f"Signal Ingested [{content_type}]",
-                    f"{clip.get('title', 'Screen Snip')} saved to Vault."
-                )
                 if MAIN_APP:
                     MAIN_APP.after(0, MAIN_APP.refresh_data)
     except Exception as e:
-        logger.error(f"Failed to post snip OCR: {e}")
+        logger.debug(f"Snip backend sync notice: {e}")
 
 
 # ==============================================================================
-# BACKGROUND INTELLIGENT CLIPBOARD LISTENER
+# BACKGROUND INTELLIGENT CLIPBOARD LISTENER & HISTORY
 # ==============================================================================
 
 class ClipboardListener(threading.Thread):
@@ -261,10 +310,13 @@ class ClipboardListener(threading.Thread):
             try:
                 if AUTO_CLIPBOARD_SYNC:
                     content = pyperclip.paste()
-                    if content and len(content.strip()) > 8:
+                    if content and len(content.strip()) > 4:
                         c_hash = hashlib.md5(content.strip().encode("utf-8")).hexdigest()
                         if c_hash != self.last_hash:
                             self.last_hash = c_hash
+                            # Push to HUD history
+                            if MAIN_APP:
+                                MAIN_APP.after(0, MAIN_APP.add_clipboard_history_item, content.strip())
                             self.handle_clipboard(content.strip())
             except Exception as e:
                 logger.debug(f"Clipboard read notice: {e}")
@@ -272,7 +324,7 @@ class ClipboardListener(threading.Thread):
 
     def handle_clipboard(self, text: str):
         is_job_or_opp = bool(
-            re_search := any(
+            any(
                 kw in text.lower()
                 for kw in [
                     "hiring", "recrute", "job", "stage", "internship", "engineer", "poste",
@@ -324,14 +376,18 @@ class RadarNativeApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("RADAR // Signal Intelligence & Career Pipeline HUD")
-        self.geometry("1240x820")
-        self.minsize(1050, 720)
+        self.title("RADAR // Signal Intelligence & Career Pipeline Cockpit")
+        self.geometry("1260x840")
+        self.minsize(1080, 740)
         self.configure(fg_color=COLOR_BG)
 
         # In-memory state
         self.offers: List[Dict[str, Any]] = []
         self.clips: List[Dict[str, Any]] = []
+        self.clipboard_history: List[str] = []
+        self.latest_pil_img: Optional[Image.Image] = None
+        self.latest_ocr_text: str = ""
+        self.latest_ctk_img: Optional[ctk.CTkImage] = None
         self.is_hunting = False
 
         self._build_header()
@@ -360,7 +416,7 @@ class RadarNativeApp(ctk.CTk):
         brand_label.pack(side="left")
 
         sub_label = ctk.CTkLabel(
-            left_box, text="  // NATIVE HUD · 127.0.0.1:8003", font=("Consolas", 11), text_color=COLOR_TEXT_MUTED
+            left_box, text="  // COCKPIT · LOCAL WINOCR ACTIVE · 0 LATENCY", font=("Consolas", 10), text_color=COLOR_TEXT_MUTED
         )
         sub_label.pack(side="left")
 
@@ -370,22 +426,20 @@ class RadarNativeApp(ctk.CTk):
 
         btn_snip = ctk.CTkButton(
             right_box,
-            text="[Alt + S] Screen Snip",
+            text="[Alt + S] Snip Screen",
             font=("Segoe UI", 11, "bold"),
-            fg_color=COLOR_SURFACE,
-            hover_color=COLOR_BORDER,
-            text_color=COLOR_TEXT_PRIMARY,
-            border_width=1,
-            border_color=COLOR_BORDER,
+            fg_color=COLOR_ACCENT_RED,
+            hover_color="#D92D20",
+            text_color="#FFFFFF",
             height=32,
             width=140,
             command=self._launch_screen_snip
         )
-        btn_snip.pack(side="left", padx=6)
+        btn_snip.pack(side="left", padx=5)
 
-        btn_refresh = ctk.CTkButton(
+        btn_clip_read = ctk.CTkButton(
             right_box,
-            text="Refresh Data",
+            text="Read Clipboard",
             font=("Segoe UI", 11, "bold"),
             fg_color=COLOR_SURFACE,
             hover_color=COLOR_BORDER,
@@ -393,23 +447,38 @@ class RadarNativeApp(ctk.CTk):
             border_width=1,
             border_color=COLOR_BORDER,
             height=32,
-            width=100,
+            width=110,
+            command=self._read_clipboard_now
+        )
+        btn_clip_read.pack(side="left", padx=5)
+
+        btn_refresh = ctk.CTkButton(
+            right_box,
+            text="Sync",
+            font=("Segoe UI", 11, "bold"),
+            fg_color=COLOR_SURFACE,
+            hover_color=COLOR_BORDER,
+            text_color=COLOR_TEXT_PRIMARY,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            height=32,
+            width=65,
             command=self.refresh_data
         )
-        btn_refresh.pack(side="left", padx=6)
+        btn_refresh.pack(side="left", padx=5)
 
         btn_web = ctk.CTkButton(
             right_box,
             text="Open Web App ↗",
             font=("Segoe UI", 11, "bold"),
-            fg_color=COLOR_TEXT_PRIMARY,
+            fg_color="#FFFFFF",
             hover_color="#E4E4E7",
             text_color="#000000",
             height=32,
             width=120,
             command=lambda: webbrowser.open("http://127.0.0.1:8003")
         )
-        btn_web.pack(side="left", padx=6)
+        btn_web.pack(side="left", padx=5)
 
     def _build_tabs(self):
         """Builds modern rounded Tabview container."""
@@ -426,16 +495,18 @@ class RadarNativeApp(ctk.CTk):
         )
         self.tabview.pack(fill="both", expand=True, padx=20, pady=(10, 20))
 
-        # 4 Workspaces
+        # 5 Workspaces
         self.tab_hub = self.tabview.add("Intelligence Hub")
+        self.tab_ocr = self.tabview.add("Screenshot & Local OCR Lab")
+        self.tab_clipboard = self.tabview.add("Live Clipboard Center")
         self.tab_scraper = self.tabview.add("Autonomous Scraper")
         self.tab_ats = self.tabview.add("ATS Resume Studio")
-        self.tab_vault = self.tabview.add("Signal & Clipboard Vault")
 
         self._setup_hub_tab()
+        self._setup_ocr_tab()
+        self._setup_clipboard_tab()
         self._setup_scraper_tab()
         self._setup_ats_tab()
-        self._setup_vault_tab()
 
     # ==========================================================================
     # TAB 1: INTELLIGENCE HUB (METRIC DECK & EMBEDDED MATPLOTLIB GRAPHS)
@@ -537,11 +608,344 @@ class RadarNativeApp(ctk.CTk):
         self.canvas.draw()
 
     # ==========================================================================
-    # TAB 2: AUTONOMOUS SCRAPER (LINKEDIN GUEST API + JOBSPY)
+    # TAB 2: SCREENSHOT & LOCAL OCR LAB (ZERO LLM, 15MS WINDOWS OCR)
+    # ==========================================================================
+
+    def _setup_ocr_tab(self):
+        container = ctk.CTkFrame(self.tab_ocr, fg_color="transparent")
+        container.pack(fill="both", expand=True, padx=0, pady=0)
+
+        # Left Column: Image Preview & File Controls
+        left_box = ctk.CTkFrame(container, fg_color=COLOR_CARD, border_width=1, border_color=COLOR_BORDER, corner_radius=8, width=460)
+        left_box.pack(side="left", fill="both", expand=False, padx=(0, 10))
+
+        # Header
+        top_lbl = ctk.CTkFrame(left_box, fg_color="transparent")
+        top_lbl.pack(fill="x", padx=16, pady=(14, 8))
+        ctk.CTkLabel(top_lbl, text="LATEST SCREENSHOT PREVIEW", font=("Segoe UI", 12, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(side="left")
+        self.ocr_time_badge = ctk.CTkLabel(top_lbl, text="0.0 ms (LOCAL)", font=("Consolas", 10, "bold"), text_color=COLOR_ACCENT_GREEN, fg_color=COLOR_SURFACE, corner_radius=4, padx=6, pady=2)
+        self.ocr_time_badge.pack(side="right")
+
+        # Thumbnail Canvas Frame
+        self.img_preview_frame = ctk.CTkFrame(left_box, fg_color="#141414", border_width=1, border_color=COLOR_BORDER, corner_radius=6, height=360)
+        self.img_preview_frame.pack(fill="both", expand=True, padx=16, pady=4)
+        self.img_preview_lbl = ctk.CTkLabel(
+            self.img_preview_frame,
+            text="No screenshot captured yet.\nPress [Alt + S] to snip or click 'Open Image File'.",
+            font=("Segoe UI", 11),
+            text_color=COLOR_TEXT_MUTED
+        )
+        self.img_preview_lbl.pack(expand=True)
+
+        # Button Deck for Image Actions
+        img_actions = ctk.CTkFrame(left_box, fg_color="transparent")
+        img_actions.pack(fill="x", padx=16, pady=(10, 14))
+
+        btn_snip_now = ctk.CTkButton(
+            img_actions, text="[Alt+S] Snip Now", font=("Segoe UI", 11, "bold"),
+            fg_color=COLOR_ACCENT_RED, hover_color="#D92D20", height=32,
+            command=self._launch_screen_snip
+        )
+        btn_snip_now.pack(side="left", fill="x", expand=True, padx=(0, 4))
+
+        btn_load_file = ctk.CTkButton(
+            img_actions, text="Open Image File", font=("Segoe UI", 11),
+            fg_color=COLOR_SURFACE, border_width=1, border_color=COLOR_BORDER, text_color=COLOR_TEXT_PRIMARY, height=32,
+            command=self._load_image_file_dialog
+        )
+        btn_load_file.pack(side="left", fill="x", expand=True, padx=4)
+
+        btn_cp_img = ctk.CTkButton(
+            img_actions, text="Copy Image", font=("Segoe UI", 11),
+            fg_color=COLOR_SURFACE, border_width=1, border_color=COLOR_BORDER, text_color=COLOR_TEXT_PRIMARY, height=32,
+            command=self._copy_latest_image
+        )
+        btn_cp_img.pack(side="left", fill="x", expand=True, padx=(4, 0))
+
+        # Right Column: Extracted Local OCR Text & Actions
+        right_box = ctk.CTkFrame(container, fg_color=COLOR_CARD, border_width=1, border_color=COLOR_BORDER, corner_radius=8)
+        right_box.pack(side="right", fill="both", expand=True)
+
+        r_hdr = ctk.CTkFrame(right_box, fg_color="transparent")
+        r_hdr.pack(fill="x", padx=16, pady=(14, 8))
+        ctk.CTkLabel(r_hdr, text="EXTRACTED OCR TEXT (ZERO LLM · VERBATIM)", font=("Segoe UI", 12, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(side="left")
+
+        self.ocr_char_badge = ctk.CTkLabel(r_hdr, text="0 chars", font=("Consolas", 10), text_color=COLOR_TEXT_SECONDARY)
+        self.ocr_char_badge.pack(side="right")
+
+        self.ocr_text_box = ctk.CTkTextbox(
+            right_box, fg_color="#141414", border_color=COLOR_BORDER, font=("Consolas", 11), text_color=COLOR_TEXT_PRIMARY
+        )
+        self.ocr_text_box.pack(fill="both", expand=True, padx=16, pady=4)
+
+        # Bottom Action Bar
+        r_btn_row = ctk.CTkFrame(right_box, fg_color="transparent")
+        r_btn_row.pack(fill="x", padx=16, pady=(10, 14))
+
+        btn_cp_text = ctk.CTkButton(
+            r_btn_row, text="Copy OCR Text", font=("Segoe UI", 11, "bold"),
+            fg_color="#FFFFFF", text_color="#000000", hover_color="#E4E4E7", height=32,
+            command=self._copy_ocr_text
+        )
+        btn_cp_text.pack(side="left", padx=(0, 8))
+
+        btn_re_ocr = ctk.CTkButton(
+            r_btn_row, text="Re-Run Local OCR", font=("Segoe UI", 11),
+            fg_color=COLOR_SURFACE, border_width=1, border_color=COLOR_BORDER, text_color=COLOR_TEXT_PRIMARY, height=32,
+            command=self._rerun_local_ocr
+        )
+        btn_re_ocr.pack(side="left", padx=(0, 8))
+
+        btn_save_signal = ctk.CTkButton(
+            r_btn_row, text="Save to Vault", font=("Segoe UI", 11),
+            fg_color=COLOR_SURFACE, border_width=1, border_color=COLOR_BORDER, text_color=COLOR_ACCENT_GREEN, height=32,
+            command=self._save_ocr_to_vault
+        )
+        btn_save_signal.pack(side="left", padx=(0, 8))
+
+        btn_open_img = ctk.CTkButton(
+            r_btn_row, text="Open Full Image ↗", font=("Segoe UI", 11),
+            fg_color=COLOR_SURFACE, border_width=1, border_color=COLOR_BORDER, text_color=COLOR_TEXT_SECONDARY, height=32,
+            command=self._open_full_image_viewer
+        )
+        btn_open_img.pack(side="left")
+
+    def set_latest_screenshot(self, pil_img: Image.Image, ocr_text: str, duration_ms: float = 0.0):
+        """Updates the Screenshot & Local OCR Lab with the latest capture."""
+        self.latest_pil_img = pil_img
+        self.latest_ocr_text = ocr_text
+
+        # Update thumbnail
+        max_w, max_h = 420, 340
+        ratio = min(max_w / max(1, pil_img.width), max_h / max(1, pil_img.height))
+        thumb_w = max(20, int(pil_img.width * ratio))
+        thumb_h = max(20, int(pil_img.height * ratio))
+        resized = pil_img.resize((thumb_w, thumb_h), Image.Resampling.LANCZOS)
+
+        self.latest_ctk_img = ctk.CTkImage(light_image=resized, dark_image=resized, size=(thumb_w, thumb_h))
+        self.img_preview_lbl.configure(image=self.latest_ctk_img, text="")
+
+        # Update text box
+        self.ocr_text_box.delete("1.0", "end")
+        self.ocr_text_box.insert("1.0", ocr_text)
+        self.ocr_time_badge.configure(text=f"{duration_ms} ms (LOCAL)")
+        self.ocr_char_badge.configure(text=f"{len(ocr_text)} chars")
+
+        # Automatically switch to OCR tab if not active
+        self.tabview.set("Screenshot & Local OCR Lab")
+
+    def _copy_latest_image(self):
+        if self.latest_pil_img:
+            ok = copy_image_to_clipboard(self.latest_pil_img)
+            if ok:
+                show_toast("Image Copied", "Screenshot copied to Windows clipboard.")
+
+    def _copy_ocr_text(self):
+        text = self.ocr_text_box.get("1.0", "end-1c").strip()
+        if text:
+            pyperclip.copy(text)
+            show_toast("Text Copied", f"Copied {len(text)} characters to clipboard.")
+
+    def _rerun_local_ocr(self):
+        if self.latest_pil_img:
+            t0 = time.time()
+            text = extract_text_local_ocr(self.latest_pil_img)
+            duration_ms = round((time.time() - t0) * 1000, 1)
+            self.ocr_text_box.delete("1.0", "end")
+            self.ocr_text_box.insert("1.0", text)
+            self.ocr_time_badge.configure(text=f"{duration_ms} ms (LOCAL)")
+            self.ocr_char_badge.configure(text=f"{len(text)} chars")
+
+    def _save_ocr_to_vault(self):
+        text = self.ocr_text_box.get("1.0", "end-1c").strip()
+        if not text:
+            return
+        payload = json.dumps({
+            "content": text,
+            "sourceDomain": "desktop_local_ocr",
+            "sourceDevice": "desktop"
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            f"{RADAR_BACKEND_URL}/api/clips/ingest",
+            data=payload,
+            headers={"Content-Type": "application/json"}
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10):
+                show_toast("Signal Ingested", "Saved extracted text to RADAR Vault.")
+                self.refresh_data()
+        except Exception as e:
+            logger.error(f"Save OCR error: {e}")
+
+    def _open_full_image_viewer(self):
+        if self.latest_pil_img:
+            tmp = os.path.join(tempfile.gettempdir(), "radar_latest_snip.png")
+            self.latest_pil_img.save(tmp, "PNG")
+            os.startfile(tmp)
+
+    def _load_image_file_dialog(self):
+        file_path = filedialog.askopenfilename(
+            title="Select Screenshot or Job Flyer",
+            filetypes=[("Image files", "*.png *.jpg *.jpeg *.webp *.bmp *.gif"), ("All files", "*.*")]
+        )
+        if file_path and os.path.exists(file_path):
+            try:
+                img = Image.open(file_path)
+                t0 = time.time()
+                text = extract_text_local_ocr(img)
+                duration_ms = round((time.time() - t0) * 1000, 1)
+                self.set_latest_screenshot(img, text, duration_ms)
+            except Exception as e:
+                logger.error(f"Error loading image file: {e}")
+
+    # ==========================================================================
+    # TAB 3: LIVE CLIPBOARD CENTER (DIRECT ACCESS & ROLLING HISTORY)
+    # ==========================================================================
+
+    def _setup_clipboard_tab(self):
+        container = ctk.CTkFrame(self.tab_clipboard, fg_color="transparent")
+        container.pack(fill="both", expand=True, padx=0, pady=0)
+
+        # Top: Active System Clipboard Card
+        active_card = ctk.CTkFrame(container, fg_color=COLOR_CARD, border_width=1, border_color=COLOR_BORDER, corner_radius=8)
+        active_card.pack(fill="x", padx=0, pady=(0, 12))
+
+        top_r = ctk.CTkFrame(active_card, fg_color="transparent")
+        top_r.pack(fill="x", padx=16, pady=(12, 6))
+
+        ctk.CTkLabel(top_r, text="ACTIVE OS CLIPBOARD", font=("Segoe UI", 12, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(side="left")
+
+        # Auto Sync Toggle
+        self.sw_auto_clip = ctk.CTkSwitch(
+            top_r, text="Auto-Ingest Job Signals", font=("Segoe UI", 11),
+            fg_color=COLOR_SURFACE, progress_color=COLOR_ACCENT_RED,
+            command=self._toggle_auto_clipboard
+        )
+        self.sw_auto_clip.pack(side="right")
+        self.sw_auto_clip.select()
+
+        self.clip_current_box = ctk.CTkTextbox(
+            active_card, height=90, fg_color="#141414", border_color=COLOR_BORDER, font=("Consolas", 11)
+        )
+        self.clip_current_box.pack(fill="x", padx=16, pady=4)
+
+        # Action row
+        act_row = ctk.CTkFrame(active_card, fg_color="transparent")
+        act_row.pack(fill="x", padx=16, pady=(6, 12))
+
+        btn_read_now = ctk.CTkButton(
+            act_row, text="Read OS Clipboard Now", font=("Segoe UI", 11, "bold"),
+            fg_color="#FFFFFF", text_color="#000000", hover_color="#E4E4E7", height=30,
+            command=self._read_clipboard_now
+        )
+        btn_read_now.pack(side="left", padx=(0, 8))
+
+        btn_ingest_clip = ctk.CTkButton(
+            act_row, text="Ingest to Vault", font=("Segoe UI", 11),
+            fg_color=COLOR_SURFACE, border_width=1, border_color=COLOR_BORDER, text_color=COLOR_ACCENT_GREEN, height=30,
+            command=self._ingest_active_clipboard
+        )
+        btn_ingest_clip.pack(side="left", padx=(0, 8))
+
+        btn_clear_clip = ctk.CTkButton(
+            act_row, text="Clear Clipboard", font=("Segoe UI", 11),
+            fg_color=COLOR_SURFACE, border_width=1, border_color=COLOR_BORDER, text_color=COLOR_ACCENT_RED, height=30,
+            command=self._clear_clipboard
+        )
+        btn_clear_clip.pack(side="left")
+
+        # Bottom: Rolling Clipboard History Scrollable Deck
+        history_frame = ctk.CTkFrame(container, fg_color=COLOR_CARD, border_width=1, border_color=COLOR_BORDER, corner_radius=8)
+        history_frame.pack(fill="both", expand=True)
+
+        h_hdr = ctk.CTkFrame(history_frame, fg_color="transparent")
+        h_hdr.pack(fill="x", padx=16, pady=(12, 6))
+        ctk.CTkLabel(h_hdr, text="RECENT CLIPBOARD HISTORY (1-CLICK RESTORE)", font=("Segoe UI", 12, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(side="left")
+        ctk.CTkLabel(h_hdr, text="Click any item to copy back to Windows clipboard", font=("Segoe UI", 10), text_color=COLOR_TEXT_MUTED).pack(side="right")
+
+        self.clip_history_scroll = ctk.CTkScrollableFrame(
+            history_frame, fg_color="transparent"
+        )
+        self.clip_history_scroll.pack(fill="both", expand=True, padx=12, pady=6)
+
+    def _read_clipboard_now(self):
+        text = pyperclip.paste()
+        self.clip_current_box.delete("1.0", "end")
+        self.clip_current_box.insert("1.0", text)
+        self.add_clipboard_history_item(text)
+        show_toast("Clipboard Refreshed", f"{len(text)} characters read from system.")
+
+    def _ingest_active_clipboard(self):
+        text = self.clip_current_box.get("1.0", "end-1c").strip()
+        if not text:
+            return
+        payload = json.dumps({
+            "content": text,
+            "sourceDomain": "desktop_clipboard_manual",
+            "sourceDevice": "desktop"
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            f"{RADAR_BACKEND_URL}/api/clips/ingest",
+            data=payload,
+            headers={"Content-Type": "application/json"}
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10):
+                show_toast("Signal Ingested", "Active clipboard saved to RADAR Vault.")
+                self.refresh_data()
+        except Exception as e:
+            logger.error(f"Ingest clipboard error: {e}")
+
+    def _clear_clipboard(self):
+        pyperclip.copy("")
+        self.clip_current_box.delete("1.0", "end")
+        show_toast("Clipboard Cleared", "Windows clipboard was emptied.")
+
+    def add_clipboard_history_item(self, item_text: str):
+        if not item_text or item_text in self.clipboard_history[:2]:
+            return
+        self.clipboard_history.insert(0, item_text)
+        if len(self.clipboard_history) > 20:
+            self.clipboard_history = self.clipboard_history[:20]
+
+        # Re-render history list
+        for widget in self.clip_history_scroll.winfo_children():
+            widget.destroy()
+
+        for idx, item in enumerate(self.clipboard_history):
+            row = ctk.CTkFrame(self.clip_history_scroll, fg_color=COLOR_SURFACE, border_width=1, border_color=COLOR_BORDER, corner_radius=6)
+            row.pack(fill="x", padx=4, pady=4)
+
+            # Left preview
+            preview = item[:140].replace("\n", " ")
+            lbl = ctk.CTkLabel(row, text=f"{idx+1}. {preview}", font=("Segoe UI", 11), text_color=COLOR_TEXT_PRIMARY, anchor="w")
+            lbl.pack(side="left", padx=10, pady=8, fill="x", expand=True)
+
+            # Copy button
+            btn_cp = ctk.CTkButton(
+                row, text="Restore", font=("Segoe UI", 10, "bold"),
+                fg_color=COLOR_CARD, border_width=1, border_color=COLOR_BORDER, text_color="#FFFFFF", hover_color=COLOR_BORDER,
+                height=26, width=70,
+                command=lambda t=item: self._restore_clipboard_item(t)
+            )
+            btn_cp.pack(side="right", padx=8)
+
+    def _restore_clipboard_item(self, text: str):
+        pyperclip.copy(text)
+        self.clip_current_box.delete("1.0", "end")
+        self.clip_current_box.insert("1.0", text)
+        show_toast("Restored to Clipboard", f"{len(text)} characters restored to active clipboard.")
+
+    def _toggle_auto_clipboard(self):
+        global AUTO_CLIPBOARD_SYNC
+        AUTO_CLIPBOARD_SYNC = bool(self.sw_auto_clip.get())
+        logger.info(f"Auto clipboard sync: {AUTO_CLIPBOARD_SYNC}")
+
+    # ==========================================================================
+    # TAB 4: AUTONOMOUS SCRAPER (LINKEDIN GUEST API + JOBSPY)
     # ==========================================================================
 
     def _setup_scraper_tab(self):
-        # 1. Search Controls Box
         ctrl_frame = ctk.CTkFrame(self.tab_scraper, fg_color=COLOR_CARD, border_width=1, border_color=COLOR_BORDER, corner_radius=8)
         ctrl_frame.pack(fill="x", padx=0, pady=(0, 12))
 
@@ -600,7 +1004,7 @@ class RadarNativeApp(ctk.CTk):
         self.scraper_status_lbl = ctk.CTkLabel(ctrl_frame, text="Ready to hunt across platforms.", font=("Segoe UI", 10), text_color=COLOR_TEXT_MUTED)
         self.scraper_status_lbl.pack(anchor="w", padx=16, pady=(0, 8))
 
-        # 2. Results Scrollable Deck
+        # Results Scrollable Deck
         self.scraper_results_scroll = ctk.CTkScrollableFrame(
             self.tab_scraper, fg_color=COLOR_CARD, border_width=1, border_color=COLOR_BORDER, corner_radius=8
         )
@@ -631,7 +1035,6 @@ class RadarNativeApp(ctk.CTk):
         self.scraper_progress.set(0.3)
         self.scraper_status_lbl.configure(text=f"Hunting '{query}' on {', '.join(sites)} via Guest API & JobSpy...")
 
-        # Clear previous cards
         for widget in self.scraper_results_scroll.winfo_children():
             widget.destroy()
 
@@ -651,7 +1054,6 @@ class RadarNativeApp(ctk.CTk):
             data=payload,
             headers={"Content-Type": "application/json"}
         )
-
         try:
             with urllib.request.urlopen(req, timeout=90) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
@@ -705,7 +1107,6 @@ class RadarNativeApp(ctk.CTk):
             co_text = f"{r.get('company', 'Company')} · {r.get('location', 'Remote')} · Source: {r.get('site', 'web').upper()}"
             ctk.CTkLabel(sub_row, text=co_text, font=("Segoe UI", 11), text_color=COLOR_TEXT_SECONDARY).pack(side="left")
 
-            # Skills
             skills = r.get("skills", [])
             if skills:
                 sk_row = ctk.CTkFrame(card, fg_color="transparent")
@@ -714,7 +1115,6 @@ class RadarNativeApp(ctk.CTk):
                     badge = ctk.CTkLabel(sk_row, text=f"• {s}", font=("Segoe UI", 9), text_color="#E4E4E7", fg_color=COLOR_CARD, corner_radius=3, padx=5, pady=1)
                     badge.pack(side="left", padx=(0, 4))
 
-            # Action bar
             btn_row = ctk.CTkFrame(card, fg_color="transparent")
             btn_row.pack(fill="x", padx=12, pady=(0, 10))
 
@@ -761,21 +1161,20 @@ class RadarNativeApp(ctk.CTk):
             headers={"Content-Type": "application/json"}
         )
         try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10):
                 show_toast("Job Saved to RADAR", f"Added '{job.get('title')}' to active pipeline.")
                 self.refresh_data()
         except Exception as e:
             logger.error(f"Error saving job: {e}")
 
     # ==========================================================================
-    # TAB 3: ATS RESUME STUDIO (IN-PLACE TAILORING & PDF COMPILE)
+    # TAB 5: ATS RESUME STUDIO (IN-PLACE TAILORING & PDF COMPILE)
     # ==========================================================================
 
     def _setup_ats_tab(self):
         container = ctk.CTkFrame(self.tab_ats, fg_color="transparent")
         container.pack(fill="both", expand=True, padx=0, pady=0)
 
-        # Left Column: Inputs & In-Place Action Buttons
         left_pane = ctk.CTkFrame(container, fg_color=COLOR_CARD, border_width=1, border_color=COLOR_BORDER, corner_radius=8, width=540)
         left_pane.pack(side="left", fill="both", expand=True, padx=(0, 10))
 
@@ -815,7 +1214,6 @@ Generalist software engineer experienced in cloud backends.
 """
         self.ats_base_cv_text.insert("1.0", sample_typst)
 
-        # In-Place Tailoring Buttons
         btn_box = ctk.CTkFrame(left_pane, fg_color="transparent")
         btn_box.pack(fill="x", padx=16, pady=(0, 14))
 
@@ -840,7 +1238,6 @@ Generalist software engineer experienced in cloud backends.
         )
         btn_sk.pack(side="left", fill="x", expand=True, padx=(4, 0))
 
-        # Right Column: Output Code & Live PDF Actions
         right_pane = ctk.CTkFrame(container, fg_color=COLOR_CARD, border_width=1, border_color=COLOR_BORDER, corner_radius=8)
         right_pane.pack(side="right", fill="both", expand=True)
 
@@ -854,7 +1251,6 @@ Generalist software engineer experienced in cloud backends.
         self.ats_output_text = ctk.CTkTextbox(right_pane, height=440, fg_color="#141414", border_color=COLOR_BORDER, font=("Consolas", 10))
         self.ats_output_text.pack(fill="both", expand=True, padx=16, pady=(4, 10))
 
-        # Bottom Action Bar
         r_btn_box = ctk.CTkFrame(right_pane, fg_color="transparent")
         r_btn_box.pack(fill="x", padx=16, pady=(0, 14))
 
@@ -934,98 +1330,6 @@ Generalist software engineer experienced in cloud backends.
             logger.error(f"Compile PDF error: {e}")
 
     # ==========================================================================
-    # TAB 4: SIGNAL & CLIPBOARD VAULT
-    # ==========================================================================
-
-    def _setup_vault_tab(self):
-        # Header Controls
-        v_top = ctk.CTkFrame(self.tab_vault, fg_color="transparent")
-        v_top.pack(fill="x", padx=0, pady=(0, 10))
-
-        ctk.CTkLabel(v_top, text="CAPTURED SIGNALS, REELS & OCR SNIPS", font=("Segoe UI", 12, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(side="left")
-
-        # Auto clipboard toggle
-        self.sw_auto_clip = ctk.CTkSwitch(
-            v_top, text="Auto-Ingest Clipboard", font=("Segoe UI", 11),
-            fg_color=COLOR_SURFACE, progress_color=COLOR_ACCENT_RED,
-            command=self._toggle_auto_clipboard
-        )
-        self.sw_auto_clip.pack(side="right")
-        self.sw_auto_clip.select()
-
-        # Scrollable list of clips
-        self.vault_scroll = ctk.CTkScrollableFrame(
-            self.tab_vault, fg_color=COLOR_CARD, border_width=1, border_color=COLOR_BORDER, corner_radius=8
-        )
-        self.vault_scroll.pack(fill="both", expand=True, padx=0, pady=0)
-
-    def _toggle_auto_clipboard(self):
-        global AUTO_CLIPBOARD_SYNC
-        AUTO_CLIPBOARD_SYNC = bool(self.sw_auto_clip.get())
-        logger.info(f"Auto clipboard sync: {AUTO_CLIPBOARD_SYNC}")
-
-    def _render_vault_items(self, clips):
-        for widget in self.vault_scroll.winfo_children():
-            widget.destroy()
-
-        if not clips:
-            ctk.CTkLabel(
-                self.vault_scroll,
-                text="Signal Vault is empty. Copy links or press [Alt + S] to snip content.",
-                text_color=COLOR_TEXT_MUTED,
-                font=("Segoe UI", 12)
-            ).pack(padx=20, pady=30)
-            return
-
-        for clip in clips:
-            card = ctk.CTkFrame(self.vault_scroll, fg_color=COLOR_SURFACE, border_width=1, border_color=COLOR_BORDER, corner_radius=6)
-            card.pack(fill="x", padx=10, pady=6)
-
-            r1 = ctk.CTkFrame(card, fg_color="transparent")
-            r1.pack(fill="x", padx=12, pady=(10, 4))
-
-            t_lbl = ctk.CTkLabel(r1, text=clip.get("title", "Captured Signal"), font=("Segoe UI", 12, "bold"), text_color="#FFFFFF")
-            t_lbl.pack(side="left")
-
-            t_type = clip.get("contentType", "note").replace("_", " ").upper()
-            badge = ctk.CTkLabel(r1, text=t_type, font=("Segoe UI", 9, "bold"), text_color=COLOR_TEXT_MUTED, fg_color=COLOR_CARD, corner_radius=3, padx=5, pady=1)
-            badge.pack(side="right")
-
-            body_preview = (clip.get("content") or clip.get("extractedText") or "")[:180].replace("\n", " ")
-            ctk.CTkLabel(card, text=body_preview, font=("Segoe UI", 11), text_color=COLOR_TEXT_SECONDARY, wraplength=900, justify="left").pack(anchor="w", padx=12, pady=(0, 8))
-
-            # Action Bar
-            r2 = ctk.CTkFrame(card, fg_color="transparent")
-            r2.pack(fill="x", padx=12, pady=(0, 10))
-
-            btn_cp = ctk.CTkButton(
-                r2, text="Copy Text", font=("Segoe UI", 10),
-                fg_color=COLOR_CARD, border_width=1, border_color=COLOR_BORDER, text_color=COLOR_TEXT_PRIMARY,
-                height=24, width=80,
-                command=lambda text=clip.get("content"): pyperclip.copy(text)
-            )
-            btn_cp.pack(side="left", padx=(0, 6))
-
-            btn_del = ctk.CTkButton(
-                r2, text="Delete", font=("Segoe UI", 10),
-                fg_color=COLOR_CARD, border_width=1, border_color=COLOR_BORDER, text_color=COLOR_ACCENT_RED,
-                height=24, width=65,
-                command=lambda cid=clip.get("id"): self._delete_clip(cid)
-            )
-            btn_del.pack(side="left")
-
-    def _delete_clip(self, clip_id):
-        req = urllib.request.Request(
-            f"{RADAR_BACKEND_URL}/api/clips/{clip_id}",
-            method="DELETE"
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=8):
-                self.refresh_data()
-        except Exception as e:
-            logger.error(f"Error deleting clip: {e}")
-
-    # ==========================================================================
     # DATA SYNCHRONIZATION
     # ==========================================================================
 
@@ -1050,7 +1354,6 @@ Generalist software engineer experienced in cloud backends.
             logger.debug(f"Data fetch notice: {e}")
 
     def _apply_data_to_ui(self):
-        # Update KPI metrics
         total = len(self.offers)
         applied = sum(1 for o in self.offers if o.get("status") == "applied")
         interviews = sum(1 for o in self.offers if o.get("status") == "interview")
@@ -1065,7 +1368,6 @@ Generalist software engineer experienced in cloud backends.
         if "OFFERS SECURED" in self.kpi_cards:
             self.kpi_cards["OFFERS SECURED"].configure(text=str(offers_won))
 
-        # Re-render charts
         saved = sum(1 for o in self.offers if o.get("status") in ["saved", "to_apply", "ready"])
         funnel_counts = [saved, applied, interviews, offers_won]
 
@@ -1075,10 +1377,9 @@ Generalist software engineer experienced in cloud backends.
         channel_counts = [email_c, dm_c, ext_c]
 
         self._render_charts(funnel_counts, channel_counts)
-        self._render_vault_items(self.clips)
 
     def _launch_screen_snip(self):
-        snipper = SnippingTool(on_snip_completed=process_snip_image)
+        snipper = SnippingTool(on_snip_completed=handle_snip_completed)
         snipper.start()
 
 
@@ -1126,7 +1427,7 @@ def run_system_tray(app: RadarNativeApp):
         os._exit(0)
 
     menu = pystray.Menu(
-        pystray.MenuItem("Open RADAR Native HUD [Alt+R]", on_show_hud, default=True),
+        pystray.MenuItem("Open RADAR Cockpit [Alt+R]", on_show_hud, default=True),
         pystray.MenuItem("Capture Screen Snip [Alt+S]", on_snip_tray),
         pystray.MenuItem("Open Web App in Browser", on_open_web),
         pystray.Menu.SEPARATOR,
@@ -1134,7 +1435,7 @@ def run_system_tray(app: RadarNativeApp):
     )
 
     tray_img = create_tray_icon_image()
-    TRAY_ICON = pystray.Icon("RADAR", tray_img, "RADAR Native HUD", menu)
+    TRAY_ICON = pystray.Icon("RADAR", tray_img, "RADAR Native Cockpit", menu)
     TRAY_ICON.run()
 
 

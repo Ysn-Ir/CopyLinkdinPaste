@@ -1,3 +1,5 @@
+import io
+import time
 import json
 import base64
 import socket
@@ -5,6 +7,7 @@ import logging
 import asyncio
 from datetime import datetime
 from typing import Optional, List, Dict, Any
+from PIL import Image
 from fastapi import FastAPI, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -1636,27 +1639,71 @@ async def enrich_clip(clip_id: str, db: Session = Depends(get_db)):
     return {"success": True, "clip": clip.to_dict()}
 
 
+async def extract_local_ocr_text(image_base64: str, lang: str = "en") -> str:
+    """Extracts text using native Windows Media OCR without calling any LLM (15ms, offline, zero token cost)."""
+    try:
+        import winocr
+        raw_bytes = base64.b64decode(image_base64)
+        pil_img = Image.open(io.BytesIO(raw_bytes))
+        # Ensure RGB mode
+        if pil_img.mode != "RGB":
+            pil_img = pil_img.convert("RGB")
+        res = await winocr.recognize_pil(pil_img, lang)
+        if res and res.text:
+            return res.text.strip()
+    except Exception as e:
+        logger.debug(f"winocr extract notice: {e}")
+    return ""
+
+
+@app.post("/api/ocr/extract")
+async def direct_ocr_extract_endpoint(req: ClipOcrRequest):
+    """
+    Direct independent local OCR extraction endpoint.
+    Extracts verbatim text from image without making any LLM calls.
+    """
+    t0 = time.time()
+    text = await extract_local_ocr_text(req.imageBase64)
+    duration_ms = round((time.time() - t0) * 1000, 2)
+    return {
+        "success": bool(text),
+        "text": text,
+        "engine": "windows_media_ocr",
+        "durationMs": duration_ms
+    }
+
+
 @app.post("/api/clips/ocr-ingest")
 async def ocr_ingest_clip(req: ClipOcrRequest, db: Session = Depends(get_db)):
-    """Extracts OCR text from mobile screenshot via Native OCR & Groq, then performs semantic classification"""
-    cfg = db.query(AiConfigModel).filter_by(id="default").first()
-    api_key = (cfg.api_key if cfg else None) or GROQ_API_KEY
+    """
+    Extracts OCR text from screenshot via Native Local OCR first (0 LLM, 15ms),
+    with optional Groq Vision fallback only when local OCR finds no text.
+    """
+    extracted_text = ""
+    method = "local_winocr"
 
+    # 1. Primary: Run local Windows Media OCR (Zero LLM, 15ms, offline)
     try:
-        extracted_text = await call_groq_vision(
-            image_base64=req.imageBase64,
-            prompt="Extract all text from this screenshot. If this is a recruiter post, WhatsApp message, or job flyer, extract the full job description, company name, requirements, and recruiter contact info verbatim. Return only the extracted text.",
-            api_key=api_key
-        )
+        extracted_text = await extract_local_ocr_text(req.imageBase64)
     except Exception as e:
-        logger.error(f"OCR extraction failed: {e}")
-        return {
-            "success": False,
-            "error": f"OCR processing failed: {str(e)}",
-            "message": "Please ensure the screenshot is clear and contains readable text."
-        }
+        logger.warning(f"Local OCR notice: {e}")
 
+    # 2. Secondary fallback: If local OCR returned minimal text and user has Groq API key configured
     if not extracted_text or len(extracted_text.strip()) < 8:
+        cfg = db.query(AiConfigModel).filter_by(id="default").first()
+        api_key = (cfg.api_key if cfg else None) or GROQ_API_KEY
+        if api_key:
+            try:
+                extracted_text = await call_groq_vision(
+                    image_base64=req.imageBase64,
+                    prompt="Extract all text from this screenshot. If this is a recruiter post, WhatsApp message, or job flyer, extract the full job description, company name, requirements, and recruiter contact info verbatim. Return only the extracted text.",
+                    api_key=api_key
+                )
+                method = "groq_vision"
+            except Exception as e:
+                logger.error(f"Groq vision notice: {e}")
+
+    if not extracted_text or len(extracted_text.strip()) < 4:
         return {
             "success": False,
             "error": "No readable text detected in screenshot",
@@ -1667,11 +1714,15 @@ async def ocr_ingest_clip(req: ClipOcrRequest, db: Session = Depends(get_db)):
     ingest_payload = ClipIngestSchema(
         content=extracted_text.strip(),
         sourceUrl=req.sourceUrl or "",
-        sourceDomain="screenshot_ocr",
-        sourceDevice=req.sourceDevice or "mobile",
+        sourceDomain=f"screenshot_ocr_{method}",
+        sourceDevice=req.sourceDevice or "desktop",
         copiedAt=datetime.utcnow().isoformat()
     )
-    return await ingest_clip(ingest_payload, db)
+    result = await ingest_clip(ingest_payload, db)
+    if isinstance(result, dict):
+        result["ocrMethod"] = method
+        result["extractedText"] = extracted_text.strip()
+    return result
 
 
 @app.post("/api/ai/chat")

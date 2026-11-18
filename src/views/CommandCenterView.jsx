@@ -679,67 +679,131 @@ export function CommandCenterView({
             </a>
           </div>
 
-          {/* Filters Bar - Line 2 (Cleanly Separated) */}
+          {/* Domain Taxonomy Section Inside the Command Center */}
           <div
             style={{
-              padding: '0 16px 10px 16px',
+              padding: '8px 14px',
               borderBottom: '1px solid var(--border-subtle)',
+              background: '#0D0D0D',
               display: 'flex',
-              gap: '8px',
+              gap: '6px',
               alignItems: 'center',
+              overflowX: 'auto',
+              scrollbarWidth: 'none',
+              flexShrink: 0,
             }}
           >
-            <select
-              className="form-select"
-              style={{ height: '32px', fontSize: '11.5px', flex: 1, padding: '0 8px', background: '#171717', borderColor: '#27272A', color: '#FFFFFF' }}
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              title="Filter by domain field"
+            <button
+              className={`pill-btn ${categoryFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setCategoryFilter('all')}
+              style={{
+                padding: '4px 9px',
+                fontSize: '11px',
+                fontWeight: '700',
+                borderRadius: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                whiteSpace: 'nowrap',
+                backgroundColor: categoryFilter === 'all' ? '#1E1414' : '#171717',
+                borderColor: categoryFilter === 'all' ? '#FF3B30' : '#27272A',
+                color: categoryFilter === 'all' ? '#FF3B30' : '#A1A1AA',
+              }}
             >
-              <option value="all">All Domains</option>
-              {domainCategories.filter((c) => c.id !== 'all').map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.shortLabel || c.label}
-                </option>
-              ))}
-            </select>
+              <span>All Domains</span>
+              <span className="badge-pill">{offers.length}</span>
+            </button>
 
-            <select
-              className="form-select"
-              style={{ height: '32px', fontSize: '11.5px', flex: 1, padding: '0 8px', background: '#171717', borderColor: '#27272A', color: '#FFFFFF' }}
-              value={groupBy}
-              onChange={(e) => setGroupBy(e.target.value)}
-              title="Group offers into sections"
-            >
-              <option value="none">Group: Off</option>
-              <option value="channel">Group by Channel</option>
-              <option value="category">Group by Domain</option>
-              <option value="status">Group by Status</option>
-            </select>
+            {domainCategories.filter((c) => c.id !== 'all').map((cat) => {
+              const count = offers.filter((o) => o.category === cat.id).length
+              const isActive = categoryFilter === cat.id
+              return (
+                <button
+                  key={cat.id}
+                  className={`pill-btn ${isActive ? 'active' : ''}`}
+                  onClick={() => setCategoryFilter(isActive ? 'all' : cat.id)}
+                  style={{
+                    padding: '4px 9px',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    borderRadius: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    whiteSpace: 'nowrap',
+                    backgroundColor: isActive ? '#1E1414' : '#171717',
+                    borderColor: isActive ? '#FF3B30' : '#27272A',
+                    color: isActive ? '#FF3B30' : '#A1A1AA',
+                  }}
+                  title={`Filter by ${cat.label}`}
+                >
+                  <span
+                    style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      backgroundColor: cat.color || '#A1A1AA',
+                    }}
+                  />
+                  <span>{cat.shortLabel || cat.label}</span>
+                  {count > 0 && <span className="badge-pill">{count}</span>}
+                </button>
+              )
+            })}
 
             {onOpenCategoryManager && (
               <button
                 type="button"
-                className="btn btn-secondary"
+                onClick={onOpenCategoryManager}
                 style={{
-                  height: '32px',
-                  padding: '0 8px',
-                  fontSize: '11px',
+                  background: 'transparent',
+                  border: '1px dashed #3F3F46',
                   color: '#A1A1AA',
-                  borderColor: '#27272A',
-                  background: '#171717',
-                  flexShrink: 0,
+                  borderRadius: '4px',
+                  padding: '3px 8px',
+                  fontSize: '10.5px',
+                  cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '3px',
+                  whiteSpace: 'nowrap',
                 }}
-                onClick={onOpenCategoryManager}
-                title="Configure custom engineering domains"
+                title="Configure Engineering Domains"
               >
-                <Plus size={11} />
+                <Plus size={10} />
                 <span>Domain</span>
               </button>
             )}
+          </div>
+
+          {/* Grouping Row */}
+          <div
+            style={{
+              padding: '6px 16px 8px 16px',
+              borderBottom: '1px solid var(--border-subtle)',
+              display: 'flex',
+              gap: '8px',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '11px',
+              color: '#71717A',
+            }}
+          >
+            <span>Showing {filteredOffers.length} opportunities</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>Group:</span>
+              <select
+                className="form-select"
+                style={{ height: '26px', fontSize: '11px', padding: '0 6px', background: '#171717', borderColor: '#27272A', color: '#FFFFFF', width: 'auto' }}
+                value={groupBy}
+                onChange={(e) => setGroupBy(e.target.value)}
+              >
+                <option value="none">Off</option>
+                <option value="channel">Channel</option>
+                <option value="category">Domain</option>
+                <option value="status">Status</option>
+              </select>
+            </div>
           </div>
 
           {/* Stream List with Categorized Groupings */}
