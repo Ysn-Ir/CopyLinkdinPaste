@@ -139,7 +139,7 @@ export function ConnectScreen({ onConnected, onCancel }) {
             value={ipInput}
             onChangeText={setIpInput}
             placeholder="https://... or http://192.168.1.12:8003"
-            placeholderTextColor="#64748b"
+            placeholderTextColor="#71717a"
             autoCapitalize="none"
             autoCorrect={false}
           />
@@ -175,7 +175,7 @@ export function ConnectScreen({ onConnected, onCancel }) {
             disabled={isTesting}
           >
             {isTesting ? (
-              <ActivityIndicator color="#f8fafc" size="small" />
+              <ActivityIndicator color="#ffffff" size="small" />
             ) : (
               <Text style={styles.testButtonText}>⚡ Test Ping</Text>
             )}
@@ -242,7 +242,7 @@ export function ConnectScreen({ onConnected, onCancel }) {
         <View style={styles.guideSection}>
           <Text style={styles.guideBadge}>OPTION 2: LOCAL PC + TUNNEL (4G Cellular)</Text>
           <Text style={styles.guideItem}>
-            Running backend on your PC at home? Run <Text style={{ fontFamily: 'monospace', color: '#38bdf8' }}>start_tunnel.bat</Text> to get a free public HTTPS tunnel. Paste it above to sync over 4G!
+            Running backend on your PC at home? Run <Text style={{ fontFamily: 'monospace', color: '#ffffff' }}>start_tunnel.bat</Text> to get a free public HTTPS tunnel. Paste it above to sync over 4G!
           </Text>
         </View>
 
@@ -300,10 +300,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   offlineCard: {
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     padding: 14,
     marginBottom: 16,
   },
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   offlineTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#fbbf24',
+    color: '#a1a1aa',
   },
   offlineSubtitle: {
     fontSize: 11,
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   syncButton: {
-    backgroundColor: '#f59e0b',
+    backgroundColor: '#ffffff',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   presetTextActive: {
-    color: '#38bdf8',
+    color: '#ffffff',
     fontWeight: '700',
   },
   buttonRow: {
@@ -434,10 +434,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   statusSuccessCard: {
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     padding: 16,
     marginBottom: 16,
   },
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'monospace',
     color: THEME.colors.success,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
@@ -494,10 +494,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   statusErrorCard: {
-    backgroundColor: 'rgba(244, 63, 94, 0.08)',
+    backgroundColor: 'rgba(255, 59, 48, 0.15)',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(244, 63, 94, 0.25)',
+    borderColor: 'rgba(255, 59, 48, 0.15)',
     padding: 14,
     marginBottom: 16,
   },
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 12,
-    color: '#fca5a5',
+    color: '#FF3B30',
     lineHeight: 16,
   },
   errorHelp: {
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
   guideBadge: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#38bdf8',
+    color: '#ffffff',
     letterSpacing: 0.5,
     marginBottom: 4,
   },

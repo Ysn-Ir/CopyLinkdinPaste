@@ -282,7 +282,7 @@ export function AgentScreen({ onNavigateTab }) {
           activeOpacity={0.8}
         >
           {isProcessing ? (
-            <ActivityIndicator size="small" color="#09090b" />
+            <ActivityIndicator size="small" color="#000000" />
           ) : (
             <Text style={styles.sendBtnText}>➔</Text>
           )}
@@ -337,23 +337,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
   },
   liveDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#10b981',
+    backgroundColor: '#ffffff',
   },
   liveText: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#10b981',
+    color: '#ffffff',
   },
   clearBtn: {
     paddingHorizontal: 10,
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
   quickPromptsContainer: {
     borderBottomWidth: 1,
     borderBottomColor: '#27272a',
-    backgroundColor: '#121214',
+    backgroundColor: '#0D0D0D',
     paddingVertical: 8,
   },
   quickPromptsList: {
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   assistantMessageText: {
-    color: '#f4f4f5',
+    color: '#FFFFFF',
   },
   messageFooter: {
     flexDirection: 'row',
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: '#121214',
+    backgroundColor: '#0D0D0D',
     borderTopWidth: 1,
     borderTopColor: '#27272a',
     gap: 8,
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#10b981',
+    backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#27272a',
   },
   sendBtnText: {
-    color: '#09090b',
+    color: '#000000',
     fontSize: 16,
     fontWeight: 'bold',
   },

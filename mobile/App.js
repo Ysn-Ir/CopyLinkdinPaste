@@ -7,15 +7,12 @@ import {
   StyleSheet,
   StatusBar,
   Platform,
-  AppState,
   Animated,
   ActivityIndicator,
-  Alert,
   Vibration,
   PermissionsAndroid,
 } from 'react-native'
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar'
-import * as Clipboard from 'expo-clipboard'
 import * as Linking from 'expo-linking'
 import * as Notifications from 'expo-notifications'
 
@@ -149,7 +146,7 @@ export default function App() {
     return () => unsubscribe()
   }, [])
 
-  // Subscribe to automatic screenshot detection events (0 manual steps)
+  // Subscribe to automatic screenshot detection events
   useEffect(() => {
     const unsubscribe = ScreenshotWatcher.subscribe((event) => {
       if (event && event.success) {
@@ -176,7 +173,6 @@ export default function App() {
       bounciness: 4,
     }).start()
 
-    // Smoothly auto-dismiss after 4.5 seconds
     bannerTimerRef.current = setTimeout(() => {
       hideClipboardBanner()
     }, 4500)
@@ -214,14 +210,13 @@ export default function App() {
   if (!isReady) {
     return (
       <View style={styles.splashContainer}>
-        <ActivityIndicator size="large" color="#e1306c" />
+        <ActivityIndicator size="large" color={THEME.colors.accent} />
         <Text style={styles.splashText}>RADAR</Text>
-        <Text style={styles.splashSub}>AI Career & Signal Intelligence</Text>
+        <Text style={styles.splashSub}>Signal Intelligence & Career Engine</Text>
       </View>
     )
   }
 
-  // Render Offer Details Screen if an offer is selected
   if (selectedOffer) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -239,7 +234,7 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <ExpoStatusBar style="light" />
 
-      {/* Non-intrusive Auto-Capture Floating Notification Toast */}
+      {/* Real-Time Auto-Capture Floating Notification Banner */}
       {bannerVisible && capturedEvent && (
         <Animated.View
           style={[
@@ -256,11 +251,11 @@ export default function App() {
             <View style={{ flex: 1 }}>
               <Text style={styles.bannerTitle} numberOfLines={1}>
                 {capturedEvent.isScreenshot
-                  ? (capturedEvent.isJobOffer ? 'Screenshot Job Offer Detected!' : 'Screenshot OCR Auto-Ingested!')
-                  : (capturedEvent.isJobOffer ? 'Job Offer Auto-Captured!' : 'Clip Auto-Captured to Vault')}
+                  ? (capturedEvent.isJobOffer ? 'Screenshot Job Offer Detected' : 'Screenshot OCR Ingested')
+                  : (capturedEvent.isJobOffer ? 'Job Offer Captured' : 'Clip Saved to Vault')}
               </Text>
               <Text style={styles.bannerSnippet} numberOfLines={1}>
-                {capturedEvent.clip?.title || (capturedEvent.rawText?.slice(0, 45) + '...') || 'Processed via Groq Vision OCR'}
+                {capturedEvent.clip?.title || (capturedEvent.rawText?.slice(0, 45) + '...') || 'Processed via Groq OCR'}
               </Text>
             </View>
           </View>
@@ -300,7 +295,7 @@ export default function App() {
                 Notifications are blocked
               </Text>
               <Text style={styles.blockedAlertSubtitle}>
-                Tap to allow notifications in Android Settings for background screenshot & clip alerts.
+                Enable notifications in Android Settings for background screenshot & clip alerts.
               </Text>
             </View>
           </View>
@@ -354,7 +349,7 @@ export default function App() {
         )}
       </View>
 
-      {/* Modern High-End Bottom Navigation Bar with Safe Android Padding */}
+      {/* Stark Monochrome Bottom Navigation Dock */}
       <View style={styles.navBar}>
         <TouchableOpacity
           style={[styles.navItem, activeTab === 'dashboard' && styles.navItemActive]}
@@ -364,7 +359,7 @@ export default function App() {
             📊
           </Text>
           <Text style={[styles.navLabel, activeTab === 'dashboard' && styles.navLabelActive]}>
-            Dashboard
+            HUD
           </Text>
         </TouchableOpacity>
 
@@ -443,20 +438,20 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.colors.bgDark,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 12,
   },
   splashText: {
-    color: '#f8fafc',
-    fontSize: 24,
+    color: THEME.colors.textPrimary,
+    fontSize: 26,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 2,
     marginTop: 8,
   },
   splashSub: {
-    color: '#94a3b8',
+    color: THEME.colors.textSecondary,
     fontSize: 12,
     fontWeight: '500',
-    letterSpacing: 0.2,
+    letterSpacing: 0.5,
   },
   mainContainer: {
     flex: 1,
@@ -469,10 +464,10 @@ const styles = StyleSheet.create({
     left: 12,
     right: 12,
     zIndex: 9999,
-    backgroundColor: '#121212',
+    backgroundColor: THEME.colors.bgElevated,
     borderWidth: 1,
-    borderColor: '#e1306c',
-    borderRadius: 14,
+    borderColor: THEME.colors.accentBorder,
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     flexDirection: 'row',
@@ -480,7 +475,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.7,
+    shadowOpacity: 0.8,
     shadowRadius: 12,
     elevation: 14,
   },
@@ -494,19 +489,19 @@ const styles = StyleSheet.create({
   bannerIconBox: {
     width: 32,
     height: 32,
-    borderRadius: 9999,
-    backgroundColor: 'rgba(225, 48, 108, 0.18)',
+    borderRadius: 8,
+    backgroundColor: THEME.colors.accentLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   bannerTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#ffffff',
+    color: THEME.colors.textPrimary,
   },
   bannerSnippet: {
-    fontSize: 10.5,
-    color: '#a8a8a8',
+    fontSize: 11,
+    color: THEME.colors.textSecondary,
     marginTop: 2,
   },
   bannerActions: {
@@ -515,13 +510,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   bannerActionBtn: {
-    backgroundColor: '#ffffff',
+    backgroundColor: THEME.colors.textPrimary,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 9999,
+    borderRadius: 6,
   },
   bannerActionText: {
-    color: '#000000',
+    color: THEME.colors.textInverse,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -529,21 +524,21 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   bannerCloseText: {
-    color: '#737373',
-    fontSize: 12,
+    color: THEME.colors.textMuted,
+    fontSize: 13,
     fontWeight: '700',
   },
 
-  // Navigation Bar with Safe Android Padding (Instagram Dark Mode)
+  // Stark Minimalist Dock Navigation
   navBar: {
     flexDirection: 'row',
-    height: Platform.OS === 'android' ? 74 : 66,
-    backgroundColor: '#000000',
+    height: Platform.OS === 'android' ? 70 : 64,
+    backgroundColor: THEME.colors.bgDark,
     borderTopWidth: 1,
-    borderTopColor: '#262626',
+    borderTopColor: THEME.colors.border,
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingBottom: Platform.OS === 'android' ? 14 : 4,
+    paddingBottom: Platform.OS === 'android' ? 10 : 4,
     paddingHorizontal: 4,
   },
   navItem: {
@@ -556,42 +551,45 @@ const styles = StyleSheet.create({
   navIcon: {
     fontSize: 17,
     marginBottom: 2,
-    opacity: 0.45,
+    opacity: 0.4,
   },
   navIconActive: {
     opacity: 1,
   },
   captureIconWrapper: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    backgroundColor: '#1c1c1e',
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: THEME.colors.bgElevated,
     borderWidth: 1,
-    borderColor: '#363636',
+    borderColor: THEME.colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
   },
   captureIconWrapperActive: {
-    backgroundColor: '#e1306c',
-    borderColor: '#fd1d1d',
+    backgroundColor: THEME.colors.accent,
+    borderColor: THEME.colors.accent,
   },
   captureIcon: {
-    fontSize: 13,
+    fontSize: 12,
   },
   navLabel: {
     fontSize: 10,
-    color: '#737373',
-    fontWeight: '500',
+    color: THEME.colors.textMuted,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   navLabelActive: {
-    color: '#ffffff',
+    color: THEME.colors.textPrimary,
     fontWeight: '700',
   },
+
+  // Notifications Blocked Alert
   blockedAlertBar: {
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    backgroundColor: THEME.colors.accentLight,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(239, 68, 68, 0.25)',
+    borderBottomColor: THEME.colors.accentBorder,
     paddingHorizontal: 16,
     paddingVertical: 10,
     flexDirection: 'row',
@@ -606,27 +604,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   blockedAlertIcon: {
-    fontSize: 20,
+    fontSize: 18,
   },
   blockedAlertTitle: {
-    color: '#ef4444',
+    color: THEME.colors.accent,
     fontSize: 12,
     fontWeight: '700',
   },
   blockedAlertSubtitle: {
-    color: '#a1a1aa',
+    color: THEME.colors.textSecondary,
     fontSize: 10.5,
     marginTop: 2,
     lineHeight: 14,
   },
   blockedAlertBtn: {
-    backgroundColor: '#ef4444',
+    backgroundColor: THEME.colors.accent,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
   },
   blockedAlertBtnText: {
-    color: '#ffffff',
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
   },

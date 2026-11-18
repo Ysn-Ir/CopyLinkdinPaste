@@ -21,7 +21,7 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
   }
 }
 
-rootProject.name = 'PFE Hunter Mobile'
+rootProject.name = 'RADAR Mobile'
 
 dependencyResolutionManagement {
   versionCatalogs {

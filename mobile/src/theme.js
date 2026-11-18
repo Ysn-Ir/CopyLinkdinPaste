@@ -1,59 +1,66 @@
+/**
+ * RADAR Mobile Design System
+ * Stark Monochrome Technical HUD Palette (Linear / Raycast / Vercel Aesthetic)
+ * Pure OLED Black (#000000), Zinc Surfaces (#0D0D0D, #171717), Tactical Red Beacon (#FF3B30).
+ */
+
 export const THEME = {
   colors: {
-    // Stark Monochrome Technical HUD Palette
+    // Canvas & Surfaces
     bgDark: '#000000',      // Pure pitch OLED black
-    bgCard: '#0D0D0D',      // Deep charcoal card surface
-    bgElevated: '#171717',  // Elevated sheet / modal
-    bgInput: '#1F1F1F',     // Technical input background
-    border: '#27272A',      // Subtle 1px technical border
-    borderFocus: '#FF3B30', // Tactical red focus beacon
+    bgCard: '#0D0D0D',      // Precision surface card
+    bgElevated: '#171717',  // Elevated sheets, bottom sheets, modals
+    bgInput: '#18181B',     // Technical input field background
+    bgHover: '#202023',     // Subtle tactile press state
 
-    textPrimary: '#FFFFFF',
+    // Borders & Dividers
+    border: '#27272A',      // Standard 1px structural border
+    borderSubtle: '#1C1C1F',// Micro-divider
+    borderElevated: '#3F3F46', // Highlight border
+    borderFocus: '#FF3B30', // Tactical beacon highlight
+
+    // Typography
+    textPrimary: '#FFFFFF',   // High-contrast primary text
     textSecondary: '#A1A1AA', // Zinc secondary text
-    textMuted: '#71717A',     // Zinc tertiary text
+    textMuted: '#71717A',     // Tertiary captions & timestamps
+    textInverse: '#000000',   // Dark text on white buttons
 
-    // Signature Accent: Single Tactical Red Beacon (Zero AI Rainbow Gradients)
+    // Tactical Accent: Single Signature Red Beacon
     accent: '#FF3B30',
-    accentGradientStart: '#FFFFFF',
-    accentGradientMiddle: '#CCCCCC',
-    accentGradientEnd: '#888888',
     accentLight: 'rgba(255, 59, 48, 0.12)',
-    accentBorder: 'rgba(255, 59, 48, 0.40)',
+    accentBorder: 'rgba(255, 59, 48, 0.35)',
 
-    // Technical Badges
-    linkBlue: '#FFFFFF',
-    likeRed: '#FF3B30',
-    storyOrange: '#FFFFFF',
-    storyYellow: '#A1A1AA',
+    // Technical Status Badges (Monochrome + Red)
+    badgeNeutralBg: 'rgba(255, 255, 255, 0.06)',
+    badgeNeutralText: '#E4E4E7',
+    badgeNeutralBorder: 'rgba(255, 255, 255, 0.15)',
 
-    success: '#FFFFFF',
-    successLight: 'rgba(255, 255, 255, 0.08)',
-    successBorder: 'rgba(255, 255, 255, 0.25)',
+    badgeActiveBg: 'rgba(255, 59, 48, 0.12)',
+    badgeActiveText: '#FF3B30',
+    badgeActiveBorder: 'rgba(255, 59, 48, 0.35)',
 
-    warning: '#D4D4D8',
-    warningLight: 'rgba(212, 212, 216, 0.08)',
-    warningBorder: 'rgba(212, 212, 216, 0.25)',
-
-    info: '#FFFFFF',
-    infoLight: 'rgba(255, 255, 255, 0.08)',
-    infoBorder: 'rgba(255, 255, 255, 0.25)',
-
-    danger: '#FF3B30',
-    dangerLight: 'rgba(255, 59, 48, 0.14)',
-    dangerBorder: 'rgba(255, 59, 48, 0.35)',
+    badgeMutedBg: 'rgba(113, 113, 122, 0.12)',
+    badgeMutedText: '#A1A1AA',
+    badgeMutedBorder: 'rgba(113, 113, 122, 0.25)',
   },
 
   stages: [
-    { id: 'saved', label: 'Saved', color: '#A1A1AA', bg: '#18181B' },
-    { id: 'ready', label: 'Ready', color: '#FFFFFF', bg: 'rgba(255, 255, 255, 0.10)' },
-    { id: 'applied', label: 'Applied', color: '#FFFFFF', bg: 'rgba(255, 255, 255, 0.14)' },
-    { id: 'interview', label: 'Interview', color: '#FF3B30', bg: 'rgba(255, 59, 48, 0.14)' },
-    { id: 'offer', label: 'Offer Received', color: '#FF3B30', bg: 'rgba(255, 59, 48, 0.20)' },
-    { id: 'rejected', label: 'Archived', color: '#71717A', bg: 'rgba(113, 113, 122, 0.14)' },
+    { id: 'saved', label: 'Saved', color: '#A1A1AA', bg: 'rgba(113, 113, 122, 0.12)', border: '#27272A' },
+    { id: 'ready', label: 'Ready', color: '#FFFFFF', bg: 'rgba(255, 255, 255, 0.10)', border: '#3F3F46' },
+    { id: 'applied', label: 'Applied', color: '#FFFFFF', bg: 'rgba(255, 255, 255, 0.16)', border: '#52525B' },
+    { id: 'interview', label: 'Interview', color: '#FF3B30', bg: 'rgba(255, 59, 48, 0.14)', border: 'rgba(255, 59, 48, 0.40)' },
+    { id: 'offer', label: 'Offer Received', color: '#FF3B30', bg: 'rgba(255, 59, 48, 0.22)', border: '#FF3B30' },
+    { id: 'rejected', label: 'Archived', color: '#71717A', bg: 'rgba(113, 113, 122, 0.10)', border: '#27272A' },
   ],
 }
 
 export function getStageMeta(stageId) {
   const match = THEME.stages.find((s) => s.id === stageId)
-  return match || { id: stageId, label: stageId || 'Unknown', color: '#A1A1AA', bg: '#18181B' }
+  return match || {
+    id: stageId,
+    label: stageId ? stageId.toUpperCase() : 'UNKNOWN',
+    color: '#A1A1AA',
+    bg: 'rgba(113, 113, 122, 0.12)',
+    border: '#27272A',
+  }
 }

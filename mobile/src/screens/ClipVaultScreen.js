@@ -35,25 +35,25 @@ const CONTENT_TYPES = [
 
 function getTypeColor(typeId) {
   const map = {
-    job_offer: '#10b981',
-    educational_video: '#f59e0b',
-    code_snippet: '#cbd5e1',
-    tech_article: '#f59e0b',
-    social_post: '#14b8a6',
-    tool_or_repo: '#10b981',
+    job_offer: '#ffffff',
+    educational_video: '#ffffff',
+    code_snippet: '#a1a1aa',
+    tech_article: '#ffffff',
+    social_post: '#ffffff',
+    tool_or_repo: '#ffffff',
     note: '#a1a1aa',
-    contact: '#f43f5e',
+    contact: '#FF3B30',
   }
-  return map[typeId] || '#94a3b8'
+  return map[typeId] || '#a1a1aa'
 }
 
 function getChannelBadge(clip) {
   const channel = clip.channel || (clip.jobData && clip.jobData.channel)
   if (channel === 'email' || (clip.content && clip.content.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/))) {
-    return { label: 'Email Channel', color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' }
+    return { label: 'Email Channel', color: '#ffffff', bg: 'rgba(255, 255, 255, 0.08)' }
   }
   if (channel === 'direct_contact' || (clip.content && clip.content.match(/(?:wa\.me|\+?[0-9]{9,15})/i))) {
-    return { label: 'Direct DM', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' }
+    return { label: 'Direct DM', color: '#ffffff', bg: 'rgba(255, 255, 255, 0.08)' }
   }
   if (clip.contentType === 'job_offer') {
     return { label: 'ATS Portal', color: '#ffffff', bg: 'rgba(255, 255, 255, 0.08)' }
@@ -474,7 +474,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
           style={styles.ocrSearchBtn}
         >
           {isProcessingOcr ? (
-            <ActivityIndicator size="small" color="#10b981" />
+            <ActivityIndicator size="small" color="#ffffff" />
           ) : (
             <Text style={styles.ocrSearchBtnText}>📸 OCR</Text>
           )}
@@ -610,7 +610,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
                   disabled={isEnriching}
                 >
                   {isEnriching ? (
-                    <ActivityIndicator size="small" color="#09090b" />
+                    <ActivityIndicator size="small" color="#000000" />
                   ) : (
                     <Text style={styles.modalEnrichBtnText}>⚡ Deep AI Enrich / Re-scrape</Text>
                   )}
@@ -678,7 +678,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
 
                   {Array.isArray(selectedClip.entities?.videoData?.keyTakeaways) && selectedClip.entities.videoData.keyTakeaways.length > 0 && (
                     <View style={{ marginTop: 8 }}>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#f59e0b', marginBottom: 4 }}>KEY POINTS:</Text>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#ffffff', marginBottom: 4 }}>KEY POINTS:</Text>
                       {selectedClip.entities.videoData.keyTakeaways.map((pt, idx) => (
                         <Text key={idx} style={styles.eduTakeawayDetailItem}>• {pt}</Text>
                       ))}
@@ -687,7 +687,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
 
                   {Array.isArray(selectedClip.entities?.videoData?.toolsMentioned) && selectedClip.entities.videoData.toolsMentioned.length > 0 && (
                     <View style={{ marginTop: 10 }}>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#f59e0b', marginBottom: 4 }}>TOOLS & FRAMEWORKS:</Text>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#ffffff', marginBottom: 4 }}>TOOLS & FRAMEWORKS:</Text>
                       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                         {selectedClip.entities.videoData.toolsMentioned.map((tool, idx) => (
                           <View key={idx} style={styles.toolTagDetail}>
@@ -705,7 +705,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <Text style={styles.sectionLabel}>FULL SCRAPED CONTENT & TRANSCRIPT</Text>
                   <TouchableOpacity onPress={() => handleCopyContent(selectedClip.content)}>
-                    <Text style={{ fontSize: 11, color: '#10b981', fontWeight: '700' }}>Copy Full Text</Text>
+                    <Text style={{ fontSize: 11, color: '#ffffff', fontWeight: '700' }}>Copy Full Text</Text>
                   </TouchableOpacity>
                 </View>
                 <View style={styles.fullContentBox}>
@@ -776,7 +776,7 @@ const styles = StyleSheet.create({
   syncBtnText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#09090b',
+    color: '#000000',
   },
   toggleBtn: {
     paddingVertical: 5,
@@ -785,12 +785,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   toggleBtnOn: {
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.20)',
   },
   toggleBtnOff: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    backgroundColor: 'rgba(255, 59, 48, 0.12)',
+    borderColor: 'rgba(255, 59, 48, 0.35)',
   },
   toggleBtnText: {
     fontSize: 10,
@@ -845,7 +845,7 @@ const styles = StyleSheet.create({
     color: THEME.colors.textSecondary,
   },
   filterTextActive: {
-    color: '#09090b',
+    color: '#000000',
   },
   filterCountBadge: {
     paddingHorizontal: 7,
@@ -864,7 +864,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   filterCountTextActive: {
-    color: '#09090b',
+    color: '#000000',
   },
   centerLoader: {
     flex: 1,
@@ -973,27 +973,27 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   convertBtn: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   convertBtnText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#10b981',
+    color: '#ffffff',
   },
   convertedBadge: {
     paddingVertical: 2,
     paddingHorizontal: 8,
     borderRadius: 8,
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.20)',
   },
   convertedText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#10b981',
+    color: '#ffffff',
   },
   emptyState: {
     alignItems: 'center',
@@ -1039,21 +1039,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: 8,
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   ocrSearchBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#10b981',
+    color: '#ffffff',
   },
   eduBox: {
-    backgroundColor: 'rgba(245, 158, 11, 0.06)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 8,
     padding: 10,
     marginBottom: 8,
@@ -1067,7 +1067,7 @@ const styles = StyleSheet.create({
   eduHeaderTitle: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#f59e0b',
+    color: '#ffffff',
     textTransform: 'uppercase',
   },
   eduCreator: {
@@ -1199,7 +1199,7 @@ const styles = StyleSheet.create({
   modalEnrichBtnText: {
     fontSize: 11.5,
     fontWeight: '800',
-    color: '#09090b',
+    color: '#000000',
   },
   modalSecondaryBtn: {
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
@@ -1215,9 +1215,9 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   modalRouteBtn: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.30)',
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 8,
@@ -1225,7 +1225,7 @@ const styles = StyleSheet.create({
   modalRouteBtnText: {
     fontSize: 11.5,
     fontWeight: '700',
-    color: '#10b981',
+    color: '#ffffff',
   },
 
   // Multi-link Parent Card
@@ -1274,9 +1274,9 @@ const styles = StyleSheet.create({
 
   // Educational Detail Card
   eduDetailCard: {
-    backgroundColor: 'rgba(245, 158, 11, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 12,
     padding: 14,
     marginBottom: 14,
@@ -1284,7 +1284,7 @@ const styles = StyleSheet.create({
   eduDetailHeader: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#f59e0b',
+    color: '#ffffff',
     textTransform: 'uppercase',
     marginBottom: 6,
   },

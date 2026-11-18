@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
-const STORAGE_KEY_SERVER_URL = '@pfe_hunter_server_url'
-const STORAGE_KEY_CACHED_OFFERS = '@pfe_hunter_cached_offers'
-const STORAGE_KEY_OFFLINE_QUEUE = '@pfe_hunter_offline_queue'
+const STORAGE_KEY_SERVER_URL = '@radar_server_url'
+const STORAGE_KEY_CACHED_OFFERS = '@radar_cached_offers'
+const STORAGE_KEY_OFFLINE_QUEUE = '@radar_offline_queue'
 const DEFAULT_SERVER_URL = 'http://192.168.1.12:8003'
 
 let currentServerUrl = DEFAULT_SERVER_URL

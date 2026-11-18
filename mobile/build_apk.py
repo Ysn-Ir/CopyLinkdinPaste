@@ -56,12 +56,10 @@ def build():
                 break
                 
     if found_apk and os.path.exists(found_apk):
-        dest_apk = os.path.join(root_dir, 'omnihunt-mobile.apk')
+        dest_apk = os.path.join(root_dir, 'radar-mobile.apk')
         shutil.copy2(found_apk, dest_apk)
-        # Also copy to legacy name for compatibility
-        shutil.copy2(found_apk, os.path.join(root_dir, 'pfe-hunter-mobile.apk'))
         # Copy to public folder for direct browser download / QR code pairing
-        public_apk = os.path.join(root_dir, 'public', 'omnihunt-mobile.apk')
+        public_apk = os.path.join(root_dir, 'public', 'radar-mobile.apk')
         if os.path.exists(os.path.dirname(public_apk)):
             shutil.copy2(found_apk, public_apk)
             print(f"[+] Output APK copied to public: {public_apk}")

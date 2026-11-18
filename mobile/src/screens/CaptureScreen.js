@@ -305,7 +305,7 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           activeOpacity={0.8}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, overflow: 'hidden' }}>
-            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(225, 48, 108, 0.2)', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255, 59, 48, 0.15)', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: 16 }}>📸</Text>
             </View>
             <View style={{ flex: 1, overflow: 'hidden' }}>
@@ -433,7 +433,7 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           disabled={isIngesting || (!inputText && !sourceUrl)}
         >
           {isIngesting ? (
-            <ActivityIndicator size="small" color="#09090b" />
+            <ActivityIndicator size="small" color="#000000" />
           ) : (
             <Text style={styles.ingestBtnText}>
               {captureMode === 'bulk'
@@ -536,12 +536,12 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: '#10b981',
+    backgroundColor: '#ffffff',
   },
   clipboardLiveText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#10b981',
+    color: '#ffffff',
     letterSpacing: 0.5,
   },
   pasteActionBtn: {
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
   },
   oneTapLoadText: {
     fontSize: 11,
-    color: '#10b981',
+    color: '#ffffff',
     fontWeight: '700',
   },
   clipboardEmptyText: {
@@ -605,9 +605,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   modeBtnActive: {
-    backgroundColor: 'rgba(14, 165, 233, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
     borderWidth: 1,
-    borderColor: 'rgba(14, 165, 233, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
   },
   modeBtnText: {
     fontSize: 11,
@@ -615,7 +615,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   modeBtnTextActive: {
-    color: '#38bdf8',
+    color: '#ffffff',
     fontWeight: '700',
   },
 
@@ -662,7 +662,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   ingestBtnText: {
-    color: '#09090b',
+    color: '#000000',
     fontSize: 13,
     fontWeight: '800',
   },
@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
   resultCard: {
     backgroundColor: THEME.colors.bgCard,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     borderRadius: 14,
     padding: 14,
     marginTop: 8,
@@ -685,11 +685,11 @@ const styles = StyleSheet.create({
   resultBadge: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#10b981',
+    color: '#ffffff',
   },
   resultChannel: {
     fontSize: 10,
-    color: '#94a3b8',
+    color: '#a1a1aa',
     fontWeight: '700',
   },
   resultTitle: {
@@ -707,9 +707,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   viewOfferBtn: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 8,
@@ -717,7 +717,7 @@ const styles = StyleSheet.create({
   viewOfferText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#10b981',
+    color: '#ffffff',
   },
 
   // 1-Tap Instant Screenshot Scanner
@@ -743,9 +743,9 @@ const styles = StyleSheet.create({
 
   // Badge for detected links
   detectedBadge: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -753,7 +753,7 @@ const styles = StyleSheet.create({
   detectedBadgeText: {
     fontSize: 10.5,
     fontWeight: '700',
-    color: '#10b981',
+    color: '#ffffff',
   },
 
   // Bulk Batch Result Card
@@ -769,7 +769,7 @@ const styles = StyleSheet.create({
   batchResultTitle: {
     fontSize: 13.5,
     fontWeight: '700',
-    color: '#10b981',
+    color: '#ffffff',
     marginBottom: 4,
   },
   batchResultSubtitle: {

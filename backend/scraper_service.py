@@ -1,14 +1,42 @@
+"""
+RADAR Enterprise Web Scraping & Content Extraction Engine
+Powered by trafilatura (GitHub: adbar/trafilatura) and curl_cffi TLS impersonation.
+Replaces legacy BeautifulSoup DOM hunting with linguistic and structural content extraction.
+"""
+
 import re
 import urllib.parse
 import logging
-import httpx
-from bs4 import BeautifulSoup
 from urllib.parse import urlparse
+from typing import Dict, Any, Optional
+
+import httpx
+from curl_cffi.requests import AsyncSession
+import trafilatura
 
 logger = logging.getLogger("radar.scraper")
 
+STEALTH_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9,fr;q=0.8",
+    "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+    "Sec-Ch-Ua-Mobile": "?0",
+    "Sec-Ch-Ua-Platform": '"Windows"',
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Upgrade-Insecure-Requests": "1",
+}
+
+
 def extract_youtube_id(url: str) -> str:
-    """Extract 11-char YouTube video ID from watch URLs, shorts, or youtu.be links"""
+    """Extract 11-char YouTube video ID from watch URLs, shorts, or youtu.be links."""
     patterns = [
         r'(?:shorts\/)([0-9A-Za-z_-]{11})',
         r'(?:v=|\/v\/|embed\/)([0-9A-Za-z_-]{11})',
@@ -20,8 +48,9 @@ def extract_youtube_id(url: str) -> str:
             return m.group(1)
     return ""
 
-async def fetch_youtube_metadata_and_transcript(url: str, video_id: str):
-    """Fetches YouTube title, creator, thumbnail, and captions/transcript"""
+
+async def fetch_youtube_metadata_and_transcript(url: str, video_id: str) -> Dict[str, Any]:
+    """Fetches YouTube title, creator, thumbnail, and captions/transcript via oEmbed and official API."""
     info = {
         "title": "",
         "author": "",
@@ -40,22 +69,23 @@ async def fetch_youtube_metadata_and_transcript(url: str, video_id: str):
                 info["author"] = data.get("author_name", "")
                 if data.get("thumbnail_url"):
                     info["image"] = data["thumbnail_url"]
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"YouTube oEmbed notice: {e}")
 
     # 2. Fetch transcript via youtube_transcript_api
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
         transcripts = YouTubeTranscriptApi.get_transcript(video_id, languages=['en', 'fr', 'es', 'de'])
         full_text = " ".join([t.get("text", "") for t in transcripts if t.get("text")])
-        info["transcript"] = full_text[:5000] # Cap to first 5000 chars of spoken content
-    except Exception:
-        pass
+        info["transcript"] = full_text[:5000]  # Cap to first 5000 chars of spoken content
+    except Exception as e:
+        logger.debug(f"YouTube transcript notice: {e}")
 
     return info
 
-async def fetch_tiktok_metadata(url: str):
-    """Fetches TikTok creator, caption, and thumbnail using oEmbed API and OpenGraph fallback"""
+
+async def fetch_tiktok_metadata(url: str) -> Dict[str, Any]:
+    """Fetches TikTok creator, caption, and thumbnail using oEmbed API and OpenGraph fallback."""
     author_match = re.search(r'tiktok\.com/@([a-zA-Z0-9_.-]+)', url)
     author_guess = f"@{author_match.group(1)}" if author_match else "TikTok Creator"
 
@@ -70,7 +100,7 @@ async def fetch_tiktok_metadata(url: str):
         async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
             if "vm.tiktok.com" in url or "vt.tiktok.com" in url:
                 try:
-                    r = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+                    r = await client.get(url, headers=STEALTH_HEADERS)
                     target = str(r.url)
                     m2 = re.search(r'tiktok\.com/@([a-zA-Z0-9_.-]+)', target)
                     if m2:
@@ -82,7 +112,7 @@ async def fetch_tiktok_metadata(url: str):
             try:
                 encoded = urllib.parse.quote(target, safe='')
                 oembed_url = f"https://www.tiktok.com/oembed?url={encoded}"
-                resp = await client.get(oembed_url, headers={"User-Agent": "Mozilla/5.0"})
+                resp = await client.get(oembed_url, headers=STEALTH_HEADERS)
                 if resp.status_code == 200:
                     data = resp.json()
                     info["title"] = data.get("title", "")
@@ -90,30 +120,25 @@ async def fetch_tiktok_metadata(url: str):
                     info["image"] = data.get("thumbnail_url")
                     info["description"] = f"Educational TikTok by {info['author']}: {info['title']}"
             except Exception as e:
-                logger.warning(f"TikTok oEmbed failed: {e}")
+                logger.debug(f"TikTok oEmbed failed: {e}")
 
-            # 2. Fallback to OpenGraph scraping if title is still empty
+            # 2. OpenGraph fallback
             if not info["title"] or not info["image"]:
                 try:
-                    headers = {
+                    fb_headers = {
                         "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
                         "Accept-Language": "en-US,en;q=0.9",
                     }
-                    page_resp = await client.get(target, headers=headers)
+                    page_resp = await client.get(target, headers=fb_headers)
                     if page_resp.status_code == 200:
-                        soup = BeautifulSoup(page_resp.text, "html.parser")
-                        og_title = soup.find("meta", property="og:title")
-                        og_desc = soup.find("meta", property="og:description")
-                        og_img = soup.find("meta", property="og:image")
-
-                        if og_title and og_title.get("content"):
-                            info["title"] = og_title["content"].strip()
-                        if og_desc and og_desc.get("content") and not info["title"]:
-                            info["title"] = og_desc["content"].strip()
-                        if og_img and og_img.get("content") and not info["image"]:
-                            info["image"] = og_img["content"].strip()
+                        html = page_resp.text
+                        meta = trafilatura.extract_metadata(html)
+                        if meta:
+                            info["title"] = meta.title or info["title"]
+                            info["description"] = meta.description or info["description"]
+                            info["image"] = meta.image or info["image"]
                 except Exception as e:
-                    logger.warning(f"TikTok OpenGraph fallback failed: {e}")
+                    logger.debug(f"TikTok fallback failed: {e}")
 
         if not info["title"]:
             info["title"] = f"Educational TikTok by {info['author']}"
@@ -122,8 +147,9 @@ async def fetch_tiktok_metadata(url: str):
         logger.warning(f"TikTok fetch error: {e}")
     return info
 
-async def fetch_instagram_metadata(url: str):
-    """Fetches Instagram Reel creator, description, and preview metadata via bot OpenGraph scraping"""
+
+async def fetch_instagram_metadata(url: str) -> Dict[str, Any]:
+    """Fetches Instagram Reel creator, description, and preview metadata via bot OpenGraph scraping."""
     user_match = re.search(r'instagram\.com/([a-zA-Z0-9_.]+)/(?:reel|p)/', url)
     reel_match = re.search(r'/(?:reel|p)/([A-Za-z0-9_-]+)', url)
     author = user_match.group(1) if user_match else "Instagram Creator"
@@ -146,35 +172,19 @@ async def fetch_instagram_metadata(url: str):
         async with httpx.AsyncClient(timeout=8.0, headers=headers, follow_redirects=True) as client:
             resp = await client.get(url)
             if resp.status_code == 200:
-                soup = BeautifulSoup(resp.text, "html.parser")
-                og_title = soup.find("meta", property="og:title")
-                og_desc = soup.find("meta", property="og:description")
-                og_img = soup.find("meta", property="og:image")
+                html = resp.text
+                meta = trafilatura.extract_metadata(html)
+                if meta:
+                    info["title"] = meta.title or ""
+                    info["description"] = meta.description or ""
+                    info["image"] = meta.image or None
 
-                if og_img and og_img.get("content"):
-                    info["image"] = og_img["content"].strip()
-
-                desc_content = (og_desc.get("content") if og_desc else "") or ""
-                # Instagram description often has: "... - Author on Date: \"Real caption here...\""
-                caption_match = re.search(r':\s*["\'](.+?)["\']\s*$', desc_content, re.DOTALL)
-                caption = caption_match.group(1).strip() if caption_match else desc_content.strip()
-
-                title_content = (og_title.get("content") if og_title else "") or ""
-                
-                # Check for author name in title: "Author on Instagram: ..."
-                if " on Instagram" in title_content:
-                    author_part = title_content.split(" on Instagram")[0].strip()
-                    if author_part:
-                        info["author"] = f"@{author_part}" if not author_part.startswith("@") else author_part
-
-                if caption and len(caption) > 5:
-                    info["title"] = caption[:120]
-                    info["description"] = caption
-                elif title_content:
-                    info["title"] = title_content[:120]
-                    info["description"] = title_content
+                # Search for caption in OpenGraph description
+                m_caption = re.search(r':\s*["\'](.+?)["\']\s*$', info["description"], re.DOTALL)
+                if m_caption:
+                    info["title"] = m_caption.group(1).strip()[:120]
     except Exception as e:
-        logger.warning(f"Instagram OpenGraph fetch error: {e}")
+        logger.debug(f"Instagram OpenGraph fetch notice: {e}")
 
     if not info["title"]:
         info["title"] = f"Educational Reel by {info['author']}"
@@ -183,10 +193,41 @@ async def fetch_instagram_metadata(url: str):
 
     return info
 
-async def scrape_url_metadata(target_url: str):
+
+async def fetch_html_stealth(target_url: str) -> Optional[str]:
     """
-    Deep web scraper extracting OpenGraph, rich HTML body text,
-    and video transcripts (YouTube Shorts, TikTok, Instagram Reels, job portals, blogs).
+    Fetches HTML content with TLS fingerprint impersonation (curl_cffi chrome124)
+    to bypass Cloudflare and bot shields, with graceful httpx fallback.
+    """
+    # 1. Primary: curl_cffi with chrome124 TLS fingerprint
+    try:
+        async with AsyncSession(impersonate="chrome124", timeout=12) as session:
+            resp = await session.get(target_url, headers=STEALTH_HEADERS)
+            if resp.status_code == 200 and resp.text:
+                return resp.text
+            elif resp.status_code < 400:
+                return resp.text
+            logger.debug(f"curl_cffi returned status {resp.status_code} on {target_url}")
+    except Exception as e:
+        logger.debug(f"curl_cffi fetch notice: {e}, falling back to httpx...")
+
+    # 2. Secondary fallback: httpx with browser headers
+    try:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, headers=STEALTH_HEADERS) as client:
+            resp = await client.get(target_url)
+            if resp.status_code < 400:
+                return resp.text
+    except Exception as e:
+        logger.warning(f"httpx fallback also failed for {target_url}: {e}")
+
+    return None
+
+
+async def scrape_url_metadata(target_url: str) -> Dict[str, Any]:
+    """
+    Enterprise-grade web content scraper powered by trafilatura and curl_cffi.
+    Extracts structural text, full job postings, articles, and video transcripts
+    while automatically discarding web clutter, ads, navigation, and boilerplate.
     """
     clean_url = target_url.strip()
     parsed = urlparse(clean_url)
@@ -199,7 +240,7 @@ async def scrape_url_metadata(target_url: str):
         title = yt_data["title"] or f"YouTube Video ({yt_id})"
         author = yt_data["author"] or "YouTube Creator"
         transcript = yt_data["transcript"]
-        
+
         body_summary = f"Video by {author}. Title: {title}."
         if transcript:
             body_summary += f"\n\nVideo Transcript:\n{transcript}"
@@ -208,6 +249,7 @@ async def scrape_url_metadata(target_url: str):
             "url": clean_url,
             "title": title,
             "description": f"Short/Video by {author}",
+            "text": body_summary[:5000],
             "bodyText": body_summary[:5000],
             "image": yt_data["image"],
             "siteName": "YouTube",
@@ -229,6 +271,7 @@ async def scrape_url_metadata(target_url: str):
             "url": clean_url,
             "title": title,
             "description": desc,
+            "text": body,
             "bodyText": body,
             "image": tt_data["image"],
             "siteName": "TikTok",
@@ -250,6 +293,7 @@ async def scrape_url_metadata(target_url: str):
             "url": clean_url,
             "title": title,
             "description": desc,
+            "text": body,
             "bodyText": body,
             "image": ig_data["image"],
             "siteName": "Instagram",
@@ -260,91 +304,106 @@ async def scrape_url_metadata(target_url: str):
             "isEducationalVideo": True,
         }
 
-    is_short_or_reel = "shorts" in clean_url or "tiktok.com" in domain or "instagram.com/reel" in clean_url or "twitter.com" in domain or "x.com" in domain
-
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9,fr;q=0.8",
-    }
+    is_short_or_reel = (
+        "shorts" in clean_url
+        or "tiktok.com" in domain
+        or "instagram.com/reel" in clean_url
+        or "twitter.com" in domain
+        or "x.com" in domain
+    )
 
     try:
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-            resp = await client.get(clean_url, headers=headers)
-            if resp.status_code >= 400:
-                return {
-                    "url": clean_url,
-                    "title": "",
-                    "description": "",
-                    "bodyText": "",
-                    "image": None,
-                    "siteName": domain,
-                    "error": f"HTTP {resp.status_code}",
-                    "isVideo": is_short_or_reel,
-                }
-
-            html = resp.text
-            soup = BeautifulSoup(html, "html.parser")
-
-            def get_meta(prop_name):
-                tag = soup.find("meta", property=prop_name) or soup.find("meta", attrs={"name": prop_name})
-                return tag.get("content", "").strip() if tag and tag.get("content") else None
-
-            title = (
-                get_meta("og:title")
-                or get_meta("twitter:title")
-                or (soup.title.string.strip() if soup.title and soup.title.string else "")
-            )
-            description = (
-                get_meta("og:description")
-                or get_meta("twitter:description")
-                or get_meta("description")
-                or ""
-            )
-            image = (
-                get_meta("og:image")
-                or get_meta("twitter:image")
-                or get_meta("image")
-            )
-            site_name = get_meta("og:site_name") or domain
-
-            # Remove scripts, styles, navigation, footer, forms to isolate clean content
-            for unwanted in soup(["script", "style", "noscript", "nav", "footer", "form", "svg", "button"]):
-                unwanted.extract()
-
-            # Extract main readable text
-            main_container = soup.find("main") or soup.find("article") or soup.find("div", class_=re.compile(r"content|post|job|article|detail", re.I)) or soup.body
-            
-            body_paragraphs = []
-            if main_container:
-                for elem in main_container.find_all(["h1", "h2", "h3", "h4", "p", "li"]):
-                    txt = elem.get_text(separator=" ", strip=True)
-                    if txt and len(txt) > 20:
-                        body_paragraphs.append(txt)
-
-            body_text = "\n".join(body_paragraphs[:30]) # Take top 30 coherent paragraphs
-            if not body_text and main_container:
-                body_text = main_container.get_text(separator=" ", strip=True)[:3500]
-
-            # Build rich combined text representation
-            combined_text = f"{title}\n{description}\n\n{body_text}".strip()
-
-            is_video = is_short_or_reel or "tiktok" in domain or "instagram.com/reel" in clean_url or "youtube" in domain
-
+        html = await fetch_html_stealth(clean_url)
+        if not html:
             return {
                 "url": clean_url,
-                "title": title or f"Page on {domain}",
-                "description": description or "",
-                "text": combined_text[:4500],
-                "bodyText": combined_text[:4500],
-                "image": image,
-                "siteName": site_name,
-                "author": get_meta("author") or "",
-                "isVideo": is_video,
-                "videoPlatform": "tiktok" if "tiktok" in domain else ("instagram" if "instagram" in domain else domain),
-                "isEducationalVideo": is_video,
+                "title": f"Link on {domain}",
+                "description": "",
+                "text": "",
+                "bodyText": "",
+                "image": None,
+                "siteName": domain,
+                "error": "Failed to retrieve page content",
+                "isVideo": is_short_or_reel,
             }
+
+        # Use trafilatura for structural extraction (best in class on GitHub)
+        extracted_text = trafilatura.extract(
+            html,
+            include_links=True,
+            include_comments=False,
+            include_tables=True,
+            output_format="txt",
+            with_metadata=False,
+        ) or ""
+
+        # Extract structured metadata via trafilatura
+        meta = trafilatura.extract_metadata(html)
+
+        title = ""
+        description = ""
+        author = ""
+        image = None
+        site_name = domain
+
+        if meta:
+            title = meta.title or ""
+            description = meta.description or ""
+            author = meta.author or ""
+            image = meta.image or None
+            site_name = meta.sitename or domain
+
+        # Fallback regex search for og:image if trafilatura missed it
+        if not image:
+            og_img_match = re.search(r'<meta\s+property=["\']og:image["\']\s+content=["\']([^"\']+)["\']', html, re.I)
+            if not og_img_match:
+                og_img_match = re.search(r'<meta\s+name=["\']twitter:image["\']\s+content=["\']([^"\']+)["\']', html, re.I)
+            if og_img_match:
+                image = og_img_match.group(1).strip()
+
+        # Fallback for title if empty
+        if not title:
+            title_tag = re.search(r'<title[^>]*>(.*?)</title>', html, re.I | re.DOTALL)
+            if title_tag:
+                title = re.sub(r'\s+', ' ', title_tag.group(1)).strip()
+
+        # Fallback for description if empty
+        if not description:
+            desc_tag = re.search(r'<meta\s+name=["\']description["\']\s+content=["\']([^"\']+)["\']', html, re.I)
+            if desc_tag:
+                description = desc_tag.group(1).strip()
+
+        # Fallback text if trafilatura extracted minimal text
+        if not extracted_text:
+            # Strip tags safely
+            clean_text = re.sub(r'<script.*?</script>', '', html, flags=re.DOTALL | re.I)
+            clean_text = re.sub(r'<style.*?</style>', '', clean_text, flags=re.DOTALL | re.I)
+            clean_text = re.sub(r'<[^>]+>', ' ', clean_text)
+            clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+            extracted_text = clean_text[:3500]
+
+        # Build clean combined text representation
+        header_context = f"{title}\n{description}".strip()
+        combined_text = f"{header_context}\n\n{extracted_text}".strip()
+
+        is_video = is_short_or_reel or "tiktok" in domain or "instagram.com/reel" in clean_url or "youtube" in domain
+
+        return {
+            "url": clean_url,
+            "title": title or f"Page on {domain}",
+            "description": description or "",
+            "text": combined_text[:4500],
+            "bodyText": combined_text[:4500],
+            "image": image,
+            "siteName": site_name,
+            "author": author,
+            "isVideo": is_video,
+            "videoPlatform": "tiktok" if "tiktok" in domain else ("instagram" if "instagram" in domain else domain),
+            "isEducationalVideo": is_video,
+        }
+
     except Exception as e:
+        logger.warning(f"Error scraping {clean_url}: {e}")
         return {
             "url": clean_url,
             "title": f"Link on {domain}",

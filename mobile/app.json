@@ -13,14 +13,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.pfehunter.mobile"
+      "bundleIdentifier": "com.radar.mobile"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000000"
       },
-      "package": "com.pfehunter.mobile",
+      "package": "com.radar.mobile",
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
