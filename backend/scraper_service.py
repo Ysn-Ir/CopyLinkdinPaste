@@ -13,6 +13,7 @@ from typing import Dict, Any, Optional
 import httpx
 from curl_cffi.requests import AsyncSession
 import trafilatura
+from bs4 import BeautifulSoup
 
 logger = logging.getLogger("radar.scraper")
 
@@ -223,6 +224,55 @@ async def fetch_html_stealth(target_url: str) -> Optional[str]:
     return None
 
 
+async def fetch_linkedin_job_metadata(url: str) -> Optional[Dict[str, Any]]:
+    """
+    Scrapes LinkedIn job posting via LinkedIn Guest API without login or 429 proxy wall.
+    Extracts high-fidelity role title, company, location, and full job description.
+    """
+    m = re.search(r'jobs/view/.*?(\d{8,})', url) or re.search(r'currentJobId=(\d{8,})', url) or re.search(r'(\d{8,})', url)
+    if not m:
+        return None
+    job_id = m.group(1)
+    api_url = f"https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{job_id}"
+
+    try:
+        async with AsyncSession(impersonate="chrome124", timeout=12) as session:
+            resp = await session.get(api_url, headers=STEALTH_HEADERS)
+            if resp.status_code == 200 and resp.text:
+                soup = BeautifulSoup(resp.text, 'html.parser')
+                title_el = soup.find('h2', class_=re.compile('topcard__title')) or soup.find('h1') or soup.find('h2')
+                company_el = soup.find('a', class_=re.compile('topcard__org-name-link')) or soup.find('span', class_=re.compile('topcard__flavor'))
+                loc_el = soup.find('span', class_=re.compile('topcard__flavor--bullet'))
+                desc_el = soup.find('div', class_=re.compile('show-more-less-html__markup')) or soup.find('section', class_=re.compile('description'))
+                img_el = soup.find('img', class_=re.compile('artdeco-entity-image'))
+
+                title = title_el.get_text(strip=True) if title_el else f"LinkedIn Position #{job_id}"
+                company = company_el.get_text(strip=True) if company_el else "LinkedIn Employer"
+                location = loc_el.get_text(strip=True) if loc_el else "Global / Remote"
+                desc_text = desc_el.get_text(separator="\n", strip=True) if desc_el else ""
+                image = img_el.get('data-delayed-url') or img_el.get('src') if img_el else None
+
+                combined = f"{title} at {company} ({location})\n\n{desc_text}".strip()
+
+                return {
+                    "url": url,
+                    "title": f"{title} · {company}",
+                    "company": company,
+                    "location": location,
+                    "description": f"Role at {company}: {title} ({location})",
+                    "text": combined[:6000],
+                    "bodyText": combined[:6000],
+                    "image": image,
+                    "siteName": "LinkedIn",
+                    "author": company,
+                    "isVideo": False,
+                    "isJobPosting": True,
+                }
+    except Exception as e:
+        logger.warning(f"LinkedIn guest scrape notice for {url}: {e}")
+    return None
+
+
 async def scrape_url_metadata(target_url: str) -> Dict[str, Any]:
     """
     Enterprise-grade web content scraper powered by trafilatura and curl_cffi.
@@ -303,6 +353,12 @@ async def scrape_url_metadata(target_url: str) -> Dict[str, Any]:
             "transcript": title,
             "isEducationalVideo": True,
         }
+
+    # 4. LinkedIn Job Postings (via public guest API without 429 proxy walls)
+    if "linkedin.com" in domain and ("/jobs/" in clean_url or "currentJobId=" in clean_url or re.search(r'\d{8,}', clean_url)):
+        linkedin_data = await fetch_linkedin_job_metadata(clean_url)
+        if linkedin_data:
+            return linkedin_data
 
     is_short_or_reel = (
         "shorts" in clean_url

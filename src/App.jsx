@@ -26,6 +26,7 @@ import { notificationService } from './services/notificationService.js'
 import { Bell, BellOff } from 'lucide-react'
 
 import { CommandCenterView } from './views/CommandCenterView.jsx'
+import { HomeView } from './views/HomeView.jsx'
 import { DashboardView } from './views/DashboardView.jsx'
 import { InboxView } from './views/InboxView.jsx'
 import { EmailWorkspaceView } from './views/EmailWorkspaceView.jsx'
@@ -43,7 +44,7 @@ import { AgentOrchestrator } from './services/agentOrchestrator.js'
 import { ClipboardMonitorService } from './services/clipboardMonitor.js'
 
 export default function App() {
-  const [activeView, setActiveView] = useState('command-center')
+  const [activeView, setActiveView] = useState('home')
   const [density, setDensity] = useState('comfortable') // 'comfortable' | 'compact'
   const [isCommandOpen, setIsCommandOpen] = useState(false)
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false)
@@ -612,6 +613,15 @@ export default function App() {
         </header>
 
         {/* Dynamic View Router */}
+        {activeView === 'home' && (
+          <HomeView
+            offers={offers}
+            clips={clips}
+            onNavigate={setActiveView}
+            onQuickIngest={handleRunIngestion}
+          />
+        )}
+
         {activeView === 'command-center' && (
           <CommandCenterView
             offers={offers}

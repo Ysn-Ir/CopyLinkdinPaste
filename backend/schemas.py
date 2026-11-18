@@ -172,6 +172,14 @@ class TailorCvRequest(BaseModel):
     customTemplate: Optional[str] = None
 
 
+class TailorCvPartialRequest(BaseModel):
+    cvText: str
+    jobTitle: str
+    jobDescription: str
+    mode: Optional[str] = "summary"   # "summary" | "bullets" | "skills" | "full"
+    candidateProfile: Optional[Dict[str, Any]] = None
+
+
 class CompileCvRequest(BaseModel):
     code: str
     format: Optional[str] = "typst"

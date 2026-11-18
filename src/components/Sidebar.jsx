@@ -60,10 +60,11 @@ export function Sidebar({
   const reviewCount = offers.filter((o) => o.needsUserReview).length
 
   const mainWorkspaces = [
+    { id: 'home', label: 'Home', icon: Compass, count: null },
     { id: 'command-center', label: 'Command Center', icon: Layers, count: offers.length },
-    { id: 'clip-vault', label: 'Radar Feed & Vault', icon: Clipboard, count: clipCount > 0 ? clipCount : null },
     { id: 'scraper', label: 'Autonomous Scraper', icon: Globe, count: 'JobSpy' },
-    { id: 'resume-studio', label: 'ATS Resume & LaTeX', icon: FileText, count: null },
+    { id: 'resume-studio', label: 'ATS Resume Studio', icon: FileText, count: null },
+    { id: 'clip-vault', label: 'Signal Vault', icon: Clipboard, count: clipCount > 0 ? clipCount : null },
     { id: 'inbox', label: 'Review Queue', icon: Inbox, count: reviewCount > 0 ? reviewCount : null, alert: reviewCount > 0 },
     { id: 'pipeline', label: 'Pipeline Board', icon: Kanban, count: null },
   ]
@@ -150,93 +151,7 @@ export function Sidebar({
           })}
         </div>
 
-        {/* 3. Category Domains Breakdown */}
-        <div className="sidebar-nav-group">
-          <div
-            className="sidebar-section-title"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingRight: '6px',
-            }}
-          >
-            <span>Domain Fields</span>
-            {onOpenCategoryManager && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onOpenCategoryManager()
-                }}
-                style={{
-                  background: 'rgba(56, 189, 248, 0.1)',
-                  border: '1px solid rgba(56, 189, 248, 0.25)',
-                  color: '#38bdf8',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  padding: '1px 6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '3px',
-                  fontSize: '9.5px',
-                  fontWeight: 600,
-                }}
-                title="Add & configure custom engineering domains"
-              >
-                <Plus size={10} />
-                <span>Add</span>
-              </button>
-            )}
-          </div>
-          {((categories && categories.length > 0) ? categories : CATEGORIES).filter((c) => c.id !== 'all').map((cat) => {
-            const count = offers.filter((o) => o.category === cat.id).length
-            const isFilterActive = activeView === 'command-center' && activeCategory === cat.id
-
-            return (
-              <button
-                key={cat.id}
-                className={`nav-item ${isFilterActive ? 'active' : ''}`}
-                onClick={() => {
-                  if (onSelectCategory) {
-                    onSelectCategory(cat.id)
-                  } else {
-                    onNavigate('command-center')
-                  }
-                }}
-                style={{ padding: '4px 8px' }}
-                title={`Filter by ${cat.label}`}
-              >
-                <div className="nav-item-left">
-                  <div
-                    style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: '50%',
-                      background: cat.color,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span className="sidebar-label" style={{ fontSize: '12px' }}>
-                    {cat.shortLabel || cat.label}
-                  </span>
-                </div>
-                <span
-                  className="sidebar-label"
-                  style={{
-                    fontSize: '11px',
-                    fontFamily: 'var(--font-mono)',
-                    color: count > 0 ? 'var(--text-secondary)' : 'var(--text-disabled)',
-                  }}
-                >
-                  {count}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* 4. Tools & Configuration */}
+        {/* 3. Tools & Configuration */}
         <div className="sidebar-nav-group">
           <div className="sidebar-section-title">System & Network</div>
           {toolViews.map((item) => {
