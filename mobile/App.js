@@ -20,6 +20,7 @@ import { ApiService } from './src/services/api'
 import { THEME } from './src/theme'
 
 import { DashboardScreen } from './src/screens/DashboardScreen'
+import { ScraperScreen } from './src/screens/ScraperScreen'
 import { CaptureScreen } from './src/screens/CaptureScreen'
 import { OffersListScreen } from './src/screens/OffersListScreen'
 import { OfferDetailScreen } from './src/screens/OfferDetailScreen'
@@ -244,8 +245,8 @@ export default function App() {
         >
           <View style={styles.bannerLeft}>
             <View style={styles.bannerIconBox}>
-              <Text style={{ fontSize: 13 }}>
-                {capturedEvent.isScreenshot ? '📸' : (capturedEvent.isJobOffer ? '🎯' : '📋')}
+              <Text style={styles.bannerIconBadgeText}>
+                {capturedEvent.isScreenshot ? 'OCR' : (capturedEvent.isJobOffer ? 'JOB' : 'CLIP')}
               </Text>
             </View>
             <View style={{ flex: 1 }}>
@@ -255,7 +256,7 @@ export default function App() {
                   : (capturedEvent.isJobOffer ? 'Job Offer Captured' : 'Clip Saved to Vault')}
               </Text>
               <Text style={styles.bannerSnippet} numberOfLines={1}>
-                {capturedEvent.clip?.title || (capturedEvent.rawText?.slice(0, 45) + '...') || 'Processed via Groq OCR'}
+                {capturedEvent.clip?.title || (capturedEvent.rawText?.slice(0, 45) + '...') || 'Processed via Local OCR'}
               </Text>
             </View>
           </View>
@@ -289,7 +290,9 @@ export default function App() {
           activeOpacity={0.8}
         >
           <View style={styles.blockedAlertLeft}>
-            <Text style={styles.blockedAlertIcon}>🔕</Text>
+            <View style={styles.blockedIconBadge}>
+              <Text style={styles.blockedIconText}>!</Text>
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.blockedAlertTitle}>
                 Notifications are blocked
@@ -309,6 +312,13 @@ export default function App() {
       <View style={styles.mainContainer}>
         {activeTab === 'dashboard' && (
           <DashboardScreen
+            onNavigateTab={setActiveTab}
+            onSelectOffer={handleSelectOffer}
+          />
+        )}
+
+        {activeTab === 'scraper' && (
+          <ScraperScreen
             onNavigateTab={setActiveTab}
             onSelectOffer={handleSelectOffer}
           />
@@ -355,23 +365,19 @@ export default function App() {
           style={[styles.navItem, activeTab === 'dashboard' && styles.navItemActive]}
           onPress={() => setActiveTab('dashboard')}
         >
-          <Text style={[styles.navIcon, activeTab === 'dashboard' && styles.navIconActive]}>
-            📊
-          </Text>
+          <View style={[styles.navIndicatorDot, activeTab === 'dashboard' && styles.navIndicatorDotActive]} />
           <Text style={[styles.navLabel, activeTab === 'dashboard' && styles.navLabelActive]}>
             HUD
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.navItem, activeTab === 'capture' && styles.navItemActive]}
-          onPress={() => setActiveTab('capture')}
+          style={[styles.navItem, activeTab === 'scraper' && styles.navItemActive]}
+          onPress={() => setActiveTab('scraper')}
         >
-          <View style={[styles.captureIconWrapper, activeTab === 'capture' && styles.captureIconWrapperActive]}>
-            <Text style={styles.captureIcon}>⚡</Text>
-          </View>
-          <Text style={[styles.navLabel, activeTab === 'capture' && styles.navLabelActive]}>
-            Capture
+          <View style={[styles.navIndicatorDot, activeTab === 'scraper' && styles.navIndicatorDotActive]} />
+          <Text style={[styles.navLabel, activeTab === 'scraper' && styles.navLabelActive]}>
+            HUNT
           </Text>
         </TouchableOpacity>
 
@@ -379,11 +385,9 @@ export default function App() {
           style={[styles.navItem, activeTab === 'offers' && styles.navItemActive]}
           onPress={() => setActiveTab('offers')}
         >
-          <Text style={[styles.navIcon, activeTab === 'offers' && styles.navIconActive]}>
-            💼
-          </Text>
+          <View style={[styles.navIndicatorDot, activeTab === 'offers' && styles.navIndicatorDotActive]} />
           <Text style={[styles.navLabel, activeTab === 'offers' && styles.navLabelActive]}>
-            Offers
+            OFFERS
           </Text>
         </TouchableOpacity>
 
@@ -391,11 +395,9 @@ export default function App() {
           style={[styles.navItem, activeTab === 'clipvault' && styles.navItemActive]}
           onPress={() => setActiveTab('clipvault')}
         >
-          <Text style={[styles.navIcon, activeTab === 'clipvault' && styles.navIconActive]}>
-            📋
-          </Text>
+          <View style={[styles.navIndicatorDot, activeTab === 'clipvault' && styles.navIndicatorDotActive]} />
           <Text style={[styles.navLabel, activeTab === 'clipvault' && styles.navLabelActive]}>
-            Vault
+            VAULT
           </Text>
         </TouchableOpacity>
 
@@ -403,11 +405,9 @@ export default function App() {
           style={[styles.navItem, activeTab === 'agent' && styles.navItemActive]}
           onPress={() => setActiveTab('agent')}
         >
-          <Text style={[styles.navIcon, activeTab === 'agent' && styles.navIconActive]}>
-            🤖
-          </Text>
+          <View style={[styles.navIndicatorDot, activeTab === 'agent' && styles.navIndicatorDotActive]} />
           <Text style={[styles.navLabel, activeTab === 'agent' && styles.navLabelActive]}>
-            Agent
+            AGENT
           </Text>
         </TouchableOpacity>
 
@@ -415,11 +415,9 @@ export default function App() {
           style={[styles.navItem, activeTab === 'connect' && styles.navItemActive]}
           onPress={() => setActiveTab('connect')}
         >
-          <Text style={[styles.navIcon, activeTab === 'connect' && styles.navIconActive]}>
-            📡
-          </Text>
+          <View style={[styles.navIndicatorDot, activeTab === 'connect' && styles.navIndicatorDotActive]} />
           <Text style={[styles.navLabel, activeTab === 'connect' && styles.navLabelActive]}>
-            Network
+            LINK
           </Text>
         </TouchableOpacity>
       </View>
@@ -545,44 +543,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    paddingVertical: 4,
+    paddingVertical: 8,
   },
   navItemActive: {},
-  navIcon: {
-    fontSize: 17,
-    marginBottom: 2,
-    opacity: 0.4,
+  navIndicatorDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'transparent',
+    marginBottom: 5,
   },
-  navIconActive: {
-    opacity: 1,
+  navIndicatorDotActive: {
+    backgroundColor: '#FF3B30',
   },
-  captureIconWrapper: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: THEME.colors.bgElevated,
-    borderWidth: 1,
-    borderColor: THEME.colors.border,
+  bannerIconBadgeText: {
+    color: '#FF3B30',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  blockedIconBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FF3B30',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 2,
   },
-  captureIconWrapperActive: {
-    backgroundColor: THEME.colors.accent,
-    borderColor: THEME.colors.accent,
-  },
-  captureIcon: {
-    fontSize: 12,
+  blockedIconText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
   },
   navLabel: {
     fontSize: 10,
     color: THEME.colors.textMuted,
-    fontWeight: '600',
-    letterSpacing: 0.3,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier',
   },
   navLabelActive: {
-    color: THEME.colors.textPrimary,
-    fontWeight: '700',
+    color: '#FFFFFF',
+    fontWeight: '900',
   },
 
   // Notifications Blocked Alert

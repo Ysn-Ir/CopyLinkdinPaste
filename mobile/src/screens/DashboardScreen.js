@@ -115,7 +115,7 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
           <View style={styles.radarBeacon} />
           <Text style={styles.title}>RADAR</Text>
           <View style={styles.versionBadge}>
-            <Text style={styles.versionText}>v2.0 HUD</Text>
+            <Text style={styles.versionText}>MOBILE NODE</Text>
           </View>
         </View>
         <Text style={styles.subtitle}>
@@ -132,13 +132,31 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
         <View style={styles.serverStatusDot} />
         <View style={{ flex: 1, overflow: 'hidden' }}>
           <Text style={styles.serverTitle} numberOfLines={1} ellipsizeMode="tail">
-            {serverInfo ? `Node Active: ${serverInfo.hostname || 'Localhost'}` : 'Scanning Local Network...'}
+            {serverInfo ? `Node Active: ${serverInfo.hostname || 'Localhost'}` : 'Local Node: 192.168.1.27:8003'}
           </Text>
           <Text style={styles.serverUrl} numberOfLines={1} ellipsizeMode="tail">
             {ApiService.getServerUrl()}
           </Text>
         </View>
         <Text style={styles.serverAction}>Configure →</Text>
+      </TouchableOpacity>
+
+      {/* Autonomous Scraper Direct HUD Launch Tile */}
+      <TouchableOpacity
+        style={styles.scraperLaunchCard}
+        onPress={() => onNavigateTab('scraper')}
+        activeOpacity={0.8}
+      >
+        <View style={styles.scraperBadgeIcon}>
+          <Text style={styles.scraperBadgeText}>HUNT</Text>
+        </View>
+        <View style={{ flex: 1, overflow: 'hidden' }}>
+          <Text style={styles.scraperLaunchTitle}>Autonomous Job Reconnaissance</Text>
+          <Text style={styles.scraperLaunchSubtitle}>
+            Multi-source scraper · LinkedIn Guest API & JobSpy
+          </Text>
+        </View>
+        <Text style={styles.ctaArrow}>→</Text>
       </TouchableOpacity>
 
       {/* 1-Tap Quick Screenshot Scanner */}
@@ -150,14 +168,14 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
       >
         <View style={styles.screenshotQuickLeft}>
           <View style={styles.screenshotQuickIconBox}>
-            <Text style={{ fontSize: 15 }}>📸</Text>
+            <Text style={styles.screenshotBadgeText}>OCR</Text>
           </View>
           <View style={{ flex: 1, overflow: 'hidden' }}>
             <Text style={styles.screenshotQuickTitle} numberOfLines={1}>
               Inspect Gallery Screenshot
             </Text>
             <Text style={styles.screenshotQuickSub} numberOfLines={1}>
-              {isScanningScreenshot ? 'Running Groq OCR & Triage...' : '1-tap OCR latest image in gallery'}
+              {isScanningScreenshot ? 'Running 15ms Windows OCR...' : '1-tap OCR latest image in gallery'}
             </Text>
           </View>
         </View>
@@ -223,12 +241,12 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
         activeOpacity={0.8}
       >
         <View style={styles.ctaIconBox}>
-          <Text style={styles.ctaIcon}>⚡</Text>
+          <Text style={styles.ctaIcon}>IN</Text>
         </View>
         <View style={{ flex: 1, overflow: 'hidden' }}>
           <Text style={styles.ctaTitle} numberOfLines={1}>Ingest Signal or Link</Text>
           <Text style={styles.ctaSubtitle} numberOfLines={2}>
-            Paste any career posting, lead, or ATS link for autonomous triage.
+            Paste any career posting, lead, or link for autonomous triage.
           </Text>
         </View>
         <Text style={styles.ctaArrow}>→</Text>
@@ -362,6 +380,48 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: THEME.colors.textSecondary,
     fontWeight: '700',
+  },
+
+  // Scraper Launch Card
+  scraperLaunchCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: THEME.colors.bgCard,
+    borderWidth: 1,
+    borderColor: '#FF3B30',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 10,
+    gap: 10,
+  },
+  scraperBadgeIcon: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 59, 48, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 59, 48, 0.4)',
+  },
+  scraperBadgeText: {
+    color: '#FF3B30',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  scraperLaunchTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: THEME.colors.textPrimary,
+  },
+  scraperLaunchSubtitle: {
+    fontSize: 10.5,
+    color: THEME.colors.textSecondary,
+    marginTop: 1,
+  },
+  screenshotBadgeText: {
+    color: THEME.colors.textPrimary,
+    fontSize: 10,
+    fontWeight: '800',
   },
 
   // 1-Tap Quick Screenshot Scanner Card

@@ -22,15 +22,15 @@ import * as ImagePicker from 'expo-image-picker'
 import * as Clipboard from 'expo-clipboard'
 
 const CONTENT_TYPES = [
-  { id: 'all', label: 'All', icon: '📋' },
-  { id: 'job_offer', label: 'Job Offers', icon: '💼' },
-  { id: 'educational_video', label: 'Videos & Shorts', icon: '🎬' },
-  { id: 'code_snippet', label: 'Code Snippets', icon: '💻' },
-  { id: 'tech_article', label: 'Articles', icon: '📰' },
-  { id: 'social_post', label: 'Social', icon: '💬' },
-  { id: 'tool_or_repo', label: 'Tools & Repos', icon: '🔧' },
-  { id: 'note', label: 'Notes', icon: '📝' },
-  { id: 'contact', label: 'Contacts', icon: '👤' },
+  { id: 'all', label: 'All' },
+  { id: 'job_offer', label: 'Job Offers' },
+  { id: 'educational_video', label: 'Videos' },
+  { id: 'code_snippet', label: 'Code Snippets' },
+  { id: 'tech_article', label: 'Articles' },
+  { id: 'social_post', label: 'Social' },
+  { id: 'tool_or_repo', label: 'Tools & Repos' },
+  { id: 'note', label: 'Notes' },
+  { id: 'contact', label: 'Contacts' },
 ]
 
 function getTypeColor(typeId) {
@@ -72,19 +72,19 @@ function formatTime(iso) {
   return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
 }
 
-function getDomainEmoji(domain) {
-  if (!domain) return '🌐'
+function getDomainBadge(domain) {
+  if (!domain) return 'WEB'
   const d = domain.toLowerCase()
-  if (d.includes('linkedin')) return '🔗'
-  if (d.includes('github')) return '🐙'
-  if (d.includes('twitter') || d.includes('x.com')) return '🐦'
-  if (d.includes('stackoverflow')) return '📚'
-  if (d.includes('medium')) return '📖'
-  if (d.includes('reddit')) return '🟠'
-  if (d.includes('youtube') || d.includes('youtu.be')) return '🎬'
-  if (d.includes('tiktok')) return '🎵'
-  if (d.includes('instagram')) return '📸'
-  return '🌐'
+  if (d.includes('linkedin')) return 'LINKEDIN'
+  if (d.includes('github')) return 'GITHUB'
+  if (d.includes('twitter') || d.includes('x.com')) return 'X'
+  if (d.includes('stackoverflow')) return 'STACK'
+  if (d.includes('medium')) return 'MEDIUM'
+  if (d.includes('reddit')) return 'REDDIT'
+  if (d.includes('youtube') || d.includes('youtu.be')) return 'YOUTUBE'
+  if (d.includes('tiktok')) return 'TIKTOK'
+  if (d.includes('instagram')) return 'INSTAGRAM'
+  return domain.toUpperCase().slice(0, 8)
 }
 
 export function ClipVaultScreen({ onNavigateTab }) {
@@ -328,7 +328,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
         {clip.entities?.parentPost && (
           <View style={styles.parentPostMiniChip}>
             <Text style={styles.parentPostMiniText}>
-              🔗 Link #{clip.entities.parentPost.linkIndex} of {clip.entities.parentPost.totalLinks} from multi-link post
+              Link #{clip.entities.parentPost.linkIndex} of {clip.entities.parentPost.totalLinks} from multi-link post
             </Text>
           </View>
         )}
@@ -345,7 +345,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
         {(clip.contentType === 'educational_video' || clip.entities?.videoData) && (
           <View style={styles.eduBox}>
             <View style={styles.eduHeader}>
-              <Text style={styles.eduHeaderTitle}>🎬 Video Key Takeaways</Text>
+              <Text style={styles.eduHeaderTitle}>Video Key Takeaways</Text>
               {clip.entities?.videoData?.creator ? (
                 <Text style={styles.eduCreator}>By {clip.entities.videoData.creator}</Text>
               ) : null}
@@ -388,38 +388,40 @@ export function ClipVaultScreen({ onNavigateTab }) {
         <View style={styles.clipFooter}>
           <View style={[styles.metaRow, { flex: 1, overflow: 'hidden', marginRight: 6 }]}>
             <Text style={styles.metaText} numberOfLines={1} ellipsizeMode="tail">
-              {getDomainEmoji(clip.sourceDomain)} {clip.sourceDomain || 'clipboard'}
+              {getDomainBadge(clip.sourceDomain)} · {clip.sourceDomain || 'clipboard'}
             </Text>
             <Text style={styles.metaText} numberOfLines={1}>
-              {clip.sourceDevice === 'mobile' ? '📱' : '🖥️'} {clip.sourceDevice}
+              {clip.sourceDevice === 'mobile' ? 'MOBILE' : 'DESKTOP'}
             </Text>
           </View>
 
           <View style={styles.actionsRow}>
             <TouchableOpacity onPress={() => handleStar(clip.id)} style={styles.iconBtn}>
-              <Text style={{ fontSize: 16 }}>{clip.isStarred ? '⭐' : '☆'}</Text>
+              <Text style={{ fontSize: 14, color: clip.isStarred ? '#FF3B30' : '#71717A' }}>
+                {clip.isStarred ? '★' : '☆'}
+              </Text>
             </TouchableOpacity>
 
             {(clip.contentType === 'job_offer' || clip.isJobOffer) && !clip.convertedToOffer && (
               <TouchableOpacity onPress={() => handleConvertToOffer(clip.id)} style={[styles.actionBtn, styles.convertBtn]}>
-                <Text style={styles.convertBtnText}>⚡ Route to Channel</Text>
+                <Text style={styles.convertBtnText}>Route to Channel</Text>
               </TouchableOpacity>
             )}
 
             {clip.convertedToOffer && (
               <View style={styles.convertedBadge}>
-                <Text style={styles.convertedText}>✓ Routed to Offers</Text>
+                <Text style={styles.convertedText}>✓ Routed</Text>
               </View>
             )}
 
             {clip.sourceUrl ? (
               <TouchableOpacity onPress={() => Linking.openURL(clip.sourceUrl)} style={styles.iconBtn}>
-                <Text style={{ fontSize: 14 }}>🔗</Text>
+                <Text style={{ fontSize: 11, color: THEME.colors.textPrimary, fontWeight: '700' }}>OPEN</Text>
               </TouchableOpacity>
             ) : null}
 
             <TouchableOpacity onPress={() => handleDelete(clip.id)} style={styles.iconBtn}>
-              <Text style={{ fontSize: 14, color: THEME.colors.danger }}>🗑️</Text>
+              <Text style={{ fontSize: 11, color: '#FF3B30', fontWeight: '700' }}>DEL</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -445,7 +447,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
             {isSyncingAll ? (
               <ActivityIndicator size="small" color="#ffffff" />
             ) : (
-              <Text style={styles.syncBtnText}>🔄 Sync Channels</Text>
+              <Text style={styles.syncBtnText}>SYNC CHANNELS</Text>
             )}
           </TouchableOpacity>
           <TouchableOpacity
@@ -453,7 +455,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
             style={[styles.toggleBtn, autoCapture ? styles.toggleBtnOn : styles.toggleBtnOff]}
           >
             <Text style={[styles.toggleBtnText, { color: autoCapture ? THEME.colors.success : THEME.colors.danger }]}>
-              {autoCapture ? '⚡ Auto ON' : '⚡ Auto OFF'}
+              {autoCapture ? 'AUTO: ON' : 'AUTO: OFF'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -476,7 +478,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
           {isProcessingOcr ? (
             <ActivityIndicator size="small" color="#ffffff" />
           ) : (
-            <Text style={styles.ocrSearchBtnText}>📸 OCR</Text>
+            <Text style={styles.ocrSearchBtnText}>OCR</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -498,7 +500,6 @@ export function ClipVaultScreen({ onNavigateTab }) {
                 style={[styles.filterPill, isActive && styles.filterPillActive]}
                 activeOpacity={0.7}
               >
-                <Text style={styles.filterIcon}>{type.icon}</Text>
                 <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
                   {type.label}
                 </Text>
@@ -537,10 +538,9 @@ export function ClipVaultScreen({ onNavigateTab }) {
           }
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>📋</Text>
               <Text style={styles.emptyTitle}>Vault is empty</Text>
               <Text style={styles.emptySubtitle}>
-                Copy any text on mobile or PC — RADAR classifies and routes job offers automatically.
+                Signals ingested from clipboard, screenshots, or scraper will be cataloged here.
               </Text>
             </View>
           }
@@ -560,7 +560,6 @@ export function ClipVaultScreen({ onNavigateTab }) {
             <View style={styles.modalHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                 <View style={[styles.typeBadge, { backgroundColor: getTypeColor(selectedClip.contentType) + '25', borderColor: getTypeColor(selectedClip.contentType) + '50' }]}>
-                  <Text style={{ fontSize: 11 }}>{CONTENT_TYPES.find((t) => t.id === selectedClip.contentType)?.icon || '📋'}</Text>
                   <Text style={[styles.typeBadgeText, { color: getTypeColor(selectedClip.contentType) }]}>
                     {CONTENT_TYPES.find((t) => t.id === selectedClip.contentType)?.label || 'Clip'}
                   </Text>
@@ -592,13 +591,13 @@ export function ClipVaultScreen({ onNavigateTab }) {
               {/* Source Info Row */}
               <View style={styles.modalMetaRow}>
                 <Text style={styles.modalMetaText}>
-                  {getDomainEmoji(selectedClip.sourceDomain)} {selectedClip.sourceDomain || 'clipboard'}
+                  {getDomainBadge(selectedClip.sourceDomain)} · {selectedClip.sourceDomain || 'clipboard'}
                 </Text>
                 <Text style={styles.modalMetaText}>
-                  {selectedClip.sourceDevice === 'mobile' ? '📱 Mobile' : '🖥️ Desktop'}
+                  {selectedClip.sourceDevice === 'mobile' ? 'Mobile' : 'Desktop'}
                 </Text>
                 <Text style={styles.modalMetaText}>
-                  🕒 {formatTime(selectedClip.copiedAt || selectedClip.createdAt)}
+                  Captured: {formatTime(selectedClip.copiedAt || selectedClip.createdAt)}
                 </Text>
               </View>
 
@@ -612,7 +611,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
                   {isEnriching ? (
                     <ActivityIndicator size="small" color="#000000" />
                   ) : (
-                    <Text style={styles.modalEnrichBtnText}>⚡ Deep AI Enrich / Re-scrape</Text>
+                    <Text style={styles.modalEnrichBtnText}>Deep Enrich / Re-scrape</Text>
                   )}
                 </TouchableOpacity>
 
@@ -621,7 +620,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
                     style={styles.modalSecondaryBtn}
                     onPress={() => Linking.openURL(selectedClip.sourceUrl)}
                   >
-                    <Text style={styles.modalSecondaryBtnText}>🔗 Open Source Link</Text>
+                    <Text style={styles.modalSecondaryBtnText}>Open Source Link</Text>
                   </TouchableOpacity>
                 ) : null}
 
@@ -629,7 +628,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
                   style={styles.modalSecondaryBtn}
                   onPress={() => handleCopyContent(selectedClip.content || selectedClip.summary)}
                 >
-                  <Text style={styles.modalSecondaryBtnText}>📋 Copy Text</Text>
+                  <Text style={styles.modalSecondaryBtnText}>Copy Text</Text>
                 </TouchableOpacity>
 
                 {(selectedClip.contentType === 'job_offer' || selectedClip.isJobOffer) && !selectedClip.convertedToOffer && (
@@ -640,7 +639,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
                       setSelectedClip((prev) => ({ ...prev, convertedToOffer: true }))
                     }}
                   >
-                    <Text style={styles.modalRouteBtnText}>💼 Route to Job Pipeline</Text>
+                    <Text style={styles.modalRouteBtnText}>Route to Job Pipeline</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -649,7 +648,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
               {selectedClip.entities?.parentPost && (
                 <View style={styles.parentPostCard}>
                   <Text style={styles.parentPostHeader}>
-                    🔗 Multi-Link Source Post (Link #{selectedClip.entities.parentPost.linkIndex} of {selectedClip.entities.parentPost.totalLinks})
+                    Multi-Link Source Post (Link #{selectedClip.entities.parentPost.linkIndex} of {selectedClip.entities.parentPost.totalLinks})
                   </Text>
                   <Text style={styles.parentPostSnippet}>
                     "{selectedClip.entities.parentPost.sourceSnippet}"
@@ -668,7 +667,7 @@ export function ClipVaultScreen({ onNavigateTab }) {
               {/* Educational Video Breakdown & Key Takeaways */}
               {(selectedClip.contentType === 'educational_video' || selectedClip.entities?.videoData) && (
                 <View style={styles.eduDetailCard}>
-                  <Text style={styles.eduDetailHeader}>🎬 Video Breakdown & Key Takeaways</Text>
+                  <Text style={styles.eduDetailHeader}>Video Breakdown & Key Takeaways</Text>
                   {selectedClip.entities?.videoData?.creator ? (
                     <Text style={styles.eduCreatorDetail}>Creator: {selectedClip.entities.videoData.creator}</Text>
                   ) : null}

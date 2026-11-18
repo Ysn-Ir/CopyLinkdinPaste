@@ -13,9 +13,9 @@ import { ApiService } from '../services/api'
 import { THEME, getStageMeta } from '../theme'
 
 function getChannelMeta(channel) {
-  if (channel === 'email') return { label: 'Direct Email', icon: '✉️' }
-  if (channel === 'direct_contact') return { label: 'Direct DM', icon: '💬' }
-  return { label: 'ATS Portal', icon: '🌐' }
+  if (channel === 'email') return { label: 'Direct Email', icon: 'EMAIL' }
+  if (channel === 'direct_contact') return { label: 'Direct DM', icon: 'DM' }
+  return { label: 'ATS Portal', icon: 'PORTAL' }
 }
 
 function formatCleanDescription(text) {
@@ -132,12 +132,12 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
         <View style={styles.actionsContainer}>
           {currentOffer.recruiterEmail ? (
             <TouchableOpacity style={styles.primaryActionBtn} onPress={handleOpenEmail} activeOpacity={0.8}>
-              <Text style={styles.primaryActionText}>✉️ Send Direct Email</Text>
+              <Text style={styles.primaryActionText}>Send Direct Email</Text>
             </TouchableOpacity>
           ) : null}
 
           <TouchableOpacity style={styles.secondaryActionBtn} onPress={handleOpenWhatsApp} activeOpacity={0.8}>
-            <Text style={styles.secondaryActionText}>💬 WhatsApp Outreach</Text>
+            <Text style={styles.secondaryActionText}>WhatsApp Outreach</Text>
           </TouchableOpacity>
 
           {currentOffer.sourceUrl ? (
@@ -146,7 +146,7 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
               onPress={() => handleOpenUrl(currentOffer.sourceUrl)}
               activeOpacity={0.8}
             >
-              <Text style={styles.secondaryActionText}>🔗 Open Source Job Post</Text>
+              <Text style={styles.secondaryActionText}>Open Source Job Post</Text>
             </TouchableOpacity>
           ) : null}
         </View>

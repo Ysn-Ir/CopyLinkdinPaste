@@ -148,8 +148,8 @@ class ClipboardWatcherService {
         // Fire native Android/iOS system notification
         NotificationService.sendCaptureNotification({
           title: isJobOffer
-            ? `🎯 RADAR: ${res.offer.title} @ ${res.offer.company || 'Company'}`
-            : '📋 RADAR: Copied Link Captured',
+            ? `[RADAR] ${res.offer.title} @ ${res.offer.company || 'Company'}`
+            : '[RADAR] Copied Signal Ingested',
           body: isJobOffer
             ? `Match: ${Math.round((res.offer.confidence || 0.92) * 100)}% • ${res.offer.location || 'Remote'}`
             : (res.clip?.title || 'Saved to your RADAR Vault.'),

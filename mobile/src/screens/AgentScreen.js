@@ -21,7 +21,7 @@ export function AgentScreen({ onNavigateTab }) {
     {
       role: 'assistant',
       content:
-        "👋 Hello! I am your Autonomous Career Agent powered by Groq Llama 3.3 70B.\n\nI have direct access to your live career offers, candidate profile, and vault captures. Ask me anything about your pipeline, role evaluations, or outreach drafting:",
+        "RADAR Autonomous Career Agent initialized.\n\nConnected to live career offers pipeline, candidate profile, and vault captures. Ask anything about your pipeline, role evaluations, or outreach drafting:",
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ])
@@ -30,11 +30,11 @@ export function AgentScreen({ onNavigateTab }) {
   const scrollViewRef = useRef(null)
 
   const quickPrompts = [
-    { label: '📊 Summarize Offers', prompt: 'Summarize my current active career offers and their application channels.' },
-    { label: '🎯 Top Matches', prompt: 'Based on my engineering candidate profile, which active offers are the strongest matches?' },
-    { label: '✉️ Draft Outreach', prompt: 'Draft a high-impact, direct application pitch message for a Software Engineering role.' },
-    { label: '💡 Interview Prep', prompt: 'What are the top 5 technical and behavioral questions I should prepare for my target roles?' },
-    { label: '🔍 Vault Takeaways', prompt: 'What key technical takeaways and tools should I highlight in my resume from my saved vault items?' },
+    { label: 'Summarize Offers', prompt: 'Summarize my current active career offers and their application channels.' },
+    { label: 'Top Matches', prompt: 'Based on my engineering candidate profile, which active offers are the strongest matches?' },
+    { label: 'Draft Outreach', prompt: 'Draft a high-impact, direct application pitch message for a Software Engineering role.' },
+    { label: 'Interview Prep', prompt: 'What are the top 5 technical and behavioral questions I should prepare for my target roles?' },
+    { label: 'Vault Takeaways', prompt: 'What key technical takeaways and tools should I highlight in my resume from my saved vault items?' },
   ]
 
   useEffect(() => {
@@ -115,7 +115,7 @@ export function AgentScreen({ onNavigateTab }) {
     try {
       Vibration.vibrate(30)
     } catch {}
-    Alert.alert('Copied 📋', 'Response text copied to clipboard.')
+    Alert.alert('Copied', 'Response text copied to clipboard.')
   }
 
   const handleClearChat = () => {
@@ -151,7 +151,7 @@ export function AgentScreen({ onNavigateTab }) {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.agentAvatar}>
-            <Text style={{ fontSize: 16 }}>🤖</Text>
+            <Text style={{ fontSize: 11, fontWeight: '900', color: '#000000' }}>AI</Text>
           </View>
           <View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -210,7 +210,7 @@ export function AgentScreen({ onNavigateTab }) {
             >
               {!isUser && (
                 <View style={styles.assistantAvatarSmall}>
-                  <Text style={{ fontSize: 12 }}>🤖</Text>
+                  <Text style={{ fontSize: 9, fontWeight: '800', color: THEME.colors.textPrimary }}>AI</Text>
                 </View>
               )}
 
@@ -238,7 +238,7 @@ export function AgentScreen({ onNavigateTab }) {
                       style={styles.copyBtn}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.copyBtnText}>Copy 📋</Text>
+                      <Text style={styles.copyBtnText}>Copy</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -250,7 +250,7 @@ export function AgentScreen({ onNavigateTab }) {
         {isProcessing && (
           <View style={[styles.messageRow, styles.messageRowAssistant]}>
             <View style={styles.assistantAvatarSmall}>
-              <Text style={{ fontSize: 12 }}>🤖</Text>
+              <Text style={{ fontSize: 9, fontWeight: '800', color: THEME.colors.textPrimary }}>AI</Text>
             </View>
             <View style={[styles.messageBubble, styles.assistantBubble, styles.thinkingBubble]}>
               <ActivityIndicator size="small" color={THEME.colors.accent} />

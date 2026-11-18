@@ -266,7 +266,6 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>💼</Text>
               <Text style={styles.emptyTitle}>No Opportunities Tracked</Text>
               <Text style={styles.emptyText}>
                 Use 1-tap capture, paste clipboard links, or scan screenshots to track positions.

@@ -72,7 +72,7 @@ class MobileNotificationService {
 
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: title || (isOffer ? '🎯 RADAR: Opportunity Detected!' : '⚡ RADAR: New Clip Captured'),
+          title: title || (isOffer ? '[RADAR] Opportunity Detected' : '[RADAR] Signal Captured'),
           body: body || 'Saved to your RADAR Vault.',
           data: {
             ...data,

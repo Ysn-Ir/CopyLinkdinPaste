@@ -263,8 +263,8 @@ class ScreenshotWatcherService {
         // Fire real Android System Notification to the device status bar / lockscreen
         await NotificationService.sendCaptureNotification({
           title: isJobOffer
-            ? `🎯 RADAR: ${offer.title} @ ${offer.company || 'Company'}`
-            : '⚡ RADAR: Screenshot Captured',
+            ? `[RADAR] ${offer.title} @ ${offer.company || 'Company'}`
+            : '[RADAR] Screenshot Ingested',
           body: isJobOffer
             ? `Match: ${Math.round((offer.confidence || 0.92) * 100)}% • ${offer.location || 'Remote'} • Tap to inspect`
             : (clip?.title || 'Screenshot analyzed and saved to your RADAR Vault.'),

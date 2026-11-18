@@ -53,7 +53,7 @@ export function ConnectScreen({ onConnected, onCancel }) {
       await ApiService.setServerUrl(res.url || targetUrl)
       if (showAlert) {
         Alert.alert(
-          'Connection Successful 🎉',
+          'Connection Successful',
           `Connected to ${res.data.hostname || 'RADAR Server'} (${elapsed}ms latency)!\n${res.data.counts?.offers || 0} career offers synced.`
         )
       }
@@ -82,11 +82,10 @@ export function ConnectScreen({ onConnected, onCancel }) {
   }
 
   const PRESETS = [
-    { label: '🌐 Render Cloud', url: 'https://radar-backend.onrender.com' },
-    { label: '⚡ Localtunnel (4G)', url: 'https://radar.loca.lt' },
-    { label: '🏠 Wi-Fi LAN', url: 'http://192.168.1.12:8003' },
-    { label: '🔒 Tailscale Mesh', url: 'http://100.89.108.117:8003' },
-    { label: '📱 Android VM', url: 'http://10.0.2.2:8003' },
+    { label: 'Wi-Fi LAN (Host PC)', url: 'http://192.168.1.27:8003' },
+    { label: 'Android Emulator', url: 'http://10.0.2.2:8003' },
+    { label: 'Render Cloud', url: 'https://radar-backend.onrender.com' },
+    { label: 'Tailscale Mesh', url: 'http://100.89.108.117:8003' },
   ]
 
   return (
@@ -94,11 +93,11 @@ export function ConnectScreen({ onConnected, onCancel }) {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.iconCircle}>
-          <Text style={styles.iconText}>📡</Text>
+          <Text style={styles.iconText}>NODE</Text>
         </View>
         <Text style={styles.title}>Network & Cloud Sync</Text>
         <Text style={styles.subtitle}>
-          Connect RADAR Mobile to your backend over Cloud Render, Local 4G Tunnel, or Home Wi-Fi.
+          Connect RADAR Mobile to your backend over Wi-Fi LAN, Android Emulator, or Cloud.
         </Text>
       </View>
 
@@ -106,7 +105,6 @@ export function ConnectScreen({ onConnected, onCancel }) {
       {offlineQueueCount > 0 && (
         <View style={styles.offlineCard}>
           <View style={styles.offlineHeader}>
-            <Text style={styles.offlineIcon}>📦</Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.offlineTitle}>
                 {offlineQueueCount} Offline Item{offlineQueueCount > 1 ? 's' : ''} Buffered
@@ -230,7 +228,7 @@ export function ConnectScreen({ onConnected, onCancel }) {
 
       {/* Solutions Explanations */}
       <View style={styles.guideCard}>
-        <Text style={styles.guideTitle}>🌐 How to Connect from Different Networks:</Text>
+        <Text style={styles.guideTitle}>How to Connect from Different Networks:</Text>
         
         <View style={styles.guideSection}>
           <Text style={styles.guideBadge}>OPTION 1: RENDER CLOUD (Always Synced)</Text>

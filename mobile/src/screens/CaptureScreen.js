@@ -28,6 +28,9 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
   const [lastCreatedClip, setLastCreatedClip] = useState(null)
   const [bulkBatchResult, setBulkBatchResult] = useState(null)
 
+  // Direct Independent Local OCR Result State (Zero LLM)
+  const [localOcrResult, setLocalOcrResult] = useState(null)
+
   const detectedLinksCount = (inputText.match(/https?:\/\/[^\s,;"'\)\]\}]+/g) || []).length
 
   const handleScanLatestScreenshot = async () => {
@@ -39,8 +42,8 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
         if (res.isJobOffer && res.offer) {
           setLastCreatedOffer(res.offer)
           Alert.alert(
-            'Screenshot Analyzed!',
-            `"${res.offer.title}" was extracted via Groq Vision OCR and routed to channels!`
+            'Screenshot Analyzed',
+            `"${res.offer.title}" was extracted via local OCR and routed to channels.`
           )
           if (onOfferCreated) onOfferCreated(res.offer)
         } else {
@@ -59,7 +62,8 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
     }
   }
 
-  const handlePickScreenshotOcr = async () => {
+  // Independent Local OCR (Native 15ms, Zero LLM)
+  const handleRunLocalOcr = async () => {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
       if (!permission.granted) {
@@ -82,26 +86,38 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
         }
 
         setIsProcessingOcr(true)
-        const res = await ApiService.ocrIngestClip({
-          imageBase64: asset.base64,
-          sourceDevice: 'mobile',
-        })
+        setLocalOcrResult(null)
+
+        // 1. Run direct independent local OCR (Zero LLM)
+        const ocrRes = await ApiService.extractLocalOcr(asset.base64)
         setIsProcessingOcr(false)
 
-        if (res.success) {
-          setLastCreatedClip(res.clip)
-          if (res.isJobOffer && res.offer) {
-            setLastCreatedOffer(res.offer)
-            Alert.alert(
-              'Job Offer Extracted!',
-              `"${res.offer.title}" was extracted via Groq Vision OCR and routed to channels!`
-            )
-            if (onOfferCreated) onOfferCreated(res.offer)
-          } else {
-            Alert.alert('Screenshot Ingested', 'Text extracted and categorized into vault.')
-          }
+        if (ocrRes && ocrRes.success && ocrRes.text) {
+          setLocalOcrResult({
+            text: ocrRes.text,
+            durationMs: ocrRes.durationMs || 15,
+            engine: ocrRes.engine || 'windows_media_ocr',
+            imageBase64: asset.base64,
+          })
         } else {
-          Alert.alert('OCR Notice', res.error || 'Could not parse text from screenshot.')
+          // Fallback to full OCR ingest
+          setIsProcessingOcr(true)
+          const ingestRes = await ApiService.ocrIngestClip({
+            imageBase64: asset.base64,
+            sourceDevice: 'mobile',
+          })
+          setIsProcessingOcr(false)
+
+          if (ingestRes.success) {
+            setLastCreatedClip(ingestRes.clip)
+            if (ingestRes.isJobOffer && ingestRes.offer) {
+              setLastCreatedOffer(ingestRes.offer)
+              if (onOfferCreated) onOfferCreated(ingestRes.offer)
+            }
+            Alert.alert('OCR Ingested', 'Screenshot text extracted and saved to Vault.')
+          } else {
+            Alert.alert('OCR Notice', ingestRes.error || 'Could not parse text from image.')
+          }
         }
       }
     } catch (err) {
@@ -166,7 +182,6 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
     setLastCreatedClip(null)
     setBulkBatchResult(null)
 
-    // BULK MODE: Clean and isolate each link / item independently
     if (captureMode === 'bulk') {
       const res = await ApiService.bulkIngestClips({
         rawText: inputText.trim(),
@@ -178,7 +193,7 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
         setInputText('')
         Alert.alert(
           'Bulk Batch Completed',
-          `Processed ${res.count || 0} discrete items independently. Check Clip Vault or Offers!`
+          `Processed ${res.count || 0} discrete items independently. Check Clip Vault or Offers.`
         )
       } else {
         Alert.alert('Bulk Ingest Error', res?.error || 'Could not process bulk items.')
@@ -197,7 +212,7 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
         setLastCreatedOffer(res.offer)
         setInputText('')
         setSourceUrl('')
-        Alert.alert('Offer Created', `"${res.offer.title}" parsed by AI and synced to PC!`)
+        Alert.alert('Offer Created', `"${res.offer.title}" parsed by AI and synced to PC.`)
         if (onOfferCreated) onOfferCreated(res.offer)
       } else {
         Alert.alert('Capture Error', res.error || 'Verify LAN connection with PC.')
@@ -217,7 +232,6 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
 
       if (res.success) {
         if (res.isMultiLink) {
-          // Multi-link post decomposed!
           setBulkBatchResult({ count: res.batchCount, clips: res.clips, offers: res.offers })
           if (res.offer) {
             setLastCreatedOffer(res.offer)
@@ -226,8 +240,8 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           setInputText('')
           setSourceUrl('')
           Alert.alert(
-            'Multi-Link Post Decomposed!',
-            `Isolated and processed ${res.batchCount} links independently while linking to the source post!`
+            'Multi-Link Post Decomposed',
+            `Isolated and processed ${res.batchCount} links independently while linking to the source post.`
           )
         } else {
           setLastCreatedClip(res.clip)
@@ -236,18 +250,18 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
             setInputText('')
             setSourceUrl('')
             Alert.alert(
-              'Job Offer Detected!',
-              `"${res.offer.title}" was automatically recognized and routed to the ${res.channel ? res.channel.toUpperCase() : 'OFFER'} channel!`
+              'Job Offer Detected',
+              `"${res.offer.title}" was automatically recognized and routed to ${res.channel ? res.channel.toUpperCase() : 'OFFER'} channel.`
             )
             if (onOfferCreated) onOfferCreated(res.offer)
           } else {
             setInputText('')
             setSourceUrl('')
-            Alert.alert('Saved to Vault', 'Clip saved and categorized.')
+            Alert.alert('Clip Saved', 'Signal saved to your Universal Clip Vault.')
           }
         }
       } else {
-        Alert.alert('Capture Error', res.error || 'Server unreachable.')
+        Alert.alert('Ingestion Notice', res.error || 'Verify LAN connection with PC.')
       }
     }
   }
@@ -257,15 +271,17 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
       {/* Screen Title */}
       <View style={styles.headerRow}>
-        <View>
-          <Text style={styles.title}>Universal Capture</Text>
-          <Text style={styles.subtitle}>
-            Detect, AI-classify & route job offers to channels
-          </Text>
+        <View style={styles.brandRow}>
+          <View style={styles.beaconDot} />
+          <Text style={styles.title}>SIGNAL CAPTURE</Text>
         </View>
+        <Text style={styles.subtitle}>
+          Multi-Channel Ingest · Independent Local OCR · Vault Triage
+        </Text>
       </View>
 
       {/* Live System Clipboard Detection Card */}
@@ -278,11 +294,11 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           <View style={{ flexDirection: 'row', gap: 6 }}>
             <TouchableOpacity
               style={styles.pasteActionBtn}
-              onPress={handlePickScreenshotOcr}
+              onPress={handleRunLocalOcr}
               disabled={isProcessingOcr}
             >
               <Text style={styles.pasteActionBtnText}>
-                {isProcessingOcr ? 'Analyzing OCR...' : '🖼️ Gallery OCR'}
+                {isProcessingOcr ? 'Running OCR...' : 'LOCAL OCR'}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -291,7 +307,7 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
               disabled={isReadingClipboard}
             >
               <Text style={styles.pasteActionBtnText}>
-                {isReadingClipboard ? 'Reading...' : '📋 Paste'}
+                {isReadingClipboard ? 'Reading...' : 'PASTE'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -305,15 +321,15 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           activeOpacity={0.8}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, overflow: 'hidden' }}>
-            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255, 59, 48, 0.15)', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 16 }}>📸</Text>
+            <View style={styles.ocrBadgeIcon}>
+              <Text style={styles.ocrBadgeIconText}>OCR</Text>
             </View>
             <View style={{ flex: 1, overflow: 'hidden' }}>
-              <Text style={styles.scanScreenshotTitle} numberOfLines={1} ellipsizeMode="tail">
+              <Text style={styles.scanScreenshotTitle} numberOfLines={1}>
                 {isScanningScreenshot ? 'Scanning Latest Screenshot...' : 'Instant Scan Last Screenshot (1-Tap)'}
               </Text>
-              <Text style={styles.scanScreenshotDesc} numberOfLines={1} ellipsizeMode="tail">
-                Directly parses your newest device screenshot with zero file picking
+              <Text style={styles.scanScreenshotDesc} numberOfLines={1}>
+                Zero LLM · 15ms Windows Media OCR on host node
               </Text>
             </View>
           </View>
@@ -321,7 +337,7 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
 
         {clipboardContent ? (
           <View style={styles.clipboardContentBox}>
-            <Text style={styles.clipboardContentLabel}>Detected in your clipboard:</Text>
+            <Text style={styles.clipboardContentLabel}>Detected in clipboard:</Text>
             <Text style={styles.clipboardContentText} numberOfLines={2}>
               {clipboardContent}
             </Text>
@@ -335,7 +351,7 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
                 }
               }}
             >
-              <Text style={styles.oneTapLoadText}>↳ Load into input field</Text>
+              <Text style={styles.oneTapLoadText}>Load into input field</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -345,6 +361,44 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
         )}
       </View>
 
+      {/* Independent Local OCR Raw Text Inspection Box */}
+      {localOcrResult && (
+        <View style={styles.ocrResultBox}>
+          <View style={styles.ocrResultHeader}>
+            <Text style={styles.ocrResultTitle}>LOCAL OCR EXTRACTED TEXT</Text>
+            <Text style={styles.ocrResultMeta}>
+              {localOcrResult.durationMs}ms · {localOcrResult.engine}
+            </Text>
+          </View>
+          <TextInput
+            style={styles.ocrResultTextInput}
+            multiline
+            editable={false}
+            value={localOcrResult.text}
+          />
+          <View style={styles.ocrResultActions}>
+            <TouchableOpacity
+              style={styles.ocrActionBtn}
+              onPress={async () => {
+                await Clipboard.setStringAsync(localOcrResult.text)
+                Alert.alert('Copied', 'Extracted OCR text copied to clipboard.')
+              }}
+            >
+              <Text style={styles.ocrActionBtnText}>COPY TEXT</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.ocrActionBtn, styles.ocrActionBtnPrimary]}
+              onPress={() => {
+                setInputText(localOcrResult.text)
+                setLocalOcrResult(null)
+              }}
+            >
+              <Text style={styles.ocrActionBtnPrimaryText}>LOAD INTO INGEST</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Mode Selector */}
       <View style={styles.modeSelector}>
         <TouchableOpacity
@@ -352,7 +406,7 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           onPress={() => setCaptureMode('auto')}
         >
           <Text style={[styles.modeBtnText, captureMode === 'auto' && styles.modeBtnTextActive]}>
-            ⚡ Auto Detect
+            AUTO DETECT
           </Text>
         </TouchableOpacity>
 
@@ -361,7 +415,7 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           onPress={() => setCaptureMode('bulk')}
         >
           <Text style={[styles.modeBtnText, captureMode === 'bulk' && styles.modeBtnTextActive]}>
-            📦 Bulk Links / Text
+            BULK INGEST
           </Text>
         </TouchableOpacity>
 
@@ -370,7 +424,7 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           onPress={() => setCaptureMode('offer')}
         >
           <Text style={[styles.modeBtnText, captureMode === 'offer' && styles.modeBtnTextActive]}>
-            💼 Job Offer
+            JOB OFFER
           </Text>
         </TouchableOpacity>
 
@@ -379,7 +433,7 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           onPress={() => setCaptureMode('clip')}
         >
           <Text style={[styles.modeBtnText, captureMode === 'clip' && styles.modeBtnTextActive]}>
-            📋 Vault Clip
+            VAULT CLIP
           </Text>
         </TouchableOpacity>
       </View>
@@ -388,11 +442,11 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
       <View style={styles.inputCard}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <Text style={styles.label}>
-            {captureMode === 'bulk' ? 'Bulk Raw Text / Links List' : 'Paste Text / Job Description'}
+            {captureMode === 'bulk' ? 'BULK RAW TEXT / LINKS' : 'RAW CONTENT / DESCRIPTION'}
           </Text>
           {detectedLinksCount > 0 && (
             <View style={styles.detectedBadge}>
-              <Text style={styles.detectedBadgeText}>{detectedLinksCount} Link{detectedLinksCount > 1 ? 's' : ''} Detected</Text>
+              <Text style={styles.detectedBadgeText}>{detectedLinksCount} LINK{detectedLinksCount > 1 ? 'S' : ''}</Text>
             </View>
           )}
         </View>
@@ -401,8 +455,8 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           style={styles.textArea}
           placeholder={
             captureMode === 'bulk'
-              ? 'Paste multiple links, email digests, or bookmark lists. Each will be isolated and scraped independently...'
-              : 'Paste LinkedIn post, email body, WhatsApp alert, or TikTok/Instagram/YouTube links...'
+              ? 'Paste multiple links, email digests, or bookmark lists. Each will be isolated and processed independently...'
+              : 'Paste LinkedIn post, email body, WhatsApp alert, or job link...'
           }
           placeholderTextColor={THEME.colors.textMuted}
           multiline
@@ -413,10 +467,10 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
 
         {captureMode !== 'bulk' && (
           <>
-            <Text style={[styles.label, { marginTop: 12 }]}>Source URL (Optional)</Text>
+            <Text style={[styles.label, { marginTop: 12 }]}>SOURCE URL (OPTIONAL)</Text>
             <TextInput
               style={styles.urlInput}
-              placeholder="https://linkedin.com/... or tiktok/instagram/youtube link"
+              placeholder="https://linkedin.com/... or source link"
               placeholderTextColor={THEME.colors.textMuted}
               value={sourceUrl}
               onChangeText={setSourceUrl}
@@ -437,8 +491,8 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
           ) : (
             <Text style={styles.ingestBtnText}>
               {captureMode === 'bulk'
-                ? `⚡ Clean & Ingest ${detectedLinksCount ? `${detectedLinksCount} Items` : 'All Discrete Items'}`
-                : '⚡ Extract with Groq AI & Route to Channel'}
+                ? `INGEST ${detectedLinksCount ? `${detectedLinksCount} DISCRETE ITEMS` : 'BULK BATCH'}`
+                : 'INGEST & ROUTE TO PIPELINE'}
             </Text>
           )}
         </TouchableOpacity>
@@ -448,10 +502,10 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
       {bulkBatchResult && (
         <View style={styles.batchResultCard}>
           <Text style={styles.batchResultTitle}>
-            ✓ Bulk Batch Completed ({bulkBatchResult.count} items)
+            BATCH COMPLETED ({bulkBatchResult.count} items)
           </Text>
           <Text style={styles.batchResultSubtitle}>
-            Discrete items processed and linked to the source batch.
+            Discrete items processed and linked to source batch.
           </Text>
           <TouchableOpacity
             style={styles.viewBatchClipsBtn}
@@ -466,14 +520,14 @@ export function CaptureScreen({ onOfferCreated, onNavigateOffers, onNavigateClip
       {lastCreatedOffer && (
         <View style={styles.resultCard}>
           <View style={styles.resultHeader}>
-            <Text style={styles.resultBadge}>✓ CREATED & ROUTED</Text>
+            <Text style={styles.resultBadge}>CREATED & ROUTED</Text>
             <Text style={styles.resultChannel}>
-              Channel: {lastCreatedOffer.channel?.toUpperCase() || 'ATS'}
+              CHANNEL: {lastCreatedOffer.channel?.toUpperCase() || 'ATS'}
             </Text>
           </View>
           <Text style={styles.resultTitle}>{lastCreatedOffer.title}</Text>
           <Text style={styles.resultCompany}>
-            🏢 {lastCreatedOffer.company || 'Direct Organization'} • 📍 {lastCreatedOffer.location || 'Remote'}
+            {lastCreatedOffer.company || 'Direct Organization'} • {lastCreatedOffer.location || 'Remote'}
           </Text>
           <View style={styles.resultActions}>
             <TouchableOpacity
@@ -496,185 +550,340 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 160, // generous bottom padding so buttons are never eaten out
+    paddingBottom: 160,
   },
   headerRow: {
     marginBottom: 14,
   },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  beaconDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF3B30',
+  },
   title: {
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: '800',
     color: THEME.colors.textPrimary,
+    letterSpacing: 1.5,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 11,
     color: THEME.colors.textSecondary,
-    marginTop: 2,
+    marginTop: 3,
   },
-
-  // Live Clipboard Card
   clipboardLiveCard: {
     backgroundColor: THEME.colors.bgCard,
     borderWidth: 1,
     borderColor: THEME.colors.border,
-    borderRadius: 14,
+    borderRadius: 8,
     padding: 14,
     marginBottom: 14,
   },
   clipboardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
   clipboardLivePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 3,
   },
   liveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: '#ffffff',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FF3B30',
   },
   clipboardLiveText: {
-    fontSize: 10,
+    color: '#FF3B30',
+    fontSize: 9,
     fontWeight: '800',
-    color: '#ffffff',
     letterSpacing: 0.5,
   },
   pasteActionBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 8,
+    backgroundColor: THEME.colors.bgInput,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
   },
   pasteActionBtnText: {
-    fontSize: 11,
+    color: THEME.colors.textPrimary,
+    fontSize: 10,
     fontWeight: '700',
-    color: '#ffffff',
+    letterSpacing: 0.5,
+  },
+  scanScreenshotBanner: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 10,
+  },
+  ocrBadgeIcon: {
+    backgroundColor: 'rgba(255, 59, 48, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 59, 48, 0.4)',
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  ocrBadgeIconText: {
+    color: '#FF3B30',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  scanScreenshotTitle: {
+    color: THEME.colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  scanScreenshotDesc: {
+    color: THEME.colors.textMuted,
+    fontSize: 10,
+    marginTop: 2,
+    fontFamily: 'monospace',
   },
   clipboardContentBox: {
-    backgroundColor: THEME.colors.bgElevated,
-    borderRadius: 8,
+    backgroundColor: THEME.colors.bgInput,
+    borderRadius: 6,
     padding: 10,
-    marginTop: 4,
+    borderWidth: 1,
+    borderColor: THEME.colors.borderSubtle,
   },
   clipboardContentLabel: {
-    fontSize: 10,
     color: THEME.colors.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
     marginBottom: 4,
   },
   clipboardContentText: {
-    fontSize: 12,
     color: THEME.colors.textPrimary,
+    fontSize: 12,
+    fontFamily: 'monospace',
     lineHeight: 16,
   },
   oneTapLoadBtn: {
     marginTop: 8,
     alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4,
   },
   oneTapLoadText: {
-    fontSize: 11,
-    color: '#ffffff',
+    color: THEME.colors.textPrimary,
+    fontSize: 10,
     fontWeight: '700',
   },
   clipboardEmptyText: {
-    fontSize: 11,
     color: THEME.colors.textMuted,
+    fontSize: 11,
     lineHeight: 16,
   },
-
-  // Mode Selector
-  modeSelector: {
-    flexDirection: 'row',
+  ocrResultBox: {
     backgroundColor: THEME.colors.bgCard,
-    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FF3B30',
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 14,
+  },
+  ocrResultHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  ocrResultTitle: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  ocrResultMeta: {
+    color: '#FF3B30',
+    fontSize: 10,
+    fontFamily: 'monospace',
+  },
+  ocrResultTextInput: {
+    backgroundColor: THEME.colors.bgInput,
+    borderRadius: 4,
+    padding: 10,
+    color: THEME.colors.textPrimary,
+    fontSize: 12,
+    fontFamily: 'monospace',
+    maxHeight: 120,
+    borderWidth: 1,
+    borderColor: THEME.colors.borderSubtle,
+  },
+  ocrResultActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 10,
+  },
+  ocrActionBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+    backgroundColor: THEME.colors.bgInput,
     borderWidth: 1,
     borderColor: THEME.colors.border,
-    padding: 3,
+  },
+  ocrActionBtnText: {
+    color: THEME.colors.textPrimary,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  ocrActionBtnPrimary: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
+  },
+  ocrActionBtnPrimaryText: {
+    color: '#000000',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  modeSelector: {
+    flexDirection: 'row',
+    gap: 6,
     marginBottom: 14,
   },
   modeBtn: {
     flex: 1,
     paddingVertical: 8,
+    borderRadius: 4,
+    backgroundColor: THEME.colors.bgCard,
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
     alignItems: 'center',
-    borderRadius: 8,
   },
   modeBtnActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
   modeBtnText: {
-    fontSize: 11,
-    color: THEME.colors.textMuted,
-    fontWeight: '600',
+    color: THEME.colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   modeBtnTextActive: {
-    color: '#ffffff',
-    fontWeight: '700',
+    color: '#000000',
+    fontWeight: '800',
   },
-
-  // Input Card
   inputCard: {
     backgroundColor: THEME.colors.bgCard,
     borderWidth: 1,
     borderColor: THEME.colors.border,
-    borderRadius: 14,
+    borderRadius: 8,
     padding: 14,
-    marginBottom: 16,
   },
   label: {
-    fontSize: 11,
-    fontWeight: '700',
     color: THEME.colors.textSecondary,
-    marginBottom: 6,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  detectedBadge: {
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 3,
+  },
+  detectedBadgeText: {
+    color: '#FF3B30',
+    fontSize: 9,
+    fontWeight: '800',
   },
   textArea: {
-    backgroundColor: THEME.colors.bgElevated,
-    borderWidth: 1,
-    borderColor: THEME.colors.border,
-    borderRadius: 10,
+    backgroundColor: THEME.colors.bgInput,
+    borderRadius: 6,
     padding: 12,
-    fontSize: 13,
     color: THEME.colors.textPrimary,
+    fontSize: 13,
+    fontFamily: 'monospace',
     textAlignVertical: 'top',
     minHeight: 120,
-  },
-  urlInput: {
-    backgroundColor: THEME.colors.bgElevated,
     borderWidth: 1,
     borderColor: THEME.colors.border,
-    borderRadius: 10,
+    marginTop: 6,
+  },
+  urlInput: {
+    backgroundColor: THEME.colors.bgInput,
+    borderRadius: 6,
     padding: 10,
-    fontSize: 12,
     color: THEME.colors.textPrimary,
+    fontSize: 13,
+    fontFamily: 'monospace',
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+    marginTop: 6,
   },
   ingestBtn: {
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    paddingVertical: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 6,
+    paddingVertical: 12,
     alignItems: 'center',
-    marginTop: 16,
+    justifyContent: 'center',
+    marginTop: 14,
   },
   ingestBtnText: {
     color: '#000000',
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  batchResultCard: {
+    backgroundColor: THEME.colors.bgCard,
+    borderWidth: 1,
+    borderColor: THEME.colors.borderElevated,
+    borderRadius: 8,
+    padding: 14,
+    marginTop: 14,
+  },
+  batchResultTitle: {
+    color: '#FFFFFF',
+    fontSize: 12,
     fontWeight: '800',
   },
-
-  // Result Card
+  batchResultSubtitle: {
+    color: THEME.colors.textSecondary,
+    fontSize: 11,
+    marginTop: 4,
+  },
+  viewBatchClipsBtn: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  viewBatchClipsText: {
+    color: THEME.colors.textPrimary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
   resultCard: {
     backgroundColor: THEME.colors.bgCard,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    borderRadius: 14,
+    borderColor: '#FF3B30',
+    borderRadius: 8,
     padding: 14,
-    marginTop: 8,
+    marginTop: 14,
   },
   resultHeader: {
     flexDirection: 'row',
@@ -683,112 +892,39 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   resultBadge: {
+    color: '#FF3B30',
     fontSize: 10,
     fontWeight: '800',
-    color: '#ffffff',
+    letterSpacing: 1,
   },
   resultChannel: {
+    color: THEME.colors.textMuted,
     fontSize: 10,
-    color: '#a1a1aa',
-    fontWeight: '700',
+    fontFamily: 'monospace',
   },
   resultTitle: {
-    fontSize: 15,
-    fontWeight: '700',
     color: THEME.colors.textPrimary,
-    marginBottom: 3,
-  },
-  resultCompany: {
-    fontSize: 12,
-    color: THEME.colors.textSecondary,
-    marginBottom: 10,
-  },
-  resultActions: {
-    flexDirection: 'row',
-  },
-  viewOfferBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
-  },
-  viewOfferText: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#ffffff',
-  },
-
-  // 1-Tap Instant Screenshot Scanner
-  scanScreenshotBanner: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 10,
-    padding: 10,
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  scanScreenshotTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#ffffff',
-  },
-  scanScreenshotDesc: {
-    fontSize: 10.5,
-    color: THEME.colors.textMuted,
     marginTop: 2,
   },
-
-  // Badge for detected links
-  detectedBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  detectedBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-
-  // Bulk Batch Result Card
-  batchResultCard: {
-    backgroundColor: THEME.colors.bgCard,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 10,
-    marginBottom: 10,
-  },
-  batchResultTitle: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  batchResultSubtitle: {
-    fontSize: 11.5,
+  resultCompany: {
     color: THEME.colors.textSecondary,
-    marginBottom: 10,
+    fontSize: 12,
+    marginTop: 4,
   },
-  viewBatchClipsBtn: {
+  resultActions: {
+    marginTop: 10,
+  },
+  viewOfferBtn: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: THEME.colors.border,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    borderRadius: 4,
+    alignItems: 'center',
   },
-  viewBatchClipsText: {
+  viewOfferText: {
+    color: THEME.colors.textPrimary,
     fontSize: 11,
     fontWeight: '700',
-    color: '#ffffff',
   },
 })
