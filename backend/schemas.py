@@ -168,6 +168,13 @@ class TailorCvRequest(BaseModel):
     jobTitle: str
     jobDescription: str
     candidateProfile: Optional[Dict[str, Any]] = None
+    templateId: Optional[str] = "typst_modern_ats"
+    customTemplate: Optional[str] = None
+
+
+class CompileCvRequest(BaseModel):
+    code: str
+    format: Optional[str] = "typst"
 
 
 

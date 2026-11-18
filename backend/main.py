@@ -1,4 +1,5 @@
 import json
+import base64
 import socket
 import logging
 import asyncio
@@ -32,6 +33,7 @@ from .schemas import (
     HuntRequestSchema,
     SaveHuntJobSchema,
     TailorCvRequest,
+    CompileCvRequest,
 )
 from .ai_service import (
     call_groq_chat,
@@ -41,6 +43,8 @@ from .ai_service import (
     clean_repetitive_text,
     generate_latex_cv_for_offer,
 )
+from .cv_templates import BUILTIN_TEMPLATES
+from .cv_engine import tailor_cv_with_template, compile_typst_to_pdf
 from .scraper_service import scrape_url_metadata
 from .events import broadcaster
 from .scraper_jobspy import run_hunt_async, active_hunt_state, cancel_active_hunt
@@ -2079,12 +2083,28 @@ async def save_hunt_job_to_vault(req: SaveHuntJobSchema, db: Session = Depends(g
 
 
 # ==============================================================================
-# ATS LATEX CV TAILORING ENGINE
+# ATS LATEX & TYPST CV TAILORING & COMPILATION ENGINE
 # ==============================================================================
+
+@app.get("/api/cv/templates")
+async def get_cv_templates_endpoint():
+    """Returns available open-source ATS CV templates."""
+    return {"templates": BUILTIN_TEMPLATES}
+
+
+@app.post("/api/cv/compile")
+async def compile_cv_endpoint(req: CompileCvRequest):
+    """Compiles edited Typst markup into a vector PDF in memory."""
+    pdf_bytes = compile_typst_to_pdf(req.code)
+    if not pdf_bytes:
+        raise HTTPException(status_code=400, detail="Compilation error: Invalid markup or syntax.")
+    pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
+    return {"success": True, "pdfBase64": pdf_base64, "sizeBytes": len(pdf_bytes)}
+
 
 @app.post("/api/cv/tailor-latex")
 async def tailor_cv_latex_endpoint(req: TailorCvRequest, db: Session = Depends(get_db)):
-    """Rewrites and optimizes candidate CV in LaTeX specifically tailored to target offer."""
+    """Rewrites and optimizes candidate CV using battle-tested open-source templates and ATS keyword alignment."""
     cfg = db.query(AiConfigModel).filter_by(id="default").first()
     api_key = (cfg.api_key if cfg else None) or GROQ_API_KEY
 
@@ -2093,11 +2113,13 @@ async def tailor_cv_latex_endpoint(req: TailorCvRequest, db: Session = Depends(g
         db_prof = db.query(UserProfileModel).filter_by(id="default").first()
         prof = db_prof.to_dict() if db_prof else {}
 
-    result = await generate_latex_cv_for_offer(
+    result = await tailor_cv_with_template(
         job_title=req.jobTitle,
         job_description=req.jobDescription,
         candidate_profile=prof,
-        api_key=api_key
+        template_id=req.templateId or "typst_modern_ats",
+        custom_template=req.customTemplate,
+        api_key=api_key,
     )
 
     broadcaster.broadcast("CV_TAILORED", {
@@ -2105,7 +2127,18 @@ async def tailor_cv_latex_endpoint(req: TailorCvRequest, db: Session = Depends(g
         "atsFitScore": result.get("atsFitScore", 88)
     })
 
-    return {"success": True, **result}
+    return {
+        "success": True,
+        "latexCode": result.get("code", ""),
+        "code": result.get("code", ""),
+        "format": result.get("format", "typst"),
+        "pdfBase64": result.get("pdfBase64"),
+        "hasPdf": result.get("hasPdf", False),
+        "atsFitScore": result.get("atsFitScore", 88),
+        "matchedKeywords": result.get("matchedKeywords", []),
+        "tailoredBulletPoints": result.get("tailoredBullets", []),
+        "summaryRationale": result.get("summaryRationale", "")
+    }
 
 
 @app.post("/api/ai/tailor-cv")

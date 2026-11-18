@@ -203,8 +203,8 @@ export function CommandCenterView({
 
     if (groupBy === 'channel') {
       const channels = [
-        { id: 'email', label: 'Direct Email Outreach', color: '#10b981' },
-        { id: 'direct_contact', label: 'Direct Contact (DM & WhatsApp)', color: '#f59e0b' },
+        { id: 'email', label: 'Direct Email Outreach', color: '#ffffff' },
+        { id: 'direct_contact', label: 'Direct Contact (DM & WhatsApp)', color: '#ffffff' },
         { id: 'external', label: 'External Portals & ATS', color: '#a1a1aa' },
       ]
       return channels
@@ -546,11 +546,11 @@ export function CommandCenterView({
 
       {/* 2. MASTER-DETAIL SPLIT WORKSPACE */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* LEFT PANE: OFFERS STREAM (390px wide on desktop, responsive) */}
+        {/* LEFT PANE: OFFERS STREAM (420px wide on desktop, spacious) */}
         <aside
           className={`command-master-pane ${mobilePane === 'detail' ? 'mobile-hidden' : ''}`}
           style={{
-            width: '390px',
+            width: '420px',
             borderRight: '1px solid var(--border-default)',
             background: 'var(--bg-sidebar)',
             display: 'flex',
@@ -562,18 +562,19 @@ export function CommandCenterView({
           {/* Channel Filters */}
           <div
             style={{
-              padding: '10px 12px',
+              padding: '12px 16px',
               borderBottom: '1px solid var(--border-subtle)',
               display: 'flex',
-              gap: '4px',
+              gap: '6px',
               background: 'var(--bg-surface)',
+              alignItems: 'center',
               overflowX: 'auto',
             }}
           >
             <button
               className={`pill-btn ${activeChannelFilter === 'all' ? 'active' : ''}`}
               onClick={() => setActiveChannelFilter('all')}
-              style={{ padding: '4px 8px', fontSize: '11px', display: 'flex', gap: '4px', alignItems: 'center' }}
+              style={{ padding: '5px 10px', fontSize: '11.5px', display: 'flex', gap: '5px', alignItems: 'center' }}
             >
               <span>All</span>
               <span className="badge-pill">{offers.length}</span>
@@ -581,27 +582,27 @@ export function CommandCenterView({
             <button
               className={`pill-btn ${activeChannelFilter === 'email' ? 'active' : ''}`}
               onClick={() => setActiveChannelFilter('email')}
-              style={{ padding: '4px 8px', fontSize: '11px', display: 'flex', gap: '4px', alignItems: 'center' }}
+              style={{ padding: '5px 10px', fontSize: '11.5px', display: 'flex', gap: '5px', alignItems: 'center' }}
             >
-              <Mail size={11} />
+              <Mail size={12} />
               <span>Email</span>
               <span className="badge-pill">{emailOffersCount}</span>
             </button>
             <button
               className={`pill-btn ${activeChannelFilter === 'direct_contact' ? 'active' : ''}`}
               onClick={() => setActiveChannelFilter('direct_contact')}
-              style={{ padding: '4px 8px', fontSize: '11px', display: 'flex', gap: '4px', alignItems: 'center' }}
+              style={{ padding: '5px 10px', fontSize: '11.5px', display: 'flex', gap: '5px', alignItems: 'center' }}
             >
-              <MessageSquare size={11} />
+              <MessageSquare size={12} />
               <span>DM / WA</span>
               <span className="badge-pill">{directOffersCount}</span>
             </button>
             <button
               className={`pill-btn ${activeChannelFilter === 'external' ? 'active' : ''}`}
               onClick={() => setActiveChannelFilter('external')}
-              style={{ padding: '4px 8px', fontSize: '11px', display: 'flex', gap: '4px', alignItems: 'center' }}
+              style={{ padding: '5px 10px', fontSize: '11.5px', display: 'flex', gap: '5px', alignItems: 'center' }}
             >
-              <Globe size={11} />
+              <Globe size={12} />
               <span>ATS</span>
               <span className="badge-pill">{externalOffersCount}</span>
             </button>
@@ -611,32 +612,31 @@ export function CommandCenterView({
                 className="pill-btn"
                 onClick={onSyncClips}
                 style={{
-                  padding: '3px 8px',
-                  fontSize: '10.5px',
+                  padding: '4px 9px',
+                  fontSize: '11px',
                   display: 'flex',
                   gap: '4px',
                   alignItems: 'center',
                   background: '#27272a',
                   borderColor: '#3f3f46',
-                  color: '#fafafa',
+                  color: '#ffffff',
                   fontWeight: 600,
                   marginLeft: 'auto',
                 }}
                 title="Sync captured job offers from clipboard vault into channels"
               >
                 <Zap size={11} />
-                <span>Sync Vault</span>
+                <span>Sync</span>
               </button>
             )}
           </div>
 
-          {/* Search, Category & Grouping Filter Bar */}
+          {/* Search Bar - Line 1 */}
           <div
             style={{
-              padding: '8px 12px',
-              borderBottom: '1px solid var(--border-subtle)',
+              padding: '12px 16px 8px 16px',
               display: 'flex',
-              gap: '6px',
+              gap: '8px',
               alignItems: 'center',
             }}
           >
@@ -644,20 +644,54 @@ export function CommandCenterView({
               <input
                 type="text"
                 className="form-input"
-                style={{ width: '100%', height: '30px', fontSize: '11.5px', paddingLeft: '26px' }}
-                placeholder="Search offers, skills, recruiter..."
+                style={{ width: '100%', height: '34px', fontSize: '12px', paddingLeft: '30px' }}
+                placeholder="Search opportunities, skills, recruiter..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               <Search
-                size={12}
-                style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}
+                size={13}
+                style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}
               />
             </div>
+            <a
+              href="/api/offers/export/csv"
+              className="btn btn-secondary"
+              style={{
+                height: '34px',
+                padding: '0 10px',
+                fontSize: '11.5px',
+                color: '#ffffff',
+                borderColor: '#27272A',
+                background: '#171717',
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                textDecoration: 'none',
+                borderRadius: '6px',
+                fontWeight: 600,
+              }}
+              title="Export all offers to CSV"
+            >
+              <Download size={12} />
+              <span>CSV</span>
+            </a>
+          </div>
 
+          {/* Filters Bar - Line 2 (Cleanly Separated) */}
+          <div
+            style={{
+              padding: '0 16px 10px 16px',
+              borderBottom: '1px solid var(--border-subtle)',
+              display: 'flex',
+              gap: '8px',
+              alignItems: 'center',
+            }}
+          >
             <select
               className="form-select"
-              style={{ height: '30px', fontSize: '11px', width: '96px', padding: '0 4px' }}
+              style={{ height: '32px', fontSize: '11.5px', flex: 1, padding: '0 8px', background: '#171717', borderColor: '#27272A', color: '#FFFFFF' }}
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
               title="Filter by domain field"
@@ -670,64 +704,42 @@ export function CommandCenterView({
               ))}
             </select>
 
+            <select
+              className="form-select"
+              style={{ height: '32px', fontSize: '11.5px', flex: 1, padding: '0 8px', background: '#171717', borderColor: '#27272A', color: '#FFFFFF' }}
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value)}
+              title="Group offers into sections"
+            >
+              <option value="none">Group: Off</option>
+              <option value="channel">Group by Channel</option>
+              <option value="category">Group by Domain</option>
+              <option value="status">Group by Status</option>
+            </select>
+
             {onOpenCategoryManager && (
               <button
                 type="button"
                 className="btn btn-secondary"
                 style={{
-                  height: '30px',
-                  padding: '0 6px',
-                  fontSize: '10.5px',
-                  color: '#38bdf8',
-                  borderColor: 'rgba(56, 189, 248, 0.3)',
+                  height: '32px',
+                  padding: '0 8px',
+                  fontSize: '11px',
+                  color: '#A1A1AA',
+                  borderColor: '#27272A',
+                  background: '#171717',
                   flexShrink: 0,
                   display: 'flex',
                   alignItems: 'center',
                   gap: '3px',
                 }}
                 onClick={onOpenCategoryManager}
-                title="Add or configure custom engineering domains"
+                title="Configure custom engineering domains"
               >
                 <Plus size={11} />
                 <span>Domain</span>
               </button>
             )}
-
-            <a
-              href="/api/offers/export/csv"
-              className="btn btn-secondary"
-              style={{
-                height: '30px',
-                padding: '0 8px',
-                fontSize: '10.5px',
-                color: '#10b981',
-                borderColor: 'rgba(16, 185, 129, 0.3)',
-                background: '#18181b',
-                flexShrink: 0,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                textDecoration: 'none',
-                borderRadius: '4px',
-              }}
-              title="Export all offers with recruiter contacts, skills, and statuses to CSV"
-            >
-              <Download size={11} />
-              <span>CSV</span>
-            </a>
-
-            <select
-              className="form-select"
-              style={{ height: '30px', fontSize: '11px', width: '92px', padding: '0 4px' }}
-              value={groupBy}
-              onChange={(e) => setGroupBy(e.target.value)}
-              title="Group offers into sections"
-            >
-              <option value="none">Group: Off</option>
-              <option value="channel">By Channel</option>
-              <option value="category">By Domain</option>
-              <option value="status">By Status</option>
-            </select>
           </div>
 
           {/* Stream List with Categorized Groupings */}
@@ -774,11 +786,11 @@ export function CommandCenterView({
                           setMobilePane('detail')
                         }}
                         style={{
-                          padding: '10px 12px',
-                          marginBottom: '4px',
-                          borderRadius: '6px',
-                          background: isSelected ? 'var(--bg-surface-active)' : 'transparent',
-                          border: `1px solid ${isSelected ? 'var(--border-focus)' : offer.needsUserReview ? 'rgba(234, 179, 8, 0.25)' : 'transparent'}`,
+                          padding: '12px 14px',
+                          marginBottom: '8px',
+                          borderRadius: '8px',
+                          background: isSelected ? '#171717' : '#0D0D0D',
+                          border: `1px solid ${isSelected ? '#FF3B30' : '#27272A'}`,
                           cursor: 'pointer',
                           transition: 'all 0.12s ease',
                         }}
@@ -837,7 +849,7 @@ export function CommandCenterView({
                               gap: '4px',
                             }}
                           >
-                            <User size={10} style={{ color: '#38bdf8' }} />
+                            <User size={10} style={{ color: '#ffffff' }} />
                             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {offer.sharer?.name || offer.recruiterName}
                               {offer.sharer?.title ? ` • ${offer.sharer.title}` : ''}
@@ -893,7 +905,7 @@ export function CommandCenterView({
                                 padding: '1px 5px',
                                 borderRadius: '3px',
                                 background: offer.status === 'applied' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                                color: offer.status === 'applied' ? '#10b981' : 'var(--text-tertiary)',
+                                color: offer.status === 'applied' ? '#ffffff' : 'var(--text-tertiary)',
                                 textTransform: 'capitalize',
                               }}
                             >
@@ -939,7 +951,7 @@ export function CommandCenterView({
             >
               ← Back to Offers List
             </button>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#93c5fd' }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#ffffff' }}>
               {currentOffer?.company}
             </span>
           </div>
@@ -995,7 +1007,7 @@ export function CommandCenterView({
                         >
                           {currentCategory?.label || currentOffer.category}
                         </span>
-                        <span style={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
+                        <span style={{ fontSize: '11px', color: '#a1a1aa', fontFamily: 'var(--font-mono)' }}>
                           ({Math.round((currentOffer.confidence || 0.9) * 100)}% certainty)
                         </span>
                       </div>
@@ -1043,7 +1055,7 @@ export function CommandCenterView({
                         height: '30px',
                         padding: '0 12px',
                         fontSize: '11.5px',
-                        background: '#10b981',
+                        background: '#ffffff',
                         borderColor: '#059669',
                         fontWeight: 600,
                       }}
@@ -1105,7 +1117,7 @@ export function CommandCenterView({
                         style={{
                           background: 'transparent',
                           border: 'none',
-                          color: '#93c5fd',
+                          color: '#ffffff',
                           fontWeight: 600,
                           fontSize: '12px',
                           outline: 'none',
@@ -1144,7 +1156,7 @@ export function CommandCenterView({
                         }}
                         title={`Inserted: ${currentOffer.createdAt}`}
                       >
-                        <Clock size={11} style={{ color: '#94a3b8' }} />
+                        <Clock size={11} style={{ color: '#a1a1aa' }} />
                         <span>Added: {formatFullDate(currentOffer.createdAt)}</span>
                       </div>
                     )}
@@ -1158,7 +1170,7 @@ export function CommandCenterView({
                           display: 'flex',
                           alignItems: 'center',
                           gap: '3px',
-                          color: '#38bdf8',
+                          color: '#ffffff',
                           textDecoration: 'none',
                         }}
                       >
@@ -1297,7 +1309,7 @@ export function CommandCenterView({
                         }}
                       />
                       {currentOffer.sharer?.phone && (
-                        <span style={{ fontSize: '11px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                        <span style={{ fontSize: '11px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '2px' }}>
                           <Phone size={10} />
                           {currentOffer.sharer.phone}
                         </span>
@@ -1403,7 +1415,7 @@ export function CommandCenterView({
                 <button
                   className={`tab-btn ${inspectorTab === 'copilot' ? 'active' : ''}`}
                   onClick={() => setInspectorTab('copilot')}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ffffff' }}
                 >
                   <Bot size={13} />
                   <span>Groq AI Copilot</span>
@@ -1483,7 +1495,7 @@ export function CommandCenterView({
                         <label className="form-label">Subject Line</label>
                         <button
                           type="button"
-                          style={{ background: 'none', border: 'none', color: '#10b981', fontSize: '11px', cursor: 'pointer' }}
+                          style={{ background: 'none', border: 'none', color: '#ffffff', fontSize: '11px', cursor: 'pointer' }}
                           onClick={() => handleCopy(emailDraftSubject, 'subject')}
                         >
                           {copiedKey === 'subject' ? 'Copied!' : 'Copy Subject'}
@@ -1503,7 +1515,7 @@ export function CommandCenterView({
                         <label className="form-label">Email Body (Tailored & Editable)</label>
                         <button
                           type="button"
-                          style={{ background: 'none', border: 'none', color: '#10b981', fontSize: '11px', cursor: 'pointer' }}
+                          style={{ background: 'none', border: 'none', color: '#ffffff', fontSize: '11px', cursor: 'pointer' }}
                           onClick={() => handleCopy(emailDraftBody, 'body')}
                         >
                           {copiedKey === 'body' ? 'Copied Body!' : 'Copy Body'}
@@ -1737,7 +1749,7 @@ export function CommandCenterView({
                               key={idx}
                               style={{
                                 background: '#1e293b',
-                                color: '#93c5fd',
+                                color: '#ffffff',
                                 border: '1px solid #334155',
                                 padding: '3px 8px',
                                 borderRadius: '4px',
@@ -1857,7 +1869,7 @@ export function CommandCenterView({
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: '#10b981' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: '#ffffff' }}>
                             Groq Output
                           </span>
                           <div style={{ display: 'flex', gap: '6px' }}>
@@ -1871,7 +1883,7 @@ export function CommandCenterView({
                             </button>
                             <button
                               className="btn btn-secondary"
-                              style={{ height: '26px', fontSize: '10.5px', color: '#38bdf8' }}
+                              style={{ height: '26px', fontSize: '10.5px', color: '#ffffff' }}
                               onClick={handleApplyCopilotToEmail}
                             >
                               <span>Apply as Email Body</span>
