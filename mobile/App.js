@@ -359,67 +359,69 @@ export default function App() {
         )}
       </View>
 
-      {/* Stark Monochrome Bottom Navigation Dock */}
-      <View style={styles.navBar}>
-        <TouchableOpacity
-          style={[styles.navItem, activeTab === 'dashboard' && styles.navItemActive]}
-          onPress={() => setActiveTab('dashboard')}
-        >
-          <View style={[styles.navIndicatorDot, activeTab === 'dashboard' && styles.navIndicatorDotActive]} />
-          <Text style={[styles.navLabel, activeTab === 'dashboard' && styles.navLabelActive]}>
-            HUD
-          </Text>
-        </TouchableOpacity>
+      {/* Stark Minimalist Linear Floating Dock Navigation */}
+      <View style={styles.floatingDockContainer}>
+        <View style={styles.navBar}>
+          <TouchableOpacity
+            style={[styles.navItem, activeTab === 'dashboard' && styles.navItemActive]}
+            onPress={() => setActiveTab('dashboard')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.navLabel, activeTab === 'dashboard' && styles.navLabelActive]}>
+              HUD
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.navItem, activeTab === 'scraper' && styles.navItemActive]}
-          onPress={() => setActiveTab('scraper')}
-        >
-          <View style={[styles.navIndicatorDot, activeTab === 'scraper' && styles.navIndicatorDotActive]} />
-          <Text style={[styles.navLabel, activeTab === 'scraper' && styles.navLabelActive]}>
-            HUNT
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.navItem, activeTab === 'scraper' && styles.navItemActive]}
+            onPress={() => setActiveTab('scraper')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.navLabel, activeTab === 'scraper' && styles.navLabelActive]}>
+              HUNT
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.navItem, activeTab === 'offers' && styles.navItemActive]}
-          onPress={() => setActiveTab('offers')}
-        >
-          <View style={[styles.navIndicatorDot, activeTab === 'offers' && styles.navIndicatorDotActive]} />
-          <Text style={[styles.navLabel, activeTab === 'offers' && styles.navLabelActive]}>
-            OFFERS
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.navItem, activeTab === 'offers' && styles.navItemActive]}
+            onPress={() => setActiveTab('offers')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.navLabel, activeTab === 'offers' && styles.navLabelActive]}>
+              OFFERS
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.navItem, activeTab === 'clipvault' && styles.navItemActive]}
-          onPress={() => setActiveTab('clipvault')}
-        >
-          <View style={[styles.navIndicatorDot, activeTab === 'clipvault' && styles.navIndicatorDotActive]} />
-          <Text style={[styles.navLabel, activeTab === 'clipvault' && styles.navLabelActive]}>
-            VAULT
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.navItem, activeTab === 'clipvault' && styles.navItemActive]}
+            onPress={() => setActiveTab('clipvault')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.navLabel, activeTab === 'clipvault' && styles.navLabelActive]}>
+              VAULT
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.navItem, activeTab === 'agent' && styles.navItemActive]}
-          onPress={() => setActiveTab('agent')}
-        >
-          <View style={[styles.navIndicatorDot, activeTab === 'agent' && styles.navIndicatorDotActive]} />
-          <Text style={[styles.navLabel, activeTab === 'agent' && styles.navLabelActive]}>
-            AGENT
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.navItem, activeTab === 'agent' && styles.navItemActive]}
+            onPress={() => setActiveTab('agent')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.navLabel, activeTab === 'agent' && styles.navLabelActive]}>
+              AGENT
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.navItem, activeTab === 'connect' && styles.navItemActive]}
-          onPress={() => setActiveTab('connect')}
-        >
-          <View style={[styles.navIndicatorDot, activeTab === 'connect' && styles.navIndicatorDotActive]} />
-          <Text style={[styles.navLabel, activeTab === 'connect' && styles.navLabelActive]}>
-            LINK
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.navItem, activeTab === 'connect' && styles.navItemActive]}
+            onPress={() => setActiveTab('connect')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.navLabel, activeTab === 'connect' && styles.navLabelActive]}>
+              LINK
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   )
@@ -527,34 +529,38 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Stark Minimalist Dock Navigation
+  // Modern Linear Floating Pill Dock Navigation
+  floatingDockContainer: {
+    position: 'absolute',
+    bottom: Platform.OS === 'android' ? 14 : 26,
+    left: 14,
+    right: 14,
+  },
   navBar: {
     flexDirection: 'row',
-    height: Platform.OS === 'android' ? 70 : 64,
-    backgroundColor: THEME.colors.bgDark,
-    borderTopWidth: 1,
-    borderTopColor: THEME.colors.border,
+    height: 54,
+    backgroundColor: '#121215',
+    borderRadius: 27,
+    borderWidth: 1,
+    borderColor: '#27272A',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingBottom: Platform.OS === 'android' ? 10 : 4,
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
+    elevation: 10,
+    shadowColor: '#000000',
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
   },
   navItem: {
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    paddingVertical: 8,
+    height: 40,
+    borderRadius: 20,
   },
-  navItemActive: {},
-  navIndicatorDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'transparent',
-    marginBottom: 5,
-  },
-  navIndicatorDotActive: {
-    backgroundColor: '#FF3B30',
+  navItemActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
   },
   bannerIconBadgeText: {
     color: '#FF3B30',
@@ -579,7 +585,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: THEME.colors.textMuted,
     fontWeight: '700',
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
     fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier',
   },
   navLabelActive: {

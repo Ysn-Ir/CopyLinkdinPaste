@@ -390,123 +390,179 @@ class RadarNativeApp(ctk.CTk):
         self.latest_ctk_img: Optional[ctk.CTkImage] = None
         self.is_hunting = False
 
-        self._build_header()
-        self._build_tabs()
+        self._build_layout()
 
         # Start initial data fetch
         threading.Thread(target=self._initial_fetch, daemon=True).start()
 
-    def _build_header(self):
-        """Top Header Bar with Brand, Live Status, and Tactical Actions."""
-        header_frame = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=0, height=64)
-        header_frame.pack(fill="x", side="top", padx=0, pady=0)
+    def _build_layout(self):
+        """Builds modern Raycast / Linear Left-Sidebar Desktop Layout."""
+        self.body_frame = ctk.CTkFrame(self, fg_color=COLOR_BG, corner_radius=0)
+        self.body_frame.pack(fill="both", expand=True)
 
-        # Left: Brand Logo & Title
-        left_box = ctk.CTkFrame(header_frame, fg_color="transparent")
-        left_box.pack(side="left", padx=20, pady=12)
+        # 1. Left Navigation Sidebar (220px fixed)
+        self.sidebar = ctk.CTkFrame(self.body_frame, fg_color="#09090B", width=220, corner_radius=0, border_width=1, border_color="#18181B")
+        self.sidebar.pack(side="left", fill="y", padx=0, pady=0)
+        self.sidebar.pack_propagate(False)
 
-        beacon = ctk.CTkLabel(
-            left_box, text="●", font=("Segoe UI", 16, "bold"), text_color=COLOR_ACCENT_RED
-        )
-        beacon.pack(side="left", padx=(0, 8))
+        # Brand header in sidebar
+        brand_box = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        brand_box.pack(fill="x", padx=18, pady=(20, 16))
 
-        brand_label = ctk.CTkLabel(
-            left_box, text="RADAR", font=("Segoe UI", 18, "bold"), text_color=COLOR_TEXT_PRIMARY
-        )
-        brand_label.pack(side="left")
+        brand_row = ctk.CTkFrame(brand_box, fg_color="transparent")
+        brand_row.pack(anchor="w")
 
-        sub_label = ctk.CTkLabel(
-            left_box, text="  // COCKPIT · LOCAL WINOCR ACTIVE · 0 LATENCY", font=("Consolas", 10), text_color=COLOR_TEXT_MUTED
-        )
-        sub_label.pack(side="left")
+        beacon = ctk.CTkLabel(brand_row, text="●", font=("Segoe UI", 14, "bold"), text_color=COLOR_ACCENT_RED)
+        beacon.pack(side="left", padx=(0, 6))
 
-        # Right: Action Buttons
-        right_box = ctk.CTkFrame(header_frame, fg_color="transparent")
-        right_box.pack(side="right", padx=20, pady=12)
+        brand_lbl = ctk.CTkLabel(brand_row, text="RADAR", font=("Segoe UI", 16, "bold"), text_color=COLOR_TEXT_PRIMARY)
+        brand_lbl.pack(side="left")
+
+        status_lbl = ctk.CTkLabel(brand_box, text="127.0.0.1:8003 · ONLINE", font=("Consolas", 9), text_color=COLOR_TEXT_MUTED)
+        status_lbl.pack(anchor="w", pady=(2, 0))
+
+        # Nav items
+        sec_lbl = ctk.CTkLabel(self.sidebar, text="WORKSPACES", font=("Segoe UI", 9, "bold"), text_color=COLOR_TEXT_MUTED)
+        sec_lbl.pack(anchor="w", padx=18, pady=(12, 6))
+
+        self.nav_buttons = {}
+        nav_items = [
+            ("hub", "Overview"),
+            ("ocr", "Screenshot & OCR"),
+            ("clipboard", "Live Clipboard"),
+            ("scraper", "Job Scraper"),
+            ("ats", "ATS Studio"),
+        ]
+
+        for key, label in nav_items:
+            btn = ctk.CTkButton(
+                self.sidebar,
+                text=f"  {label}",
+                anchor="w",
+                font=("Segoe UI", 12, "bold"),
+                fg_color="transparent",
+                hover_color="#18181B",
+                text_color=COLOR_TEXT_SECONDARY,
+                height=36,
+                corner_radius=6,
+                command=lambda k=key: self._select_workspace(k)
+            )
+            btn.pack(fill="x", padx=12, pady=2)
+            self.nav_buttons[key] = btn
+
+        # Bottom sidebar actions
+        bottom_box = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        bottom_box.pack(side="bottom", fill="x", padx=14, pady=16)
 
         btn_snip = ctk.CTkButton(
-            right_box,
-            text="[Alt + S] Snip Screen",
+            bottom_box,
+            text="[Alt+S] Snip Screen",
             font=("Segoe UI", 11, "bold"),
             fg_color=COLOR_ACCENT_RED,
             hover_color="#D92D20",
             text_color="#FFFFFF",
-            height=32,
-            width=140,
+            height=34,
+            corner_radius=6,
             command=self._launch_screen_snip
         )
-        btn_snip.pack(side="left", padx=5)
-
-        btn_clip_read = ctk.CTkButton(
-            right_box,
-            text="Read Clipboard",
-            font=("Segoe UI", 11, "bold"),
-            fg_color=COLOR_SURFACE,
-            hover_color=COLOR_BORDER,
-            text_color=COLOR_TEXT_PRIMARY,
-            border_width=1,
-            border_color=COLOR_BORDER,
-            height=32,
-            width=110,
-            command=self._read_clipboard_now
-        )
-        btn_clip_read.pack(side="left", padx=5)
-
-        btn_refresh = ctk.CTkButton(
-            right_box,
-            text="Sync",
-            font=("Segoe UI", 11, "bold"),
-            fg_color=COLOR_SURFACE,
-            hover_color=COLOR_BORDER,
-            text_color=COLOR_TEXT_PRIMARY,
-            border_width=1,
-            border_color=COLOR_BORDER,
-            height=32,
-            width=65,
-            command=self.refresh_data
-        )
-        btn_refresh.pack(side="left", padx=5)
+        btn_snip.pack(fill="x", pady=(0, 6))
 
         btn_web = ctk.CTkButton(
-            right_box,
+            bottom_box,
             text="Open Web App ↗",
-            font=("Segoe UI", 11, "bold"),
-            fg_color="#FFFFFF",
-            hover_color="#E4E4E7",
-            text_color="#000000",
+            font=("Segoe UI", 11),
+            fg_color="#18181B",
+            hover_color="#27272A",
+            text_color=COLOR_TEXT_PRIMARY,
+            border_width=1,
+            border_color="#27272A",
             height=32,
-            width=120,
+            corner_radius=6,
             command=lambda: webbrowser.open("http://127.0.0.1:8003")
         )
-        btn_web.pack(side="left", padx=5)
+        btn_web.pack(fill="x")
 
-    def _build_tabs(self):
-        """Builds modern rounded Tabview container."""
-        self.tabview = ctk.CTkTabview(
-            self,
-            fg_color=COLOR_BG,
-            segmented_button_fg_color=COLOR_CARD,
-            segmented_button_selected_color=COLOR_SURFACE,
-            segmented_button_selected_hover_color=COLOR_BORDER,
-            segmented_button_unselected_color=COLOR_CARD,
-            segmented_button_unselected_hover_color=COLOR_SURFACE,
+        # 2. Right Workspace Container
+        self.right_frame = ctk.CTkFrame(self.body_frame, fg_color=COLOR_BG, corner_radius=0)
+        self.right_frame.pack(side="right", fill="both", expand=True)
+
+        # Top breadcrumb bar
+        self.top_bar = ctk.CTkFrame(self.right_frame, fg_color="#09090B", height=44, corner_radius=0, border_width=1, border_color="#18181B")
+        self.top_bar.pack(fill="x", side="top")
+        self.top_bar.pack_propagate(False)
+
+        self.breadcrumb_lbl = ctk.CTkLabel(self.top_bar, text="RADAR  /  WORKSPACE  /  OVERVIEW", font=("Consolas", 10, "bold"), text_color=COLOR_TEXT_MUTED)
+        self.breadcrumb_lbl.pack(side="left", padx=20, pady=10)
+
+        top_actions = ctk.CTkFrame(self.top_bar, fg_color="transparent")
+        top_actions.pack(side="right", padx=16, pady=6)
+
+        btn_sync = ctk.CTkButton(
+            top_actions,
+            text="Sync",
+            font=("Segoe UI", 10, "bold"),
+            fg_color="#18181B",
+            hover_color="#27272A",
             text_color=COLOR_TEXT_PRIMARY,
-            corner_radius=8
+            border_width=1,
+            border_color="#27272A",
+            height=26,
+            width=60,
+            corner_radius=4,
+            command=self.refresh_data
         )
-        self.tabview.pack(fill="both", expand=True, padx=20, pady=(10, 20))
+        btn_sync.pack(side="right", padx=(6, 0))
 
-        # 5 Workspaces
-        self.tab_hub = self.tabview.add("Intelligence Hub")
-        self.tab_ocr = self.tabview.add("Screenshot & Local OCR Lab")
-        self.tab_clipboard = self.tabview.add("Live Clipboard Center")
-        self.tab_scraper = self.tabview.add("Autonomous Scraper")
-        self.tab_ats = self.tabview.add("ATS Resume Studio")
+        status_badge = ctk.CTkLabel(top_actions, text="Local WinOCR Ready · 0 Tokens", font=("Consolas", 9), text_color="#4ADE80")
+        status_badge.pack(side="right", padx=10)
+
+        # Workspaces container
+        self.workspaces_area = ctk.CTkFrame(self.right_frame, fg_color=COLOR_BG, corner_radius=0)
+        self.workspaces_area.pack(fill="both", expand=True, padx=20, pady=16)
+
+        self.tab_hub = ctk.CTkFrame(self.workspaces_area, fg_color="transparent")
+        self.tab_ocr = ctk.CTkFrame(self.workspaces_area, fg_color="transparent")
+        self.tab_clipboard = ctk.CTkFrame(self.workspaces_area, fg_color="transparent")
+        self.tab_scraper = ctk.CTkFrame(self.workspaces_area, fg_color="transparent")
+        self.tab_ats = ctk.CTkFrame(self.workspaces_area, fg_color="transparent")
+
+        self.workspace_frames = {
+            "hub": (self.tab_hub, "OVERVIEW"),
+            "ocr": (self.tab_ocr, "SCREENSHOT & LOCAL OCR LAB"),
+            "clipboard": (self.tab_clipboard, "LIVE CLIPBOARD CENTER"),
+            "scraper": (self.tab_scraper, "AUTONOMOUS JOB SCRAPER"),
+            "ats": (self.tab_ats, "ATS RESUME STUDIO"),
+        }
 
         self._setup_hub_tab()
         self._setup_ocr_tab()
         self._setup_clipboard_tab()
         self._setup_scraper_tab()
         self._setup_ats_tab()
+
+        self._select_workspace("hub")
+
+    def _select_workspace(self, active_key: str):
+        """Switches active workspace frame and updates sidebar navigation styles."""
+        for key, (frame, title) in self.workspace_frames.items():
+            if key == active_key:
+                frame.pack(fill="both", expand=True)
+                self.breadcrumb_lbl.configure(text=f"RADAR  /  WORKSPACE  /  {title}")
+                if key in self.nav_buttons:
+                    self.nav_buttons[key].configure(
+                        fg_color="#18181B",
+                        border_width=1,
+                        border_color="#27272A",
+                        text_color="#FFFFFF"
+                    )
+            else:
+                frame.pack_forget()
+                if key in self.nav_buttons:
+                    self.nav_buttons[key].configure(
+                        fg_color="transparent",
+                        border_width=0,
+                        text_color=COLOR_TEXT_SECONDARY
+                    )
 
     # ==========================================================================
     # TAB 1: INTELLIGENCE HUB (METRIC DECK & EMBEDDED MATPLOTLIB GRAPHS)
