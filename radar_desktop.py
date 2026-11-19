@@ -364,6 +364,31 @@ class ClipboardListener(threading.Thread):
             logger.debug(f"Clipboard ingest notice: {e}")
 
 
+def create_and_open_eml(subject: str, to_addr: str, body: str) -> bool:
+    """Generates a standard RFC 822 .eml file and launches the default desktop mail client."""
+    try:
+        from email.message import EmailMessage
+        msg = EmailMessage()
+        msg["Subject"] = subject or "Application: Candidate Inquiry"
+        msg["To"] = to_addr or ""
+        msg["From"] = "applicant@radar.local"
+        msg.set_content(body or "")
+
+        tmp_dir = tempfile.gettempdir()
+        eml_path = os.path.join(tmp_dir, f"radar_outreach_{int(time.time())}.eml")
+        with open(eml_path, "wb") as f:
+            f.write(msg.as_bytes())
+
+        if os.name == 'nt':
+            os.startfile(eml_path)
+        else:
+            webbrowser.open(f"file://{eml_path}")
+        return True
+    except Exception as e:
+        logger.error(f"Error opening .eml file: {e}")
+        return False
+
+
 # ==============================================================================
 # MAIN NATIVE APPLICATION WINDOW (CustomTkinter)
 # ==============================================================================
@@ -385,6 +410,10 @@ class RadarNativeApp(ctk.CTk):
         self.offers: List[Dict[str, Any]] = []
         self.clips: List[Dict[str, Any]] = []
         self.clipboard_history: List[str] = []
+        self.selected_offer: Optional[Dict[str, Any]] = None
+        self.offers_filter_channel = "all"
+        self.offers_filter_stage = "all"
+        self.offers_search_query = ""
         self.latest_pil_img: Optional[Image.Image] = None
         self.latest_ocr_text: str = ""
         self.latest_ctk_img: Optional[ctk.CTkImage] = None
@@ -428,6 +457,7 @@ class RadarNativeApp(ctk.CTk):
         self.nav_buttons = {}
         nav_items = [
             ("hub", "Overview"),
+            ("offers", "Offers & Pipeline"),
             ("ocr", "Screenshot & OCR"),
             ("clipboard", "Live Clipboard"),
             ("scraper", "Job Scraper"),
@@ -486,13 +516,44 @@ class RadarNativeApp(ctk.CTk):
         self.right_frame = ctk.CTkFrame(self.body_frame, fg_color=COLOR_BG, corner_radius=0)
         self.right_frame.pack(side="right", fill="both", expand=True)
 
-        # Top breadcrumb bar
+        # Top breadcrumb & quick ingestion bar
         self.top_bar = ctk.CTkFrame(self.right_frame, fg_color="#09090B", height=44, corner_radius=0, border_width=1, border_color="#18181B")
         self.top_bar.pack(fill="x", side="top")
         self.top_bar.pack_propagate(False)
 
         self.breadcrumb_lbl = ctk.CTkLabel(self.top_bar, text="RADAR  /  WORKSPACE  /  OVERVIEW", font=("Consolas", 10, "bold"), text_color=COLOR_TEXT_MUTED)
         self.breadcrumb_lbl.pack(side="left", padx=20, pady=10)
+
+        # Universal Quick Ingestion Bar in Top Bar
+        ingest_box = ctk.CTkFrame(self.top_bar, fg_color="transparent")
+        ingest_box.pack(side="left", padx=(10, 0), pady=6)
+
+        self.universal_ingest_entry = ctk.CTkEntry(
+            ingest_box,
+            placeholder_text="Paste job link, recruiter message or raw text...",
+            font=("Segoe UI", 11),
+            width=320,
+            height=28,
+            fg_color="#18181B",
+            border_width=1,
+            border_color="#27272A"
+        )
+        self.universal_ingest_entry.pack(side="left", padx=(0, 6))
+        self.universal_ingest_entry.bind("<Return>", lambda e: self._handle_universal_ingest())
+
+        btn_ingest = ctk.CTkButton(
+            ingest_box,
+            text="⚡ Ingest AI",
+            font=("Segoe UI", 10, "bold"),
+            fg_color=COLOR_ACCENT_RED,
+            hover_color="#D92D20",
+            text_color="#FFFFFF",
+            height=28,
+            width=86,
+            corner_radius=4,
+            command=self._handle_universal_ingest
+        )
+        btn_ingest.pack(side="left")
 
         top_actions = ctk.CTkFrame(self.top_bar, fg_color="transparent")
         top_actions.pack(side="right", padx=16, pady=6)
@@ -521,6 +582,7 @@ class RadarNativeApp(ctk.CTk):
         self.workspaces_area.pack(fill="both", expand=True, padx=20, pady=16)
 
         self.tab_hub = ctk.CTkFrame(self.workspaces_area, fg_color="transparent")
+        self.tab_offers = ctk.CTkFrame(self.workspaces_area, fg_color="transparent")
         self.tab_ocr = ctk.CTkFrame(self.workspaces_area, fg_color="transparent")
         self.tab_clipboard = ctk.CTkFrame(self.workspaces_area, fg_color="transparent")
         self.tab_scraper = ctk.CTkFrame(self.workspaces_area, fg_color="transparent")
@@ -528,6 +590,7 @@ class RadarNativeApp(ctk.CTk):
 
         self.workspace_frames = {
             "hub": (self.tab_hub, "OVERVIEW"),
+            "offers": (self.tab_offers, "CAREER PIPELINE & OFFERS"),
             "ocr": (self.tab_ocr, "SCREENSHOT & LOCAL OCR LAB"),
             "clipboard": (self.tab_clipboard, "LIVE CLIPBOARD CENTER"),
             "scraper": (self.tab_scraper, "AUTONOMOUS JOB SCRAPER"),
@@ -535,6 +598,7 @@ class RadarNativeApp(ctk.CTk):
         }
 
         self._setup_hub_tab()
+        self._setup_offers_tab()
         self._setup_ocr_tab()
         self._setup_clipboard_tab()
         self._setup_scraper_tab()
@@ -571,7 +635,7 @@ class RadarNativeApp(ctk.CTk):
     def _setup_hub_tab(self):
         # 1. Metric Deck Row
         self.metric_frame = ctk.CTkFrame(self.tab_hub, fg_color="transparent")
-        self.metric_frame.pack(fill="x", padx=0, pady=(0, 16))
+        self.metric_frame.pack(fill="x", padx=0, pady=(0, 14))
 
         self.kpi_cards = {}
         metrics = [
@@ -587,7 +651,7 @@ class RadarNativeApp(ctk.CTk):
             lbl_t = ctk.CTkLabel(card, text=title, font=("Segoe UI", 10, "bold"), text_color=COLOR_TEXT_SECONDARY)
             lbl_t.pack(anchor="w", padx=16, pady=(12, 2))
 
-            lbl_v = ctk.CTkLabel(card, text=val, font=("Segoe UI", 26, "bold"), text_color=COLOR_TEXT_PRIMARY)
+            lbl_v = ctk.CTkLabel(card, text=val, font=("Segoe UI", 24, "bold"), text_color=COLOR_TEXT_PRIMARY)
             lbl_v.pack(anchor="w", padx=16, pady=(0, 2))
 
             lbl_s = ctk.CTkLabel(card, text=sub, font=("Segoe UI", 9), text_color=COLOR_TEXT_MUTED)
@@ -596,18 +660,43 @@ class RadarNativeApp(ctk.CTk):
             self.kpi_cards[title] = lbl_v
 
         # 2. Charts Container Frame
-        self.charts_frame = ctk.CTkFrame(self.tab_hub, fg_color=COLOR_CARD, border_width=1, border_color=COLOR_BORDER, corner_radius=8)
-        self.charts_frame.pack(fill="both", expand=True, padx=0, pady=0)
+        self.charts_frame = ctk.CTkFrame(self.tab_hub, fg_color=COLOR_CARD, border_width=1, border_color=COLOR_BORDER, corner_radius=8, height=270)
+        self.charts_frame.pack(fill="x", expand=False, padx=0, pady=0)
+        self.charts_frame.pack_propagate(False)
 
         # Matplotlib Figure with 2 subplots (Funnel & Channel Donut)
-        self.fig = Figure(figsize=(10, 4.2), facecolor=COLOR_CARD)
+        self.fig = Figure(figsize=(10, 3.4), facecolor=COLOR_CARD)
         self.ax_funnel = self.fig.add_subplot(121)
         self.ax_channels = self.fig.add_subplot(122)
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.charts_frame)
-        self.canvas.get_tk_widget().pack(fill="both", expand=True, padx=12, pady=12)
+        self.canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=6)
 
         self._render_charts([0, 0, 0, 0], [1, 1, 1])
+
+        # 3. Recent Opportunities Quick Deck
+        recent_box = ctk.CTkFrame(self.tab_hub, fg_color=COLOR_CARD, border_width=1, border_color=COLOR_BORDER, corner_radius=8)
+        recent_box.pack(fill="both", expand=True, padx=0, pady=(12, 0))
+
+        recent_hdr = ctk.CTkFrame(recent_box, fg_color="transparent")
+        recent_hdr.pack(fill="x", padx=16, pady=(12, 6))
+
+        ctk.CTkLabel(recent_hdr, text="RECENT SIGNALS & OPPORTUNITIES", font=("Segoe UI", 11, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(side="left")
+
+        btn_view_all = ctk.CTkButton(
+            recent_hdr,
+            text="Explore Pipeline & Offers →",
+            font=("Segoe UI", 10, "bold"),
+            fg_color="transparent",
+            hover_color="#18181B",
+            text_color=COLOR_ACCENT_RED,
+            height=26,
+            command=lambda: self._select_workspace("offers")
+        )
+        btn_view_all.pack(side="right")
+
+        self.hub_recent_scroll = ctk.CTkScrollableFrame(recent_box, fg_color="transparent", corner_radius=0)
+        self.hub_recent_scroll.pack(fill="both", expand=True, padx=12, pady=(0, 10))
 
     def _render_charts(self, funnel_counts, channel_counts):
         """Renders dark HUD graphs onto embedded matplotlib canvas."""
@@ -662,6 +751,539 @@ class RadarNativeApp(ctk.CTk):
 
         self.fig.tight_layout()
         self.canvas.draw()
+
+    # ==========================================================================
+    # TAB: OFFERS & PIPELINE EXPLORER (MASTER-DETAIL WORKSPACE)
+    # ==========================================================================
+
+    def _setup_offers_tab(self):
+        container = ctk.CTkFrame(self.tab_offers, fg_color="transparent")
+        container.pack(fill="both", expand=True, padx=0, pady=0)
+
+        # 1. Left Column: Search, Filter & List of Offers (410px width)
+        left_col = ctk.CTkFrame(container, fg_color=COLOR_CARD, border_width=1, border_color=COLOR_BORDER, corner_radius=8, width=410)
+        left_col.pack(side="left", fill="both", expand=False, padx=(0, 10))
+        left_col.pack_propagate(False)
+
+        # Search Bar
+        search_box = ctk.CTkFrame(left_col, fg_color="transparent")
+        search_box.pack(fill="x", padx=14, pady=(14, 8))
+
+        self.offers_search_entry = ctk.CTkEntry(
+            search_box,
+            placeholder_text="Search opportunities, skills...",
+            font=("Segoe UI", 11),
+            height=32,
+            fg_color=COLOR_SURFACE,
+            border_color=COLOR_BORDER
+        )
+        self.offers_search_entry.pack(fill="x")
+        self.offers_search_entry.bind("<KeyRelease>", lambda e: self._on_offers_filter_change())
+
+        # Channel Filter Segmented
+        chan_lbl = ctk.CTkLabel(left_col, text="CHANNEL:", font=("Segoe UI", 9, "bold"), text_color=COLOR_TEXT_MUTED)
+        chan_lbl.pack(anchor="w", padx=14, pady=(2, 2))
+
+        self.offers_channel_seg = ctk.CTkSegmentedButton(
+            left_col,
+            values=["All", "Email", "Direct (WA)", "Portal"],
+            font=("Segoe UI", 10),
+            height=26,
+            fg_color=COLOR_SURFACE,
+            selected_color="#FFFFFF",
+            selected_hover_color="#E4E4E7",
+            unselected_color=COLOR_SURFACE,
+            unselected_hover_color="#27272A",
+            text_color="#000000",
+            command=lambda v: self._on_offers_filter_change()
+        )
+        self.offers_channel_seg.set("All")
+        self.offers_channel_seg.pack(fill="x", padx=14, pady=(0, 6))
+
+        # Stage Filter Segmented
+        stage_lbl = ctk.CTkLabel(left_col, text="STAGE:", font=("Segoe UI", 9, "bold"), text_color=COLOR_TEXT_MUTED)
+        stage_lbl.pack(anchor="w", padx=14, pady=(2, 2))
+
+        self.offers_stage_seg = ctk.CTkSegmentedButton(
+            left_col,
+            values=["All", "Saved", "Ready", "Applied", "Interview", "Offer"],
+            font=("Segoe UI", 10),
+            height=26,
+            fg_color=COLOR_SURFACE,
+            selected_color="#FFFFFF",
+            selected_hover_color="#E4E4E7",
+            unselected_color=COLOR_SURFACE,
+            unselected_hover_color="#27272A",
+            text_color="#000000",
+            command=lambda v: self._on_offers_filter_change()
+        )
+        self.offers_stage_seg.set("All")
+        self.offers_stage_seg.pack(fill="x", padx=14, pady=(0, 10))
+
+        # Offers Count Header
+        self.offers_count_lbl = ctk.CTkLabel(
+            left_col,
+            text="TRACKED OPPORTUNITIES (0)",
+            font=("Segoe UI", 10, "bold"),
+            text_color=COLOR_TEXT_SECONDARY
+        )
+        self.offers_count_lbl.pack(anchor="w", padx=14, pady=(0, 6))
+
+        # Scrollable Offers List
+        self.offers_list_scroll = ctk.CTkScrollableFrame(
+            left_col,
+            fg_color="transparent",
+            corner_radius=0
+        )
+        self.offers_list_scroll.pack(fill="both", expand=True, padx=8, pady=(0, 10))
+
+        # 2. Right Column: Master-Detail Inspector
+        self.detail_col = ctk.CTkFrame(container, fg_color=COLOR_CARD, border_width=1, border_color=COLOR_BORDER, corner_radius=8)
+        self.detail_col.pack(side="right", fill="both", expand=True)
+
+        self._render_empty_offer_detail()
+
+    def _on_offers_filter_change(self):
+        self.offers_search_query = self.offers_search_entry.get().strip().lower()
+        self.offers_filter_channel = self.offers_channel_seg.get()
+        self.offers_filter_stage = self.offers_stage_seg.get()
+        self._render_offers_list()
+
+    def _render_offers_list(self):
+        for widget in self.offers_list_scroll.winfo_children():
+            widget.destroy()
+
+        # Channel mapping
+        chan_map = {
+            "All": None,
+            "Email": "email",
+            "Direct (WA)": "direct_contact",
+            "Portal": "external",
+        }
+        target_ch = chan_map.get(self.offers_filter_channel)
+        target_st = None if self.offers_filter_stage == "All" else self.offers_filter_stage.lower()
+
+        filtered = []
+        for o in self.offers:
+            # Query match
+            q = self.offers_search_query
+            if q:
+                match_q = (
+                    q in o.get("title", "").lower()
+                    or q in o.get("company", "").lower()
+                    or any(q in s.lower() for s in o.get("skills", []))
+                )
+                if not match_q:
+                    continue
+
+            # Channel match
+            if target_ch and o.get("channel") != target_ch:
+                continue
+
+            # Stage match
+            if target_st and o.get("status", "saved").lower() != target_st:
+                continue
+
+            filtered.append(o)
+
+        self.offers_count_lbl.configure(text=f"TRACKED OPPORTUNITIES ({len(filtered)})")
+
+        if not filtered:
+            ctk.CTkLabel(
+                self.offers_list_scroll,
+                text="No opportunities match current filter.",
+                text_color=COLOR_TEXT_MUTED,
+                font=("Segoe UI", 11)
+            ).pack(pady=30)
+            return
+
+        for o in filtered:
+            is_active = self.selected_offer and self.selected_offer.get("id") == o.get("id")
+            card = ctk.CTkFrame(
+                self.offers_list_scroll,
+                fg_color="#18181B" if is_active else COLOR_SURFACE,
+                border_width=1,
+                border_color=COLOR_ACCENT_RED if is_active else COLOR_BORDER,
+                corner_radius=6,
+                cursor="hand2"
+            )
+            card.pack(fill="x", padx=4, pady=4)
+
+            # Top row: Company initial glyph + Title + Match Fit
+            top_r = ctk.CTkFrame(card, fg_color="transparent")
+            top_r.pack(fill="x", padx=10, pady=(8, 2))
+
+            initial = (o.get("company") or "•")[:1].upper()
+            avatar_lbl = ctk.CTkLabel(
+                top_r,
+                text=initial,
+                font=("Segoe UI", 10, "bold"),
+                text_color=COLOR_ACCENT_RED,
+                fg_color="#27272A",
+                width=24,
+                height=24,
+                corner_radius=4
+            )
+            avatar_lbl.pack(side="left", padx=(0, 8))
+
+            title_lbl = ctk.CTkLabel(
+                top_r,
+                text=o.get("title", "Role"),
+                font=("Segoe UI", 11, "bold"),
+                text_color="#FFFFFF" if is_active else COLOR_TEXT_PRIMARY,
+                anchor="w"
+            )
+            title_lbl.pack(side="left", fill="x", expand=True)
+
+            score = int((o.get("confidence") or 0.90) * 100)
+            score_lbl = ctk.CTkLabel(
+                top_r,
+                text=f"{score}%",
+                font=("Segoe UI", 9, "bold"),
+                text_color=COLOR_ACCENT_GREEN if score >= 85 else COLOR_TEXT_MUTED,
+                fg_color=COLOR_CARD,
+                corner_radius=3,
+                padx=5,
+                pady=1
+            )
+            score_lbl.pack(side="right")
+
+            # Sub row: Company & Location
+            sub_r = ctk.CTkFrame(card, fg_color="transparent")
+            sub_r.pack(fill="x", padx=10, pady=(0, 6))
+
+            co_text = f"{o.get('company', 'Company')} · {o.get('location', 'Remote')}"
+            ctk.CTkLabel(
+                sub_r,
+                text=co_text,
+                font=("Segoe UI", 10),
+                text_color=COLOR_TEXT_SECONDARY,
+                anchor="w"
+            ).pack(side="left")
+
+            stage_text = (o.get("status") or "SAVED").upper()
+            stage_badge = ctk.CTkLabel(
+                sub_r,
+                text=stage_text,
+                font=("Segoe UI", 8, "bold"),
+                text_color=COLOR_ACCENT_RED if stage_text == "OFFER" else (COLOR_ACCENT_GREEN if stage_text == "APPLIED" else COLOR_TEXT_SECONDARY),
+                fg_color=COLOR_CARD,
+                corner_radius=3,
+                padx=4,
+                pady=1
+            )
+            stage_badge.pack(side="right")
+
+            # Bind clicks
+            for w in [card, top_r, sub_r, title_lbl, avatar_lbl]:
+                w.bind("<Button-1>", lambda e, opt=o: self._select_offer(opt))
+
+    def _select_offer(self, offer: Dict[str, Any]):
+        self.selected_offer = offer
+        self._render_offers_list()
+        self._render_offer_detail(offer)
+
+    def _render_empty_offer_detail(self):
+        for w in self.detail_col.winfo_children():
+            w.destroy()
+
+        box = ctk.CTkFrame(self.detail_col, fg_color="transparent")
+        box.pack(expand=True)
+
+        ctk.CTkLabel(box, text="🛰️", font=("Segoe UI", 32)).pack(pady=(0, 8))
+        ctk.CTkLabel(box, text="SELECT AN OPPORTUNITY", font=("Segoe UI", 13, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(pady=(0, 4))
+        ctk.CTkLabel(
+            box,
+            text="Choose any tracked role on the left to inspect intelligence,\nrecruiter contacts, AI outreach drafts, and ATS tailoring.",
+            font=("Segoe UI", 11),
+            text_color=COLOR_TEXT_MUTED,
+            justify="center"
+        ).pack()
+
+    def _render_offer_detail(self, offer: Dict[str, Any]):
+        for w in self.detail_col.winfo_children():
+            w.destroy()
+
+        scroll = ctk.CTkScrollableFrame(self.detail_col, fg_color="transparent", corner_radius=0)
+        scroll.pack(fill="both", expand=True, padx=16, pady=14)
+
+        # Header: Title, Company, Score
+        hdr = ctk.CTkFrame(scroll, fg_color="transparent")
+        hdr.pack(fill="x", pady=(0, 10))
+
+        title_lbl = ctk.CTkLabel(hdr, text=offer.get("title", "Role Title"), font=("Segoe UI", 18, "bold"), text_color=COLOR_TEXT_PRIMARY, anchor="w")
+        title_lbl.pack(anchor="w")
+
+        sub_info = f"{offer.get('company', 'Company')}  ·  {offer.get('location', 'Remote')}  ·  {offer.get('salary', 'Competitive Compensation')}"
+        ctk.CTkLabel(hdr, text=sub_info, font=("Segoe UI", 12), text_color=COLOR_TEXT_SECONDARY, anchor="w").pack(anchor="w", pady=(2, 6))
+
+        # Status & Quick Action Row
+        status_row = ctk.CTkFrame(scroll, fg_color=COLOR_SURFACE, border_width=1, border_color=COLOR_BORDER, corner_radius=6)
+        status_row.pack(fill="x", pady=(0, 12))
+
+        inner_st = ctk.CTkFrame(status_row, fg_color="transparent")
+        inner_st.pack(fill="x", padx=12, pady=8)
+
+        ctk.CTkLabel(inner_st, text="PIPELINE STAGE:", font=("Segoe UI", 10, "bold"), text_color=COLOR_TEXT_MUTED).pack(side="left", padx=(0, 10))
+
+        current_st = (offer.get("status") or "saved").lower()
+        if current_st not in ["saved", "ready", "applied", "interview", "offer"]:
+            current_st = "saved"
+
+        stage_seg = ctk.CTkSegmentedButton(
+            inner_st,
+            values=["saved", "ready", "applied", "interview", "offer"],
+            font=("Segoe UI", 10, "bold"),
+            height=28,
+            fg_color=COLOR_CARD,
+            selected_color=COLOR_ACCENT_RED,
+            selected_hover_color="#D92D20",
+            unselected_color=COLOR_CARD,
+            unselected_hover_color="#27272A",
+            command=lambda val, oid=offer.get("id"): self._update_offer_status(oid, val)
+        )
+        stage_seg.set(current_st)
+        stage_seg.pack(side="left", fill="x", expand=True)
+
+        # Recruiter & Contacts Box
+        contact_box = ctk.CTkFrame(scroll, fg_color=COLOR_SURFACE, border_width=1, border_color=COLOR_BORDER, corner_radius=6)
+        contact_box.pack(fill="x", pady=(0, 12))
+
+        c_hdr = ctk.CTkFrame(contact_box, fg_color="transparent")
+        c_hdr.pack(fill="x", padx=14, pady=(10, 4))
+        ctk.CTkLabel(c_hdr, text="DIRECT RECRUITER & SOURCING CONTACTS", font=("Segoe UI", 11, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(side="left")
+
+        r_email = offer.get("recruiterEmail") or offer.get("contactEmail") or ""
+        r_name = offer.get("contactName") or "Hiring Team"
+        r_phone = offer.get("contactPhone") or ""
+        job_url = offer.get("jobUrl") or offer.get("sourceUrl") or ""
+
+        c_info = ctk.CTkFrame(contact_box, fg_color="transparent")
+        c_info.pack(fill="x", padx=14, pady=(0, 8))
+
+        detail_lines = []
+        if r_name: detail_lines.append(f"Name: {r_name}")
+        if r_email: detail_lines.append(f"Email: {r_email}")
+        if r_phone: detail_lines.append(f"Direct Phone: {r_phone}")
+        if not detail_lines: detail_lines.append("No direct contacts parsed yet. Captured via web portal.")
+
+        ctk.CTkLabel(c_info, text="  ·  ".join(detail_lines), font=("Segoe UI", 10), text_color=COLOR_TEXT_SECONDARY, anchor="w").pack(anchor="w")
+
+        # Action buttons for contacts
+        c_btns = ctk.CTkFrame(contact_box, fg_color="transparent")
+        c_btns.pack(fill="x", padx=14, pady=(0, 10))
+
+        if r_email:
+            subj_enc = urllib.parse.quote(f"Application: {offer.get('title')} - Radar Inquiry")
+            body_enc = urllib.parse.quote(f"Dear {r_name},\n\nI am writing to express my strong interest in the {offer.get('title')} position at {offer.get('company')}.")
+            btn_mailto = ctk.CTkButton(
+                c_btns,
+                text="📧 Open Mailto",
+                font=("Segoe UI", 10, "bold"),
+                fg_color="#FFFFFF",
+                text_color="#000000",
+                hover_color="#E4E4E7",
+                height=26,
+                command=lambda: webbrowser.open(f"mailto:{r_email}?subject={subj_enc}&body={body_enc}")
+            )
+            btn_mailto.pack(side="left", padx=(0, 8))
+
+        if r_phone:
+            clean_p = "".join(c for c in r_phone if c.isdigit() or c == '+')
+            wa_text = urllib.parse.quote(f"Hi {r_name}, I saw the {offer.get('title')} opening at {offer.get('company')} and would love to connect!")
+            btn_wa = ctk.CTkButton(
+                c_btns,
+                text="💬 WhatsApp Launcher",
+                font=("Segoe UI", 10, "bold"),
+                fg_color="#10B981",
+                text_color="#FFFFFF",
+                hover_color="#059669",
+                height=26,
+                command=lambda: webbrowser.open(f"https://wa.me/{clean_p}?text={wa_text}")
+            )
+            btn_wa.pack(side="left", padx=(0, 8))
+
+        if job_url:
+            btn_open_url = ctk.CTkButton(
+                c_btns,
+                text="🌐 Open Link ↗",
+                font=("Segoe UI", 10),
+                fg_color=COLOR_CARD,
+                border_width=1,
+                border_color=COLOR_BORDER,
+                text_color=COLOR_TEXT_PRIMARY,
+                hover_color="#27272A",
+                height=26,
+                command=lambda u=job_url: webbrowser.open(u)
+            )
+            btn_open_url.pack(side="left", padx=(0, 8))
+
+        # AI Cold Outreach & Email Drafter
+        outreach_box = ctk.CTkFrame(scroll, fg_color=COLOR_SURFACE, border_width=1, border_color=COLOR_BORDER, corner_radius=6)
+        outreach_box.pack(fill="x", pady=(0, 12))
+
+        o_hdr = ctk.CTkFrame(outreach_box, fg_color="transparent")
+        o_hdr.pack(fill="x", padx=14, pady=(10, 6))
+        ctk.CTkLabel(o_hdr, text="AI COLD OUTREACH DRAFT & .EML EXPORTER", font=("Segoe UI", 11, "bold"), text_color=COLOR_TEXT_PRIMARY).pack(side="left")
+
+        # Subject Entry
+        ctk.CTkLabel(outreach_box, text="Subject Line:", font=("Segoe UI", 10, "bold"), text_color=COLOR_TEXT_MUTED).pack(anchor="w", padx=14)
+        subj_entry = ctk.CTkEntry(outreach_box, font=("Segoe UI", 11), height=28, fg_color=COLOR_CARD, border_color=COLOR_BORDER)
+        subj_entry.pack(fill="x", padx=14, pady=(2, 8))
+        subj_entry.insert(0, f"Application: {offer.get('title')} -- Radar Candidate")
+
+        # Body Textbox
+        ctk.CTkLabel(outreach_box, text="Cold Outreach Message:", font=("Segoe UI", 10, "bold"), text_color=COLOR_TEXT_MUTED).pack(anchor="w", padx=14)
+        body_text = ctk.CTkTextbox(outreach_box, font=("Consolas", 10), height=140, fg_color="#141414", border_color=COLOR_BORDER)
+        body_text.pack(fill="x", padx=14, pady=(2, 10))
+
+        default_pitch = (
+            f"Dear {r_name},\n\n"
+            f"I recently tracked the {offer.get('title')} position at {offer.get('company')} and am reaching out directly. "
+            f"With deep background across {', '.join(offer.get('skills', ['distributed systems', 'cloud engineering'])[:4])}, "
+            f"I have delivered scalable infrastructure and high-efficiency systems.\n\n"
+            f"I would welcome a brief 10-minute screening conversation regarding how I can contribute to {offer.get('company')}'s engineering roadmap.\n\n"
+            f"Best regards,\nRadar Candidate\nportfolio: https://radar.local"
+        )
+        body_text.insert("1.0", default_pitch)
+
+        # Outreach Action Buttons
+        o_btns = ctk.CTkFrame(outreach_box, fg_color="transparent")
+        o_btns.pack(fill="x", padx=14, pady=(0, 12))
+
+        btn_copy_gmail = ctk.CTkButton(
+            o_btns,
+            text="📋 Copy for Gmail",
+            font=("Segoe UI", 10, "bold"),
+            fg_color="#FFFFFF",
+            text_color="#000000",
+            hover_color="#E4E4E7",
+            height=28,
+            command=lambda: (
+                pyperclip.copy(body_text.get("1.0", "end-1c")),
+                show_toast("Outreach Copied", "Cold pitch copied to Windows clipboard.")
+            )
+        )
+        btn_copy_gmail.pack(side="left", padx=(0, 8))
+
+        btn_export_eml = ctk.CTkButton(
+            o_btns,
+            text="✉️ Export .EML (Outlook/Mail)",
+            font=("Segoe UI", 10, "bold"),
+            fg_color=COLOR_CARD,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            text_color=COLOR_TEXT_PRIMARY,
+            hover_color="#27272A",
+            height=28,
+            command=lambda: (
+                create_and_open_eml(
+                    subj_entry.get().strip(),
+                    r_email,
+                    body_text.get("1.0", "end-1c")
+                ),
+                show_toast("EML Generated", "Standard RFC 822 email exported and launched.")
+            )
+        )
+        btn_export_eml.pack(side="left", padx=(0, 8))
+
+        wa_short = f"Hi {r_name}, I'm reaching out regarding the {offer.get('title')} role at {offer.get('company')}. Would love to share my portfolio and discuss fit!"
+        btn_copy_wa = ctk.CTkButton(
+            o_btns,
+            text="💬 Copy WhatsApp Pitch",
+            font=("Segoe UI", 10),
+            fg_color=COLOR_CARD,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            text_color=COLOR_TEXT_PRIMARY,
+            hover_color="#27272A",
+            height=28,
+            command=lambda: (
+                pyperclip.copy(wa_short),
+                show_toast("Pitch Copied", "2-sentence WhatsApp DM pitch copied.")
+            )
+        )
+        btn_copy_wa.pack(side="left")
+
+        # ATS Studio Bridge
+        bridge_box = ctk.CTkFrame(scroll, fg_color=COLOR_SURFACE, border_width=1, border_color=COLOR_BORDER, corner_radius=6)
+        bridge_box.pack(fill="x", pady=(0, 10))
+
+        b_inner = ctk.CTkFrame(bridge_box, fg_color="transparent")
+        b_inner.pack(fill="x", padx=14, pady=10)
+
+        ctk.CTkLabel(
+            b_inner,
+            text="Tailor your LaTeX / Typst CV specifically for this opportunity in the ATS Resume Studio.",
+            font=("Segoe UI", 10),
+            text_color=COLOR_TEXT_SECONDARY
+        ).pack(side="left")
+
+        btn_go_ats = ctk.CTkButton(
+            b_inner,
+            text="⚡ Tailor in ATS Studio ↗",
+            font=("Segoe UI", 10, "bold"),
+            fg_color=COLOR_ACCENT_RED,
+            hover_color="#D92D20",
+            text_color="#FFFFFF",
+            height=28,
+            command=lambda opt=offer: self._transfer_to_ats_studio(opt)
+        )
+        btn_go_ats.pack(side="right")
+
+    def _transfer_to_ats_studio(self, offer: Dict[str, Any]):
+        self.ats_role_entry.delete(0, "end")
+        self.ats_role_entry.insert(0, offer.get("title", ""))
+
+        desc = offer.get("description") or f"Role at {offer.get('company')}. Required skills: {', '.join(offer.get('skills', []))}"
+        self.ats_desc_text.delete("1.0", "end")
+        self.ats_desc_text.insert("1.0", desc)
+
+        self._select_workspace("ats")
+        show_toast("Opportunity Transferred", f"Loaded '{offer.get('title')}' into ATS Resume Studio.")
+
+    def _update_offer_status(self, offer_id: str, new_status: str):
+        payload = json.dumps({"status": new_status}).encode("utf-8")
+        req = urllib.request.Request(
+            f"{RADAR_BACKEND_URL}/api/offers/{offer_id}",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="PUT"
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                show_toast("Status Updated", f"Position stage updated to '{new_status.upper()}'.")
+                self.refresh_data()
+        except Exception as e:
+            logger.error(f"Error updating status: {e}")
+
+    def _handle_universal_ingest(self):
+        text = self.universal_ingest_entry.get().strip()
+        if not text or len(text) < 5:
+            return
+
+        payload = json.dumps({
+            "content": text,
+            "sourceDevice": "desktop",
+            "sourceUrl": text if text.startswith("http") else "desktop_universal_bar"
+        }).encode("utf-8")
+
+        req = urllib.request.Request(
+            f"{RADAR_BACKEND_URL}/api/clips/ingest",
+            data=payload,
+            headers={"Content-Type": "application/json"}
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                if data.get("success"):
+                    self.universal_ingest_entry.delete(0, "end")
+                    show_toast("Signal Ingested", "Parsed job or clipboard clip into RADAR pipeline.")
+                    self.refresh_data()
+                    self._select_workspace("offers")
+        except Exception as e:
+            logger.error(f"Universal ingest error: {e}")
+            show_toast("Ingest Failed", str(e))
 
     # ==========================================================================
     # TAB 2: SCREENSHOT & LOCAL OCR LAB (ZERO LLM, 15MS WINDOWS OCR)
@@ -787,8 +1409,8 @@ class RadarNativeApp(ctk.CTk):
         self.ocr_time_badge.configure(text=f"{duration_ms} ms (LOCAL)")
         self.ocr_char_badge.configure(text=f"{len(ocr_text)} chars")
 
-        # Automatically switch to OCR tab if not active
-        self.tabview.set("Screenshot & Local OCR Lab")
+        # Automatically switch to OCR workspace if not active
+        self._select_workspace("ocr")
 
     def _copy_latest_image(self):
         if self.latest_pil_img:
@@ -1247,28 +1869,26 @@ class RadarNativeApp(ctk.CTk):
         self.ats_desc_text.pack(fill="x", padx=16, pady=(4, 10))
         self.ats_desc_text.insert("1.0", "Looking for expertise in Python, PyTorch, Docker, Kubernetes, FastAPI, microservices, and high-concurrency event-driven architectures.")
 
-        ctk.CTkLabel(left_pane, text="Base CV Code (LaTeX or Typst):", font=("Segoe UI", 11, "bold"), text_color=COLOR_TEXT_SECONDARY).pack(anchor="w", padx=16)
+        tpl_row = ctk.CTkFrame(left_pane, fg_color="transparent")
+        tpl_row.pack(fill="x", padx=16, pady=(0, 4))
+        ctk.CTkLabel(tpl_row, text="Base CV Code (LaTeX or Typst):", font=("Segoe UI", 11, "bold"), text_color=COLOR_TEXT_SECONDARY).pack(side="left")
+
+        self.ats_tpl_menu = ctk.CTkOptionMenu(
+            tpl_row,
+            values=["Jake's Resume (Typst)", "Executive Modern (Typst)", "Academic Classic (LaTeX)"],
+            font=("Segoe UI", 10),
+            height=24,
+            width=175,
+            fg_color=COLOR_SURFACE,
+            button_color="#27272A",
+            command=self._on_ats_template_selected
+        )
+        self.ats_tpl_menu.set("Jake's Resume (Typst)")
+        self.ats_tpl_menu.pack(side="right")
+
         self.ats_base_cv_text = ctk.CTkTextbox(left_pane, height=220, fg_color="#141414", border_color=COLOR_BORDER, font=("Consolas", 10))
         self.ats_base_cv_text.pack(fill="both", expand=True, padx=16, pady=(4, 10))
-        sample_typst = """#set page(paper: "a4", margin: 1.5cm)
-#align(center)[
-  = Radar Operator
-  operator@radar.local · +1 (555) 019-2834 · San Francisco, CA
-]
-
-== Professional Summary
-Generalist software engineer experienced in cloud backends.
-
-== Technical Skills
-- *Languages*: Python, TypeScript, SQL
-- *Frameworks*: FastAPI, React, Docker
-
-== Experience
-=== Software Engineer -- Engineering Labs (2022 - Present)
-- Engineered scalable microservice endpoints.
-- Maintained database clustering and automated tests.
-"""
-        self.ats_base_cv_text.insert("1.0", sample_typst)
+        self._on_ats_template_selected("Jake's Resume (Typst)")
 
         btn_box = ctk.CTkFrame(left_pane, fg_color="transparent")
         btn_box.pack(fill="x", padx=16, pady=(0, 14))
@@ -1385,6 +2005,94 @@ Generalist software engineer experienced in cloud backends.
         except Exception as e:
             logger.error(f"Compile PDF error: {e}")
 
+    def _on_ats_template_selected(self, tpl_name: str):
+        if not hasattr(self, "ats_base_cv_text"):
+            return
+
+        typst_jake = """#set page(paper: "a4", margin: 1.5cm)
+#set text(font: "Linux Libertine", size: 10pt)
+#align(center)[
+  = Radar Operator
+  operator@radar.local · +1 (555) 019-2834 · San Francisco, CA · github.com/operator
+]
+
+== Technical Skills
+- *Languages*: Python, Go, TypeScript, Rust, SQL, Bash
+- *Frameworks & Tools*: PyTorch, FastAPI, React, Docker, Kubernetes, Ray, Kafka, Redis
+
+== Experience
+=== Senior Distributed Systems Engineer -- Cloud Infrastructure Labs (2022 - Present)
+- Engineered scalable microservice endpoints serving 50M+ requests daily with 99.99% uptime.
+- Optimized async I/O database clustering reducing p99 response latencies by 38%.
+- Orchestrated multi-region container deployments using Kubernetes, Terraform, and GitOps.
+
+=== Software Engineer -- Core Systems (2020 - 2022)
+- Implemented high-throughput telemetry ingestion pipelines in Python and FastAPI.
+- Authored integration test suites ensuring 92% coverage across distributed components.
+
+== Education
+=== B.S. in Computer Science & Engineering -- Engineering Institute (2016 - 2020)
+"""
+
+        typst_modern = """#set page(paper: "a4", margin: 1.6cm)
+#align(left)[
+  #text(18pt, weight: "bold")[Radar Operator]\\
+  #text(11pt, fill: rgb("#FF3B30"), weight: "bold")[Senior AI Infrastructure Engineer]\\
+  #text(9pt, fill: luma(100))[operator@radar.local · +1 (555) 019-2834 · San Francisco, CA]
+]
+
+#line(length: 100%, stroke: 0.5pt + luma(180))
+
+== Executive Summary
+Strategic infrastructure engineer with 6+ years designing mission-critical AI pipelines, distributed data storage, and low-latency cloud backends.
+
+== Core Competencies
+- *Cloud & Compute*: Kubernetes, Docker, AWS, GCP, Terraform, Linux
+- *AI & Backend*: Python, PyTorch, FastAPI, Vector DBs, Redis, PostgreSQL
+
+== Professional Experience
+=== Lead Infrastructure Engineer -- AI Labs (2021 - Present)
+- Architected distributed GPU inference cluster reducing model evaluation cycle times by 45%.
+- Lowered infrastructure operating expenditures through automated autoscaling policies.
+"""
+
+        latex_academic = r"""\documentclass[10pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\begin{document}
+\begin{center}
+    {\LARGE \textbf{Radar Operator}} \\ \vspace{2pt}
+    \href{mailto:operator@radar.local}{operator@radar.local} $\vert$ +1 (555) 019-2834 $\vert$ San Francisco, CA
+\end{center}
+
+\section*{Professional Experience}
+\textbf{Senior Systems Engineer} \hfill 2021 -- Present \\
+\textit{AI Systems Labs}
+\begin{itemize}[noitemsep,topsep=2pt]
+    \item Developed high-throughput microservices using Python, FastAPI, and Docker.
+    \item Scaled Kubernetes clusters handling real-time telemetry streaming.
+\end{itemize}
+
+\section*{Technical Skills}
+\textbf{Languages}: Python, TypeScript, Go, SQL \\
+\textbf{Tools}: Docker, Kubernetes, PyTorch, PostgreSQL, Redis
+
+\section*{Education}
+\textbf{Institute of Technology} \hfill 2016 -- 2020 \\
+Bachelor of Science in Computer Science
+
+\end{document}
+"""
+        self.ats_base_cv_text.delete("1.0", "end")
+        if "Modern" in tpl_name:
+            self.ats_base_cv_text.insert("1.0", typst_modern)
+        elif "Classic" in tpl_name or "LaTeX" in tpl_name:
+            self.ats_base_cv_text.insert("1.0", latex_academic)
+        else:
+            self.ats_base_cv_text.insert("1.0", typst_jake)
+
     # ==========================================================================
     # DATA SYNCHRONIZATION
     # ==========================================================================
@@ -1415,6 +2123,7 @@ Generalist software engineer experienced in cloud backends.
         interviews = sum(1 for o in self.offers if o.get("status") == "interview")
         offers_won = sum(1 for o in self.offers if o.get("status") == "offer")
 
+        # 1. Update KPI Deck
         if "TOTAL TRACKED" in self.kpi_cards:
             self.kpi_cards["TOTAL TRACKED"].configure(text=str(total))
         if "APPLICATIONS" in self.kpi_cards:
@@ -1433,6 +2142,48 @@ Generalist software engineer experienced in cloud backends.
         channel_counts = [email_c, dm_c, ext_c]
 
         self._render_charts(funnel_counts, channel_counts)
+
+        # 2. Render Recent Positions in Hub
+        if hasattr(self, "hub_recent_scroll"):
+            for w in self.hub_recent_scroll.winfo_children():
+                w.destroy()
+
+            recent_slice = self.offers[:6]
+            if not recent_slice:
+                ctk.CTkLabel(self.hub_recent_scroll, text="No opportunities tracked yet.", font=("Segoe UI", 11), text_color=COLOR_TEXT_MUTED).pack(pady=15)
+            else:
+                for o in recent_slice:
+                    row = ctk.CTkFrame(self.hub_recent_scroll, fg_color=COLOR_SURFACE, height=36, corner_radius=5, border_width=1, border_color=COLOR_BORDER)
+                    row.pack(fill="x", pady=2)
+                    row.pack_propagate(False)
+
+                    initial = (o.get("company") or "•")[:1].upper()
+                    ctk.CTkLabel(row, text=initial, font=("Segoe UI", 9, "bold"), text_color=COLOR_ACCENT_RED, fg_color="#27272A", width=20, height=20, corner_radius=3).pack(side="left", padx=8)
+                    ctk.CTkLabel(row, text=o.get("title", "Role"), font=("Segoe UI", 11, "bold"), text_color="#FFFFFF").pack(side="left", padx=(0, 6))
+                    ctk.CTkLabel(row, text=f"·  {o.get('company', '')}", font=("Segoe UI", 10), text_color=COLOR_TEXT_SECONDARY).pack(side="left")
+
+                    btn_open = ctk.CTkButton(
+                        row,
+                        text="View →",
+                        font=("Segoe UI", 9, "bold"),
+                        fg_color=COLOR_CARD,
+                        border_width=1,
+                        border_color=COLOR_BORDER,
+                        text_color=COLOR_TEXT_PRIMARY,
+                        hover_color="#27272A",
+                        height=22,
+                        width=55,
+                        command=lambda opt=o: (self._select_workspace("offers"), self._select_offer(opt))
+                    )
+                    btn_open.pack(side="right", padx=8)
+
+                    stage_text = (o.get("status") or "SAVED").upper()
+                    stage_lbl = ctk.CTkLabel(row, text=stage_text, font=("Segoe UI", 8, "bold"), text_color=COLOR_ACCENT_GREEN if stage_text == "APPLIED" else COLOR_TEXT_MUTED)
+                    stage_lbl.pack(side="right", padx=6)
+
+        # 3. Update Offers & Pipeline List
+        if hasattr(self, "offers_list_scroll"):
+            self._render_offers_list()
 
     def _launch_screen_snip(self):
         snipper = SnippingTool(on_snip_completed=handle_snip_completed)

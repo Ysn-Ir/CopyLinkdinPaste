@@ -20,6 +20,8 @@ import { ApiService } from './src/services/api'
 import { THEME } from './src/theme'
 
 import { DashboardScreen } from './src/screens/DashboardScreen'
+import { CategoriesScreen } from './src/screens/CategoriesScreen'
+import { SearchScreen } from './src/screens/SearchScreen'
 import { ScraperScreen } from './src/screens/ScraperScreen'
 import { CaptureScreen } from './src/screens/CaptureScreen'
 import { OffersListScreen } from './src/screens/OffersListScreen'
@@ -34,6 +36,7 @@ import { NotificationService } from './src/services/notificationService'
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [selectedOffer, setSelectedOffer] = useState(null)
+  const [selectedCategory, setSelectedCategory] = useState(null)
   const [isReady, setIsReady] = useState(false)
   const [notificationsBlocked, setNotificationsBlocked] = useState(false)
 
@@ -317,6 +320,23 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'categories' && (
+          <CategoriesScreen
+            onSelectCategory={(catId, catTitle) => {
+              setSelectedCategory({ id: catId, title: catTitle })
+              setActiveTab('offers')
+            }}
+            onNavigateTab={setActiveTab}
+          />
+        )}
+
+        {activeTab === 'search' && (
+          <SearchScreen
+            onSelectOffer={handleSelectOffer}
+            onNavigateTab={setActiveTab}
+          />
+        )}
+
         {activeTab === 'scraper' && (
           <ScraperScreen
             onNavigateTab={setActiveTab}
@@ -336,6 +356,11 @@ export default function App() {
           <OffersListScreen
             onSelectOffer={handleSelectOffer}
             onOpenCapture={() => setActiveTab('capture')}
+            categoryFilter={selectedCategory}
+            onBackCategory={() => {
+              setSelectedCategory(null)
+              setActiveTab('categories')
+            }}
           />
         )}
 
@@ -359,7 +384,7 @@ export default function App() {
         )}
       </View>
 
-      {/* Stark Minimalist Linear Floating Dock Navigation */}
+      {/* Modern Floating Dock Navigation matching Reference Template & RADAR Logo */}
       <View style={styles.floatingDockContainer}>
         <View style={styles.navBar}>
           <TouchableOpacity
@@ -368,7 +393,30 @@ export default function App() {
             activeOpacity={0.8}
           >
             <Text style={[styles.navLabel, activeTab === 'dashboard' && styles.navLabelActive]}>
-              HUD
+              HOME
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.navItem, activeTab === 'categories' && styles.navItemActive]}
+            onPress={() => setActiveTab('categories')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.navLabel, activeTab === 'categories' && styles.navLabelActive]}>
+              DOMAINS
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.navItem, activeTab === 'offers' && styles.navItemActive]}
+            onPress={() => {
+              setSelectedCategory(null)
+              setActiveTab('offers')
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.navLabel, activeTab === 'offers' && styles.navLabelActive]}>
+              JOBS
             </Text>
           </TouchableOpacity>
 
@@ -383,16 +431,6 @@ export default function App() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.navItem, activeTab === 'offers' && styles.navItemActive]}
-            onPress={() => setActiveTab('offers')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.navLabel, activeTab === 'offers' && styles.navLabelActive]}>
-              OFFERS
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
             style={[styles.navItem, activeTab === 'clipvault' && styles.navItemActive]}
             onPress={() => setActiveTab('clipvault')}
             activeOpacity={0.8}
@@ -402,24 +440,13 @@ export default function App() {
             </Text>
           </TouchableOpacity>
 
+          {/* Prominent Circular Action Button in Signature RADAR Crimson Red */}
           <TouchableOpacity
-            style={[styles.navItem, activeTab === 'agent' && styles.navItemActive]}
-            onPress={() => setActiveTab('agent')}
-            activeOpacity={0.8}
+            style={[styles.navActionBtn, activeTab === 'search' && styles.navActionBtnActive]}
+            onPress={() => setActiveTab('search')}
+            activeOpacity={0.85}
           >
-            <Text style={[styles.navLabel, activeTab === 'agent' && styles.navLabelActive]}>
-              AGENT
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.navItem, activeTab === 'connect' && styles.navItemActive]}
-            onPress={() => setActiveTab('connect')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.navLabel, activeTab === 'connect' && styles.navLabelActive]}>
-              LINK
-            </Text>
+            <Text style={styles.navActionBtnText}>Q</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -529,67 +556,70 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Modern Linear Floating Pill Dock Navigation
+  // Modern Pill Dock matching Reference Template & RADAR Logo
   floatingDockContainer: {
     position: 'absolute',
     bottom: Platform.OS === 'android' ? 14 : 26,
     left: 14,
     right: 14,
+    zIndex: 999,
   },
   navBar: {
     flexDirection: 'row',
-    height: 54,
-    backgroundColor: '#121215',
-    borderRadius: 27,
+    height: 58,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 29,
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: '#E2E8F0',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingHorizontal: 6,
-    elevation: 10,
-    shadowColor: '#000000',
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
+    justifyContent: 'space-between',
+    paddingLeft: 6,
+    paddingRight: 6,
+    elevation: 8,
+    shadowColor: '#09090B',
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 4 },
   },
   navItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
-    height: 40,
-    borderRadius: 20,
+    paddingHorizontal: 9,
+    height: 38,
+    borderRadius: 19,
   },
   navItemActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  bannerIconBadgeText: {
-    color: '#FF3B30',
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  blockedIconBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#FF3B30',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  blockedIconText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '900',
+    backgroundColor: '#FFF1F0',
   },
   navLabel: {
     fontSize: 10,
-    color: THEME.colors.textMuted,
+    color: '#64748B',
     fontWeight: '700',
-    letterSpacing: 0.6,
-    fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier',
+    letterSpacing: 0.4,
   },
   navLabelActive: {
+    color: '#FF3B30',
+    fontWeight: '900',
+  },
+  navActionBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FF3B30',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FF3B30',
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  navActionBtnActive: {
+    backgroundColor: '#09090B',
+  },
+  navActionBtnText: {
     color: '#FFFFFF',
+    fontSize: 15,
     fontWeight: '900',
   },
 

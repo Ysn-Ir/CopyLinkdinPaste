@@ -1,56 +1,84 @@
 /**
  * RADAR Mobile Design System
- * Stark Monochrome Technical HUD Palette (Linear / Raycast / Vercel Aesthetic)
- * Pure OLED Black (#000000), Zinc Surfaces (#0D0D0D, #171717), Tactical Red Beacon (#FF3B30).
+ * Human Professional Template matching the user reference design,
+ * perfectly colored with the RADAR logo brand:
+ * - Signature Tactical Red Beacon (#FF3B30, #E11D48)
+ * - Pitch Black & Deep Obsidian Housing (#000000, #09090B, #18181B)
+ * - Pure White Elevated Cards (#FFFFFF) & Crisp Scope Borders (#E2E8F0)
+ * - Mint Green Sensor Radar (#10B981) for freshness and success
  */
 
 export const THEME = {
   colors: {
-    // Canvas & Surfaces
-    bgDark: '#000000',      // Pure pitch OLED black
-    bgCard: '#0D0D0D',      // Precision surface card
-    bgElevated: '#171717',  // Elevated sheets, bottom sheets, modals
-    bgInput: '#18181B',     // Technical input field background
-    bgHover: '#202023',     // Subtle tactile press state
+    // Canvas & Light Surfaces (clean scope background)
+    bgApp: '#F8FAFC',         // Soft tech canvas
+    bgDark: '#F8FAFC',        // Compatibility fallback
+    bgCard: '#FFFFFF',        // Pure white elevated card
+    bgCardSubtle: '#F1F5F9',  // Subtle tinted section background
+    bgElevated: '#FFFFFF',    // Elevated sheets & modals
+    bgInput: '#FFFFFF',       // Input field background
+    bgHover: '#FEE2E2',       // Subtle crimson tactile press state
 
-    // Borders & Dividers
-    border: '#27272A',      // Standard 1px structural border
-    borderSubtle: '#1C1C1F',// Micro-divider
-    borderElevated: '#3F3F46', // Highlight border
-    borderFocus: '#FF3B30', // Tactical beacon highlight
+    // Borders & Scope Reticle Lines
+    border: '#E2E8F0',        // Clean scope reticle line
+    borderSubtle: '#F1F5F9',  // Micro-divider
+    borderElevated: '#CBD5E1',// Highlight border
+    borderFocus: '#FF3B30',   // RADAR Beacon highlight
 
     // Typography
-    textPrimary: '#FFFFFF',   // High-contrast primary text
-    textSecondary: '#A1A1AA', // Zinc secondary text
-    textMuted: '#71717A',     // Tertiary captions & timestamps
-    textInverse: '#000000',   // Dark text on white buttons
+    textPrimary: '#09090B',   // Deep obsidian high-contrast text
+    textSecondary: '#64748B', // Muted slate technical text
+    textMuted: '#94A3B8',     // Tertiary captions & timestamps
+    textInverse: '#FFFFFF',   // White text on dark/gradient buttons
 
-    // Tactical Accent: Single Signature Red Beacon
-    accent: '#FF3B30',
-    accentLight: 'rgba(255, 59, 48, 0.12)',
-    accentBorder: 'rgba(255, 59, 48, 0.35)',
+    // Core Brand Accents: Synchronized with the RADAR Logo
+    primary: '#FF3B30',       // RADAR Red Beacon from logo
+    primaryDark: '#D9261D',   // Deep beacon red
+    primaryLight: '#FFF1F0',  // Soft beacon glow background
+    primaryBorder: '#FECDD3', // Soft beacon border
+    accent: '#FF3B30',        // Primary action
+    accentLight: '#FFF1F0',
+    accentBorder: '#FECDD3',
 
-    // Technical Status Badges (Monochrome + Red)
-    badgeNeutralBg: 'rgba(255, 255, 255, 0.06)',
-    badgeNeutralText: '#E4E4E7',
-    badgeNeutralBorder: 'rgba(255, 255, 255, 0.15)',
+    // Supporting Scope Colors
+    brandBlack: '#09090B',    // Obsidian housing
+    brandGray: '#475569',     // Scope ring
+    accentGreen: '#10B981',   // Sensor radar green (applied / verified)
+    accentGreenLight: '#ECFDF5',
+    accentAmber: '#F59E0B',   // Warning / Interview amber
+    accentAmberLight: '#FFFBEB',
+    accentBlue: '#2563EB',    // Link blue
+    accentBlueLight: '#EFF6FF',
+    badgeRed: '#FF3B30',      // Red notification badge from template
 
-    badgeActiveBg: 'rgba(255, 59, 48, 0.12)',
+    // Gradients for Recommended Job Cards (Template Replica in RADAR Palette)
+    gradientRadar: ['#FF3B30', '#BE123C'], // Vibrant Crimson / Ruby gradient (Card 1)
+    gradientObsidian: ['#18181B', '#09090B'], // Deep Obsidian titanium gradient (Card 2)
+    gradientPurple: ['#FF3B30', '#991B1B'], // Compatibility alias -> Red
+    gradientPink: ['#18181B', '#27272A'],   // Compatibility alias -> Dark Titanium
+    gradientBlue: ['#2563EB', '#1D4ED8'],
+
+    // Status Badges
+    badgeNeutralBg: '#F1F5F9',
+    badgeNeutralText: '#475569',
+    badgeNeutralBorder: '#E2E8F0',
+
+    badgeActiveBg: '#FFF1F0',
     badgeActiveText: '#FF3B30',
-    badgeActiveBorder: 'rgba(255, 59, 48, 0.35)',
+    badgeActiveBorder: '#FECDD3',
 
-    badgeMutedBg: 'rgba(113, 113, 122, 0.12)',
-    badgeMutedText: '#A1A1AA',
-    badgeMutedBorder: 'rgba(113, 113, 122, 0.25)',
+    badgeMutedBg: '#F8FAFC',
+    badgeMutedText: '#94A3B8',
+    badgeMutedBorder: '#E2E8F0',
   },
 
   stages: [
-    { id: 'saved', label: 'Saved', color: '#A1A1AA', bg: 'rgba(113, 113, 122, 0.12)', border: '#27272A' },
-    { id: 'ready', label: 'Ready', color: '#FFFFFF', bg: 'rgba(255, 255, 255, 0.10)', border: '#3F3F46' },
-    { id: 'applied', label: 'Applied', color: '#FFFFFF', bg: 'rgba(255, 255, 255, 0.16)', border: '#52525B' },
-    { id: 'interview', label: 'Interview', color: '#FF3B30', bg: 'rgba(255, 59, 48, 0.14)', border: 'rgba(255, 59, 48, 0.40)' },
-    { id: 'offer', label: 'Offer Received', color: '#FF3B30', bg: 'rgba(255, 59, 48, 0.22)', border: '#FF3B30' },
-    { id: 'rejected', label: 'Archived', color: '#71717A', bg: 'rgba(113, 113, 122, 0.10)', border: '#27272A' },
+    { id: 'saved', label: 'Saved', color: '#64748B', bg: '#F1F5F9', border: '#E2E8F0' },
+    { id: 'ready', label: 'Ready', color: '#09090B', bg: '#F1F5F9', border: '#CBD5E1' },
+    { id: 'applied', label: 'Applied', color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0' },
+    { id: 'interview', label: 'Interview', color: '#F59E0B', bg: '#FFFBEB', border: '#FDE68A' },
+    { id: 'offer', label: 'Offer Received', color: '#FF3B30', bg: '#FFF1F0', border: '#FECDD3' },
+    { id: 'rejected', label: 'Archived', color: '#94A3B8', bg: '#F8FAFC', border: '#E2E8F0' },
   ],
 }
 
@@ -58,9 +86,9 @@ export function getStageMeta(stageId) {
   const match = THEME.stages.find((s) => s.id === stageId)
   return match || {
     id: stageId,
-    label: stageId ? stageId.toUpperCase() : 'UNKNOWN',
-    color: '#A1A1AA',
-    bg: 'rgba(113, 113, 122, 0.12)',
-    border: '#27272A',
+    label: stageId ? stageId.toUpperCase() : 'SAVED',
+    color: '#64748B',
+    bg: '#F1F5F9',
+    border: '#E2E8F0',
   }
 }

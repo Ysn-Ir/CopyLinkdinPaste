@@ -14,15 +14,21 @@ import {
 import { ApiService } from '../services/api'
 import { THEME, getStageMeta } from '../theme'
 
-export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
+export function OffersListScreen({ onSelectOffer, onOpenCapture, categoryFilter, onBackCategory }) {
   const [offers, setOffers] = useState([])
   const [categories, setCategories] = useState([])
   const [selectedChannel, setSelectedChannel] = useState('all') // 'all' | 'email' | 'direct_contact' | 'external'
-  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [selectedCategory, setSelectedCategory] = useState(categoryFilter?.id || 'all')
   const [selectedStage, setSelectedStage] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+
+  useEffect(() => {
+    if (categoryFilter?.id) {
+      setSelectedCategory(categoryFilter.id)
+    }
+  }, [categoryFilter])
 
   useEffect(() => {
     loadData()
@@ -96,12 +102,6 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
   const renderOfferItem = ({ item }) => {
     const stageMeta = getStageMeta(item.status)
     const matchScore = Math.round((item.confidence || 0.92) * 100)
-    const createdDate = item.createdAt
-      ? new Date(item.createdAt).toLocaleDateString('en-US', {
-          day: 'numeric',
-          month: 'short',
-        })
-      : ''
 
     return (
       <TouchableOpacity
@@ -109,18 +109,18 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
         activeOpacity={0.7}
         onPress={() => onSelectOffer(item)}
       >
-        {/* Card Header: Company Glyph + Category + Match Score + Stage Badge */}
+        {/* Card Header: Company Icon + Title & Company + Match Score */}
         <View style={styles.cardHeader}>
           <View style={styles.headerLeft}>
             <View style={styles.companyAvatar}>
               <Text style={styles.companyAvatarText}>{getCompanyInitial(item.company)}</Text>
             </View>
-            <View style={{ flex: 1, overflow: 'hidden' }}>
-              <Text style={styles.domainText} numberOfLines={1} ellipsizeMode="tail">
-                {item.company || 'Direct Organization'}
+            <View style={styles.headerTitleBox}>
+              <Text style={styles.cardTitle} numberOfLines={1}>
+                {item.title}
               </Text>
-              <Text style={styles.categorySubText} numberOfLines={1}>
-                {item.category?.toUpperCase() || 'GENERAL'}
+              <Text style={styles.domainText} numberOfLines={1}>
+                {item.company || 'Direct Organization'}
               </Text>
             </View>
           </View>
@@ -128,53 +128,51 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
             <View style={styles.matchScoreBadge}>
               <Text style={styles.matchScoreText}>{matchScore}% FIT</Text>
             </View>
-            <View style={[styles.stageBadge, { backgroundColor: stageMeta.bg, borderColor: stageMeta.border }]}>
-              <Text style={[styles.stageText, { color: stageMeta.color }]}>
-                {stageMeta.label}
-              </Text>
-            </View>
           </View>
         </View>
 
-        {/* Card Title */}
-        <Text style={styles.cardTitle} numberOfLines={2}>
-          {item.title}
-        </Text>
-
-        {/* Salary & Location */}
-        {(item.salary || item.location) && (
-          <Text style={styles.metaRowText} numberOfLines={1}>
-            {item.salary ? `${item.salary} ` : ''}
-            {item.salary && item.location ? '• ' : ''}
-            {item.location || ''}
-          </Text>
-        )}
-
-        {/* Recruiter Lead if present */}
-        {(item.recruiterEmail || item.contactName) && (
-          <View style={styles.recruiterRow}>
-            <Text style={styles.recruiterText} numberOfLines={1}>
-              Lead: {item.contactName || ''} {item.recruiterEmail ? `<${item.recruiterEmail}>` : ''}
+        {/* Details Inset Box matching Screen 4 of reference template */}
+        <View style={styles.insetBox}>
+          {/* Location row */}
+          <View style={styles.locationRow}>
+            <Text style={styles.locationPin}>📍</Text>
+            <Text style={styles.locationText} numberOfLines={1}>
+              {item.location || 'Remote'}
+              {item.salary ? `  •  ${item.salary}` : ''}
             </Text>
           </View>
-        )}
 
-        {/* Skills Tags */}
-        {item.skills && item.skills.length > 0 && (
-          <View style={styles.skillsRow}>
-            {item.skills.slice(0, 4).map((skill, idx) => (
-              <View key={idx} style={styles.skillChip}>
-                <Text style={styles.skillText}>{skill}</Text>
-              </View>
-            ))}
-            {item.skills.length > 4 && (
-              <Text style={styles.moreSkills}>+{item.skills.length - 4}</Text>
-            )}
-          </View>
-        )}
+          {/* Skills tags matching template preview */}
+          {item.skills && item.skills.length > 0 && (
+            <View style={styles.skillsRow}>
+              {item.skills.slice(0, 4).map((skill, idx) => (
+                <View key={idx} style={styles.skillChip}>
+                  <Text style={styles.skillText}>{skill}</Text>
+                </View>
+              ))}
+              {item.skills.length > 4 && (
+                <Text style={styles.moreSkills}>+{item.skills.length - 4}</Text>
+              )}
+            </View>
+          )}
+
+          {/* Recruiter Lead if present */}
+          {(item.recruiterEmail || item.contactName) && (
+            <View style={styles.recruiterRow}>
+              <Text style={styles.recruiterText} numberOfLines={1}>
+                Lead: {item.contactName || ''} {item.recruiterEmail ? `<${item.recruiterEmail}>` : ''}
+              </Text>
+            </View>
+          )}
+        </View>
 
         {/* Card Action Footer */}
         <View style={styles.cardFooter}>
+          <View style={[styles.stageBadge, { backgroundColor: stageMeta.bg, borderColor: stageMeta.border }]}>
+            <Text style={[styles.stageText, { color: stageMeta.color }]}>
+              {stageMeta.label}
+            </Text>
+          </View>
           <View style={styles.channelBadge}>
             <Text style={styles.channelLabel}>
               {item.channel === 'email' ? 'Direct Email' : item.channel === 'direct_contact' ? 'WhatsApp/DM' : 'ATS Portal'}
@@ -194,6 +192,26 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture }) {
 
   return (
     <View style={styles.container}>
+      {/* Category Navigation Bar matching Screen 4 of reference template */}
+      {categoryFilter && (
+        <View style={styles.categoryTopBar}>
+          <TouchableOpacity onPress={onBackCategory} style={styles.categoryBackRow} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={styles.categoryBackIcon}>‹</Text>
+            <Text style={styles.categoryBackTitle} numberOfLines={1}>
+              {categoryFilter.title || 'Category'}
+            </Text>
+          </TouchableOpacity>
+          <View style={styles.categoryRightBox}>
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryBadgeText}>{displayedOffers.length}</Text>
+            </View>
+            <View style={styles.categoryAvatarCircle}>
+              <Text style={styles.categoryAvatarText}>RO</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* Sticky Technical Filter & Search Bar */}
       <View style={styles.header}>
         <View style={styles.searchRow}>
@@ -291,13 +309,72 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: THEME.colors.bgDark,
   },
+  categoryTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: THEME.colors.bgCard,
+    borderBottomWidth: 1,
+    borderBottomColor: THEME.colors.borderSubtle,
+  },
+  categoryBackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  categoryBackIcon: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: THEME.colors.textPrimary,
+    lineHeight: 22,
+  },
+  categoryBackTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: THEME.colors.textPrimary,
+    letterSpacing: -0.3,
+  },
+  categoryRightBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  categoryBadge: {
+    backgroundColor: THEME.colors.primary,
+    borderRadius: 12,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    minWidth: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: THEME.colors.textInverse,
+  },
+  categoryAvatarCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: THEME.colors.brandBlack,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryAvatarText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: THEME.colors.textInverse,
+  },
   header: {
     paddingTop: 12,
     paddingHorizontal: 16,
     paddingBottom: 8,
     borderBottomWidth: 1,
     borderBottomColor: THEME.colors.border,
-    backgroundColor: THEME.colors.bgDark,
+    backgroundColor: THEME.colors.bgCard,
   },
   searchRow: {
     flexDirection: 'row',
@@ -308,7 +385,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 38,
-    backgroundColor: THEME.colors.bgInput,
+    backgroundColor: THEME.colors.bgApp,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: THEME.colors.border,
@@ -319,7 +396,7 @@ const styles = StyleSheet.create({
   exportBtn: {
     height: 38,
     paddingHorizontal: 12,
-    backgroundColor: THEME.colors.bgCard,
+    backgroundColor: THEME.colors.bgApp,
     borderWidth: 1,
     borderColor: THEME.colors.border,
     borderRadius: 8,
@@ -341,7 +418,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     alignItems: 'center',
     borderRadius: 6,
-    backgroundColor: THEME.colors.bgCard,
+    backgroundColor: THEME.colors.bgApp,
     borderWidth: 1,
     borderColor: THEME.colors.border,
   },
@@ -362,52 +439,61 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 110,
-    gap: 10,
+    gap: 12,
   },
   card: {
     backgroundColor: THEME.colors.bgCard,
-    borderRadius: 10,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: THEME.colors.border,
-    padding: 12,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+    flex: 1,
+  },
+  headerTitleBox: {
     flex: 1,
   },
   companyAvatar: {
-    width: 26,
-    height: 26,
-    borderRadius: 6,
-    backgroundColor: THEME.colors.bgElevated,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: THEME.colors.primaryLight,
     borderWidth: 1,
-    borderColor: THEME.colors.border,
+    borderColor: THEME.colors.primaryBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   companyAvatarText: {
-    fontSize: 11,
+    fontSize: 15,
+    fontWeight: '800',
+    color: THEME.colors.primary,
+  },
+  cardTitle: {
+    fontSize: 14,
     fontWeight: '800',
     color: THEME.colors.textPrimary,
+    lineHeight: 18,
   },
   domainText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: THEME.colors.textPrimary,
-  },
-  categorySubText: {
-    fontSize: 9.5,
-    color: THEME.colors.textMuted,
     fontWeight: '600',
-    letterSpacing: 0.5,
+    color: THEME.colors.textSecondary,
+    marginTop: 1,
   },
   headerRight: {
     flexDirection: 'row',
@@ -415,91 +501,105 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   matchScoreBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: THEME.colors.bgElevated,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: THEME.colors.accentGreenLight,
     borderWidth: 1,
-    borderColor: THEME.colors.border,
+    borderColor: '#A7F3D0',
   },
   matchScoreText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: THEME.colors.textPrimary,
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: THEME.colors.accentGreen,
     letterSpacing: 0.3,
   },
-  stageBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: 4,
+  insetBox: {
+    backgroundColor: THEME.colors.bgApp,
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 8,
     borderWidth: 1,
+    borderColor: THEME.colors.borderSubtle,
   },
-  stageText: {
-    fontSize: 9,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 6,
   },
-  cardTitle: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: THEME.colors.textPrimary,
-    lineHeight: 18,
-    marginBottom: 4,
+  locationPin: {
+    fontSize: 11,
   },
-  metaRowText: {
+  locationText: {
     fontSize: 11,
     color: THEME.colors.textSecondary,
-    marginBottom: 6,
-  },
-  recruiterRow: {
-    backgroundColor: THEME.colors.bgElevated,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginBottom: 6,
-  },
-  recruiterText: {
-    fontSize: 10,
-    color: THEME.colors.textSecondary,
+    fontWeight: '500',
   },
   skillsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    marginBottom: 8,
     flexWrap: 'wrap',
   },
   skillChip: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: THEME.colors.bgElevated,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 5,
+    backgroundColor: THEME.colors.bgCard,
     borderWidth: 1,
     borderColor: THEME.colors.border,
   },
   skillText: {
     fontSize: 9.5,
     color: THEME.colors.textSecondary,
+    fontWeight: '600',
   },
   moreSkills: {
     fontSize: 9.5,
     color: THEME.colors.textMuted,
+    fontWeight: '600',
+  },
+  recruiterRow: {
+    backgroundColor: THEME.colors.bgCard,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+    marginTop: 6,
+  },
+  recruiterText: {
+    fontSize: 10,
+    color: THEME.colors.textSecondary,
   },
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 8,
+    paddingTop: 10,
+    marginTop: 8,
     borderTopWidth: 1,
     borderTopColor: THEME.colors.borderSubtle,
-    gap: 8,
+    gap: 6,
+  },
+  stageBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  stageText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   channelBadge: {
-    paddingHorizontal: 7,
+    paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 4,
-    backgroundColor: THEME.colors.bgElevated,
+    borderRadius: 6,
+    backgroundColor: THEME.colors.bgApp,
     borderWidth: 1,
     borderColor: THEME.colors.border,
   },
@@ -511,8 +611,8 @@ const styles = StyleSheet.create({
   advanceButton: {
     paddingHorizontal: 12,
     paddingVertical: 5,
-    borderRadius: 4,
-    backgroundColor: THEME.colors.textPrimary,
+    borderRadius: 6,
+    backgroundColor: THEME.colors.brandBlack,
     alignItems: 'center',
     justifyContent: 'center',
   },

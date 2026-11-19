@@ -8,10 +8,14 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Dimensions,
 } from 'react-native'
 import { ApiService } from '../services/api'
 import { ScreenshotWatcher } from '../services/screenshotWatcher'
 import { THEME, getStageMeta } from '../theme'
+
+const { width } = Dimensions.get('window')
+const RECOMMENDED_CARD_WIDTH = width * 0.72
 
 export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
   const [stats, setStats] = useState({
@@ -21,11 +25,12 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
     applied: 0,
     interview: 0,
     offer: 0,
-    email: 0,
-    direct: 0,
-    external: 0,
   })
   const [recentOffers, setRecentOffers] = useState([])
+  const [candidateProfile, setCandidateProfile] = useState({
+    fullName: 'Radar Operator',
+    degree: 'Software & AI Infrastructure Engineer',
+  })
   const [serverInfo, setServerInfo] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -47,7 +52,7 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
           onSelectOffer(res.offer)
         }
       } else {
-        Alert.alert('Scan Status', res?.error || 'No new screenshots found in device gallery.')
+        Alert.alert('Scan Status', res?.error || 'No new screenshots found in gallery.')
       }
     } catch (err) {
       Alert.alert('Scan Status', err.message || 'Could not access photo library.')
@@ -62,32 +67,37 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
 
   const loadDashboardData = async () => {
     setIsLoading(true)
-    const [offersRes, pingRes] = await Promise.all([
-      ApiService.getOffers(),
-      ApiService.testConnection(),
-    ])
+    try {
+      const [offersRes, profileRes, pingRes] = await Promise.all([
+        ApiService.getOffers(),
+        ApiService.getProfile(),
+        ApiService.testConnection(),
+      ])
 
-    if (offersRes.success) {
-      const all = offersRes.offers || []
-      setRecentOffers(all.slice(0, 5))
-      setStats({
-        total: all.length,
-        saved: all.filter((o) => o.status === 'saved').length,
-        ready: all.filter((o) => o.status === 'ready').length,
-        applied: all.filter((o) => o.status === 'applied').length,
-        interview: all.filter((o) => o.status === 'interview').length,
-        offer: all.filter((o) => o.status === 'offer').length,
-        email: all.filter((o) => o.channel === 'email').length,
-        direct: all.filter((o) => o.channel === 'direct_contact').length,
-        external: all.filter((o) => o.channel === 'external').length,
-      })
+      if (offersRes && offersRes.success) {
+        const all = offersRes.offers || []
+        setRecentOffers(all.slice(0, 6))
+        setStats({
+          total: all.length,
+          saved: all.filter((o) => o.status === 'saved' || o.status === 'to_apply').length,
+          ready: all.filter((o) => o.status === 'ready').length,
+          applied: all.filter((o) => o.status === 'applied').length,
+          interview: all.filter((o) => o.status === 'interview').length,
+          offer: all.filter((o) => o.status === 'offer').length,
+        })
+      }
+
+      if (profileRes && profileRes.success && profileRes.profile) {
+        setCandidateProfile((prev) => ({ ...prev, ...profileRes.profile }))
+      }
+
+      if (pingRes && pingRes.success) {
+        setServerInfo(pingRes.data)
+      }
+    } catch (e) {
+    } finally {
+      setIsLoading(false)
     }
-
-    if (pingRes.success) {
-      setServerInfo(pingRes.data)
-    }
-
-    setIsLoading(false)
   }
 
   const handleRefresh = async () => {
@@ -95,6 +105,24 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
     await loadDashboardData()
     setIsRefreshing(false)
   }
+
+  // Recommended sample jobs or top offers
+  const recommendedJobs = recentOffers.length > 0 ? recentOffers.slice(0, 3) : [
+    {
+      id: 'rec-1',
+      title: 'Senior AI & Distributed Systems Engineer',
+      company: 'Microsoft Corp.',
+      location: 'Remote / Global',
+      channel: 'email',
+    },
+    {
+      id: 'rec-2',
+      title: 'Fullstack Machine Learning Engineer',
+      company: 'OpenAI Ecosystem',
+      location: 'San Francisco, CA',
+      channel: 'direct_contact',
+    },
+  ]
 
   return (
     <ScrollView
@@ -105,196 +133,193 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
         <RefreshControl
           refreshing={isRefreshing}
           onRefresh={handleRefresh}
-          tintColor={THEME.colors.textPrimary}
+          tintColor={THEME.colors.primary}
         />
       }
     >
-      {/* Flight HUD Header */}
-      <View style={styles.header}>
-        <View style={styles.brandRow}>
-          <View style={styles.radarBeacon} />
-          <Text style={styles.title}>RADAR</Text>
-          <View style={styles.versionBadge}>
-            <Text style={styles.versionText}>MOBILE NODE</Text>
-          </View>
+      {/* 1. Operator Profile Header matching Reference Screen 2 */}
+      <View style={styles.profileCard}>
+        <View style={styles.avatarBox}>
+          <Text style={styles.avatarInitials}>
+            {(candidateProfile.fullName || 'RO').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+          </Text>
         </View>
-        <Text style={styles.subtitle}>
-          Signal Reconnaissance & Pipeline Command
+
+        <Text style={styles.operatorName}>{candidateProfile.fullName || 'Radar Operator'}</Text>
+        <Text style={styles.operatorTitle}>
+          {candidateProfile.headline || candidateProfile.degree || 'Software & AI Infrastructure Engineer'}
         </Text>
-      </View>
 
-      {/* Network Server Status Bar */}
-      <TouchableOpacity
-        style={styles.serverCard}
-        onPress={() => onNavigateTab('connect')}
-        activeOpacity={0.8}
-      >
-        <View style={styles.serverStatusDot} />
-        <View style={{ flex: 1, overflow: 'hidden' }}>
-          <Text style={styles.serverTitle} numberOfLines={1} ellipsizeMode="tail">
-            {serverInfo ? `Node Active: ${serverInfo.hostname || 'Localhost'}` : 'Local Node: 192.168.1.27:8003'}
-          </Text>
-          <Text style={styles.serverUrl} numberOfLines={1} ellipsizeMode="tail">
-            {ApiService.getServerUrl()}
-          </Text>
+        {/* Profile Completeness Bar matching Screen 2 */}
+        <View style={styles.completenessRow}>
+          <Text style={styles.completenessLabel}>Profile completeness</Text>
+          <Text style={styles.completenessPct}>92%</Text>
         </View>
-        <Text style={styles.serverAction}>Configure →</Text>
-      </TouchableOpacity>
-
-      {/* Autonomous Scraper Direct HUD Launch Tile */}
-      <TouchableOpacity
-        style={styles.scraperLaunchCard}
-        onPress={() => onNavigateTab('scraper')}
-        activeOpacity={0.8}
-      >
-        <View style={styles.scraperBadgeIcon}>
-          <Text style={styles.scraperBadgeText}>HUNT</Text>
-        </View>
-        <View style={{ flex: 1, overflow: 'hidden' }}>
-          <Text style={styles.scraperLaunchTitle}>Autonomous Job Reconnaissance</Text>
-          <Text style={styles.scraperLaunchSubtitle}>
-            Multi-source scraper · LinkedIn Guest API & JobSpy
-          </Text>
-        </View>
-        <Text style={styles.ctaArrow}>→</Text>
-      </TouchableOpacity>
-
-      {/* 1-Tap Quick Screenshot Scanner */}
-      <TouchableOpacity
-        style={styles.screenshotQuickCard}
-        onPress={handleQuickScanScreenshot}
-        disabled={isScanningScreenshot}
-        activeOpacity={0.8}
-      >
-        <View style={styles.screenshotQuickLeft}>
-          <View style={styles.screenshotQuickIconBox}>
-            <Text style={styles.screenshotBadgeText}>OCR</Text>
-          </View>
-          <View style={{ flex: 1, overflow: 'hidden' }}>
-            <Text style={styles.screenshotQuickTitle} numberOfLines={1}>
-              Inspect Gallery Screenshot
-            </Text>
-            <Text style={styles.screenshotQuickSub} numberOfLines={1}>
-              {isScanningScreenshot ? 'Running 15ms Windows OCR...' : '1-tap OCR latest image in gallery'}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.screenshotQuickBtn}>
-          {isScanningScreenshot ? (
-            <ActivityIndicator size="small" color={THEME.colors.textPrimary} />
-          ) : (
-            <Text style={styles.screenshotQuickBtnText}>Run OCR</Text>
-          )}
-        </View>
-      </TouchableOpacity>
-
-      {/* Primary KPI Grid (Pure Engineering Monochrome) */}
-      <View style={styles.kpiGrid}>
-        <View style={[styles.kpiCard, styles.kpiCardPrimary]}>
-          <Text style={styles.kpiNumber}>{stats.total}</Text>
-          <Text style={styles.kpiLabel}>Total Signals</Text>
-        </View>
-
-        <View style={styles.kpiCard}>
-          <Text style={styles.kpiNumber}>{stats.ready}</Text>
-          <Text style={styles.kpiLabel}>Ready ATS</Text>
-        </View>
-
-        <View style={styles.kpiCard}>
-          <Text style={styles.kpiNumber}>{stats.applied}</Text>
-          <Text style={styles.kpiLabel}>Applied</Text>
-        </View>
-
-        <View style={[styles.kpiCard, stats.interview > 0 && styles.kpiCardActive]}>
-          <Text style={[styles.kpiNumber, stats.interview > 0 && { color: THEME.colors.accent }]}>
-            {stats.interview}
-          </Text>
-          <Text style={styles.kpiLabel}>Interviews</Text>
+        <View style={styles.progressBarTrack}>
+          <View style={[styles.progressBarFill, { width: '92%' }]} />
         </View>
       </View>
 
-      {/* Channel Distribution Matrix */}
-      <View style={styles.channelBreakdownCard}>
-        <Text style={styles.channelSectionTitle}>Distribution by Channel</Text>
-        <View style={styles.channelRow}>
-          <View style={styles.channelStatItem}>
-            <Text style={styles.channelStatVal}>{stats.email}</Text>
-            <Text style={styles.channelStatLabel} numberOfLines={1}>Direct Email</Text>
-          </View>
-          <View style={styles.channelStatDivider} />
-          <View style={styles.channelStatItem}>
-            <Text style={styles.channelStatVal}>{stats.direct}</Text>
-            <Text style={styles.channelStatLabel} numberOfLines={1}>WhatsApp / DM</Text>
-          </View>
-          <View style={styles.channelStatDivider} />
-          <View style={styles.channelStatItem}>
-            <Text style={styles.channelStatVal}>{stats.external}</Text>
-            <Text style={styles.channelStatLabel} numberOfLines={1}>ATS Portals</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Fast Ingestion CTA Banner */}
-      <TouchableOpacity
-        style={styles.ctaBanner}
-        onPress={() => onNavigateTab('capture')}
-        activeOpacity={0.8}
-      >
-        <View style={styles.ctaIconBox}>
-          <Text style={styles.ctaIcon}>IN</Text>
-        </View>
-        <View style={{ flex: 1, overflow: 'hidden' }}>
-          <Text style={styles.ctaTitle} numberOfLines={1}>Ingest Signal or Link</Text>
-          <Text style={styles.ctaSubtitle} numberOfLines={2}>
-            Paste any career posting, lead, or link for autonomous triage.
-          </Text>
-        </View>
-        <Text style={styles.ctaArrow}>→</Text>
-      </TouchableOpacity>
-
-      {/* Recent Offers Section */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Recent Opportunities</Text>
-        <TouchableOpacity onPress={() => onNavigateTab('offers')}>
-          <Text style={styles.viewAllText}>View All ({stats.total}) →</Text>
+      {/* 2. Recommended Jobs Section matching Screen 2 with RADAR Logo Colors */}
+      <View style={styles.sectionRow}>
+        <Text style={styles.sectionTitle}>Recommended Jobs</Text>
+        <TouchableOpacity onPress={() => onNavigateTab('offers')} activeOpacity={0.8}>
+          <Text style={styles.seeAllText}>SEE ALL</Text>
         </TouchableOpacity>
       </View>
 
-      {isLoading ? (
-        <ActivityIndicator color={THEME.colors.textPrimary} style={{ marginTop: 20 }} />
-      ) : recentOffers.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>No synced opportunities yet. Take a screenshot or paste a link.</Text>
-        </View>
-      ) : (
-        <View style={styles.recentList}>
-          {recentOffers.map((o) => {
-            const stage = getStageMeta(o.status)
-            return (
-              <TouchableOpacity
-                key={o.id}
-                style={styles.recentItem}
-                onPress={() => onSelectOffer(o)}
-                activeOpacity={0.8}
-              >
-                <View style={{ flex: 1, overflow: 'hidden' }}>
-                  <Text style={styles.recentTitle} numberOfLines={1} ellipsizeMode="tail">
-                    {o.title}
-                  </Text>
-                  <Text style={styles.recentMeta} numberOfLines={1} ellipsizeMode="tail">
-                    {o.company || 'Direct Organization'} • {o.category?.toUpperCase() || 'GENERAL'} • {o.channel === 'email' ? 'Email' : o.channel === 'direct_contact' ? 'Direct' : 'ATS'}
-                  </Text>
-                </View>
-                <View style={[styles.recentStatusBadge, { backgroundColor: stage.bg, borderColor: stage.border }]}>
-                  <Text style={[styles.recentStatus, { color: stage.color }]} numberOfLines={1}>
-                    {stage.label}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )
-          })}
-        </View>
-      )}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.recommendedScroll}
+      >
+        {/* Card 1: Signature RADAR Crimson Beacon Gradient Card */}
+        <TouchableOpacity
+          style={[styles.recommendedCard, styles.cardCrimson]}
+          onPress={() => onSelectOffer && onSelectOffer(recommendedJobs[0])}
+          activeOpacity={0.9}
+        >
+          <View style={styles.cardScopeBadge}>
+            <Text style={styles.cardScopeText}>94% FIT</Text>
+          </View>
+
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <Text style={styles.cardRole} numberOfLines={2}>
+              {recommendedJobs[0]?.title}
+            </Text>
+            <Text style={styles.cardCompany} numberOfLines={1}>
+              {recommendedJobs[0]?.company}
+            </Text>
+            <Text style={styles.cardLocation} numberOfLines={1}>
+              {recommendedJobs[0]?.location || 'Remote / Global'}
+            </Text>
+          </View>
+
+          <View style={styles.cardActionRow}>
+            <View style={styles.applyPill}>
+              <Text style={[styles.applyPillText, { color: '#FF3B30' }]}>APPLY</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Card 2: Deep Obsidian Titanium Card */}
+        <TouchableOpacity
+          style={[styles.recommendedCard, styles.cardObsidian]}
+          onPress={() => onSelectOffer && onSelectOffer(recommendedJobs[1] || recommendedJobs[0])}
+          activeOpacity={0.9}
+        >
+          <View style={[styles.cardScopeBadge, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]}>
+            <Text style={styles.cardScopeText}>89% FIT</Text>
+          </View>
+
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <Text style={styles.cardRole} numberOfLines={2}>
+              {recommendedJobs[1]?.title || 'Backend Microservices Lead'}
+            </Text>
+            <Text style={styles.cardCompany} numberOfLines={1}>
+              {recommendedJobs[1]?.company || 'Cloud Infrastructure'}
+            </Text>
+            <Text style={styles.cardLocation} numberOfLines={1}>
+              {recommendedJobs[1]?.location || 'Remote'}
+            </Text>
+          </View>
+
+          <View style={styles.cardActionRow}>
+            <View style={styles.applyPill}>
+              <Text style={[styles.applyPillText, { color: '#09090B' }]}>APPLY</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* 3. Recent Activities Section matching Screen 2 */}
+      <View style={[styles.sectionRow, { marginTop: 22 }]}>
+        <Text style={styles.sectionTitle}>Recent Activities</Text>
+      </View>
+
+      <View style={styles.activitiesRow}>
+        {/* Card 1: Saved Jobs (with Crimson Bookmark Badge) */}
+        <TouchableOpacity
+          style={styles.activityCard}
+          onPress={() => onNavigateTab('offers')}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.activityIconBox, { backgroundColor: '#FFF1F0', borderColor: '#FECDD3' }]}>
+            <Text style={[styles.activityIconText, { color: '#FF3B30' }]}>SAVE</Text>
+          </View>
+          <View style={{ marginLeft: 12 }}>
+            <Text style={styles.activityNumber}>{stats.saved + stats.ready}</Text>
+            <Text style={styles.activityLabel}>Saved Jobs</Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* Card 2: Applied (with Emerald Checkmark Badge) */}
+        <TouchableOpacity
+          style={styles.activityCard}
+          onPress={() => onNavigateTab('offers')}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.activityIconBox, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+            <Text style={[styles.activityIconText, { color: '#10B981' }]}>SENT</Text>
+          </View>
+          <View style={{ marginLeft: 12 }}>
+            <Text style={styles.activityNumber}>{stats.applied}</Text>
+            <Text style={styles.activityLabel}>Applied</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      {/* 4. Autonomous Scraper & Local OCR Screen Snip Launcher Tiles */}
+      <View style={styles.toolsRow}>
+        <TouchableOpacity
+          style={styles.toolCard}
+          onPress={() => onNavigateTab('scraper')}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.toolBadge, { backgroundColor: '#FFF1F0', borderColor: '#FECDD3' }]}>
+            <Text style={{ color: '#FF3B30', fontWeight: '800', fontSize: 10 }}>HUNT</Text>
+          </View>
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <Text style={styles.toolTitle}>Autonomous Scraper</Text>
+            <Text style={styles.toolSub}>Python-JobSpy · LinkedIn & Indeed</Text>
+          </View>
+          <Text style={styles.toolArrow}>→</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.toolCard}
+          onPress={handleQuickScanScreenshot}
+          disabled={isScanningScreenshot}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.toolBadge, { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE' }]}>
+            <Text style={{ color: '#4F46E5', fontWeight: '800', fontSize: 10 }}>OCR</Text>
+          </View>
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <Text style={styles.toolTitle}>Gallery Screenshot OCR</Text>
+            <Text style={styles.toolSub}>
+              {isScanningScreenshot ? 'Running 15ms WinOCR...' : '1-tap snip text & flyers'}
+            </Text>
+          </View>
+          {isScanningScreenshot ? (
+            <ActivityIndicator size="small" color="#FF3B30" />
+          ) : (
+            <Text style={styles.toolArrow}>→</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* 5. Network Node Status Pill */}
+      <TouchableOpacity
+        style={styles.nodeStatusPill}
+        onPress={() => onNavigateTab('connect')}
+        activeOpacity={0.85}
+      >
+        <View style={styles.beaconDot} />
+        <Text style={styles.nodeStatusText}>
+          {serverInfo ? `RADAR Host: ${serverInfo.hostname || '192.168.1.27:8003'} · Online` : 'RADAR Node: 192.168.1.27:8003 · Tap to Link'}
+        </Text>
+      </TouchableOpacity>
     </ScrollView>
   )
 }
@@ -302,368 +327,282 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: THEME.colors.bgDark,
+    backgroundColor: '#F8FAFC',
   },
   content: {
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingTop: 16,
     paddingBottom: 110,
   },
-  header: {
-    marginBottom: 16,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  radarBeacon: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: THEME.colors.accent,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: THEME.colors.textPrimary,
-    letterSpacing: 1.5,
-  },
-  versionBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: THEME.colors.bgElevated,
-    borderWidth: 1,
-    borderColor: THEME.colors.border,
-    marginLeft: 4,
-  },
-  versionText: {
-    fontSize: 9.5,
-    fontWeight: '700',
-    color: THEME.colors.textSecondary,
-    letterSpacing: 0.5,
-  },
-  subtitle: {
-    fontSize: 12,
-    color: THEME.colors.textSecondary,
-    marginTop: 4,
-    letterSpacing: 0.2,
-  },
-  serverCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#121215',
-    borderWidth: 1,
-    borderColor: '#1C1C20',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
-    gap: 10,
-  },
-  serverStatusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: THEME.colors.textPrimary,
-  },
-  serverTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: THEME.colors.textPrimary,
-  },
-  serverUrl: {
-    fontSize: 10,
-    color: THEME.colors.textMuted,
-    marginTop: 1,
-  },
-  serverAction: {
-    fontSize: 11,
-    color: THEME.colors.textSecondary,
-    fontWeight: '700',
-  },
-
-  // Scraper Launch Card
-  scraperLaunchCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#121215',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 59, 48, 0.4)',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    gap: 12,
-  },
-  scraperBadgeIcon: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 59, 48, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 59, 48, 0.4)',
-  },
-  scraperBadgeText: {
-    color: '#FF3B30',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  scraperLaunchTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: THEME.colors.textPrimary,
-  },
-  scraperLaunchSubtitle: {
-    fontSize: 10.5,
-    color: THEME.colors.textSecondary,
-    marginTop: 1,
-  },
-  screenshotBadgeText: {
-    color: THEME.colors.textPrimary,
-    fontSize: 10,
-    fontWeight: '800',
-  },
-
-  // 1-Tap Quick Screenshot Scanner Card
-  screenshotQuickCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#121215',
-    borderWidth: 1,
-    borderColor: '#1C1C20',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 12,
-    gap: 10,
-  },
-  screenshotQuickLeft: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  screenshotQuickIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: THEME.colors.bgElevated,
-    borderWidth: 1,
-    borderColor: THEME.colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  screenshotQuickTitle: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: THEME.colors.textPrimary,
-  },
-  screenshotQuickSub: {
-    fontSize: 11,
-    color: THEME.colors.textSecondary,
-    marginTop: 1,
-  },
-  screenshotQuickBtn: {
-    backgroundColor: THEME.colors.bgElevated,
-    borderWidth: 1,
-    borderColor: THEME.colors.borderElevated,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  screenshotQuickBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: THEME.colors.textPrimary,
-  },
-
-  // KPI Grid
-  kpiGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
-  },
-  kpiCard: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: '#121215',
-    borderWidth: 1,
-    borderColor: '#1C1C20',
-    borderRadius: 14,
-    padding: 14,
-  },
-  kpiCardPrimary: {
-    borderColor: '#27272A',
-  },
-  kpiCardActive: {
-    borderColor: 'rgba(255, 59, 48, 0.4)',
-  },
-  kpiNumber: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: THEME.colors.textPrimary,
-    marginBottom: 2,
-  },
-  kpiLabel: {
-    fontSize: 10,
-    color: THEME.colors.textMuted,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-
-  // Channel Distribution
-  channelBreakdownCard: {
-    backgroundColor: '#121215',
-    borderWidth: 1,
-    borderColor: '#1C1C20',
-    borderRadius: 14,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 14,
-  },
-  channelSectionTitle: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: THEME.colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 10,
-  },
-  channelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-  },
-  channelStatItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  channelStatVal: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: THEME.colors.textPrimary,
-    marginBottom: 2,
-  },
-  channelStatLabel: {
-    fontSize: 10,
-    color: THEME.colors.textSecondary,
-    fontWeight: '600',
-  },
-  channelStatDivider: {
-    width: 1,
-    height: 22,
-    backgroundColor: THEME.colors.border,
-  },
-
-  // CTA Banner
-  ctaBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: THEME.colors.bgCard,
-    borderWidth: 1,
-    borderColor: THEME.colors.border,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 16,
-    gap: 12,
-  },
-  ctaIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: THEME.colors.accentLight,
-    borderWidth: 1,
-    borderColor: THEME.colors.accentBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ctaIcon: {
-    fontSize: 14,
-  },
-  ctaTitle: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: THEME.colors.textPrimary,
-  },
-  ctaSubtitle: {
-    fontSize: 11,
-    color: THEME.colors.textSecondary,
-    marginTop: 2,
-    lineHeight: 15,
-  },
-  ctaArrow: {
-    fontSize: 15,
-    color: THEME.colors.textSecondary,
-    fontWeight: '700',
-  },
-
-  // Recent Section
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: THEME.colors.textPrimary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  viewAllText: {
-    fontSize: 11,
-    color: THEME.colors.textSecondary,
-    fontWeight: '600',
-  },
-  emptyCard: {
-    backgroundColor: THEME.colors.bgCard,
-    borderRadius: 10,
+  profileCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
     padding: 20,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: THEME.colors.border,
+    borderColor: '#E2E8F0',
+    shadowColor: '#FF3B30',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
+    marginBottom: 20,
   },
-  emptyText: {
-    fontSize: 11.5,
-    color: THEME.colors.textMuted,
-  },
-  recentList: {
-    gap: 8,
-  },
-  recentItem: {
-    backgroundColor: THEME.colors.bgCard,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: THEME.colors.border,
-    padding: 12,
-    flexDirection: 'row',
+  avatarBox: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#09090B',
+    borderWidth: 3,
+    borderColor: '#FF3B30',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
+    justifyContent: 'center',
+    marginBottom: 10,
   },
-  recentTitle: {
+  avatarInitials: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  operatorName: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#09090B',
+    letterSpacing: -0.3,
+  },
+  operatorTitle: {
     fontSize: 12.5,
+    color: '#64748B',
+    marginTop: 2,
+    marginBottom: 14,
+  },
+  completenessRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 6,
+  },
+  completenessLabel: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '600',
+  },
+  completenessPct: {
+    fontSize: 11,
+    color: '#10B981',
     fontWeight: '700',
-    color: THEME.colors.textPrimary,
-    marginBottom: 3,
   },
-  recentMeta: {
-    fontSize: 10.5,
-    color: THEME.colors.textMuted,
+  progressBarTrack: {
+    width: '100%',
+    height: 6,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 4,
+    overflow: 'hidden',
   },
-  recentStatusBadge: {
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#10B981',
+    borderRadius: 4,
+  },
+  sectionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#09090B',
+    letterSpacing: -0.3,
+  },
+  seeAllText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF3B30',
+    letterSpacing: 0.5,
+  },
+  recommendedScroll: {
+    gap: 14,
+    paddingRight: 20,
+  },
+  recommendedCard: {
+    width: RECOMMENDED_CARD_WIDTH,
+    height: 160,
+    borderRadius: 22,
+    padding: 18,
+    justifyContent: 'space-between',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  cardCrimson: {
+    backgroundColor: '#FF3B30',
+  },
+  cardObsidian: {
+    backgroundColor: '#09090B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+  },
+  cardScopeBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 4,
-    borderWidth: 1,
+    borderRadius: 10,
   },
-  recentStatus: {
-    fontSize: 9.5,
-    textTransform: 'uppercase',
-    fontWeight: '700',
+  cardScopeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
     letterSpacing: 0.5,
+  },
+  cardRole: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 20,
+    letterSpacing: -0.2,
+  },
+  cardCompany: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  cardLocation: {
+    color: 'rgba(255, 255, 255, 0.65)',
+    fontSize: 11,
+    marginTop: 1,
+  },
+  cardActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  applyPill: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  applyPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  activitiesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 20,
+  },
+  activityCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  activityIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityIconText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  activityNumber: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#09090B',
+  },
+  activityLabel: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  toolsRow: {
+    gap: 10,
+    marginBottom: 20,
+  },
+  toolCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  toolBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#09090B',
+  },
+  toolSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  toolArrow: {
+    fontSize: 16,
+    color: '#94A3B8',
+    fontWeight: '700',
+  },
+  nodeStatusPill: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  beaconDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#FF3B30',
+    marginRight: 8,
+  },
+  nodeStatusText: {
+    fontSize: 11.5,
+    color: '#64748B',
+    fontWeight: '600',
   },
 })
