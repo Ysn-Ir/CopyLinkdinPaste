@@ -341,6 +341,7 @@ def seed_database():
 
 
 @app.get("/api/health")
+@app.get("/api/ping")
 def health_check(db: Session = Depends(get_db)):
     offer_count = db.query(OfferModel).count()
     cv_count = db.query(CvVaultModel).count()
