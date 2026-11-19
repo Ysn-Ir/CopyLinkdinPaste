@@ -1,5 +1,5 @@
 import * as Notifications from 'expo-notifications'
-import { Platform } from 'react-native'
+import { Platform, Vibration } from 'react-native'
 
 /**
  * Mobile System Notification Service
@@ -19,6 +19,7 @@ class MobileNotificationService {
   constructor() {
     this.isInitialized = false
     this.hasPermission = false
+    this.listeners = new Set()
   }
 
   async init() {
@@ -60,6 +61,11 @@ class MobileNotificationService {
     }
   }
 
+  onNotification(callback) {
+    this.listeners.add(callback)
+    return () => this.listeners.delete(callback)
+  }
+
   /**
    * Fires an immediate native Android/iOS system notification
    * Visible in the system notification shade even if app is backgrounded or device is locked.
@@ -70,10 +76,27 @@ class MobileNotificationService {
         await this.init()
       }
 
+      // Haptic confirmation
+      try {
+        Vibration.vibrate([0, 150, 80, 150])
+      } catch (e) {
+        // Haptics optional
+      }
+
+      const notifTitle = title || (isOffer ? '[RADAR] Opportunity Detected' : '[RADAR] Signal Captured')
+      const notifBody = body || 'Saved to your RADAR Vault.'
+
+      // Fire in-app listeners
+      for (const listener of this.listeners) {
+        try {
+          listener({ title: notifTitle, body: notifBody, data, isOffer })
+        } catch (e) {}
+      }
+
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: title || (isOffer ? '[RADAR] Opportunity Detected' : '[RADAR] Signal Captured'),
-          body: body || 'Saved to your RADAR Vault.',
+          title: notifTitle,
+          body: notifBody,
           data: {
             ...data,
             timestamp: Date.now(),
@@ -91,3 +114,4 @@ class MobileNotificationService {
 }
 
 export const NotificationService = new MobileNotificationService()
+

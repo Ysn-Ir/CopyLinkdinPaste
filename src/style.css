@@ -1028,6 +1028,10 @@ body {
     gap: 8px;
   }
 
+  .command-pane-triage {
+    display: none !important;
+  }
+
   .command-master-pane.mobile-hidden {
     display: none !important;
   }
@@ -1050,9 +1054,25 @@ body {
   }
 }
 
+@media (min-width: 769px) and (max-width: 1120px) {
+  .command-pane-triage {
+    width: 200px !important;
+  }
+  .command-master-pane {
+    width: 360px !important;
+  }
+}
+
 @media (min-width: 769px) {
   .mobile-back-bar {
     display: none !important;
   }
 }
+
+/* Strict Zero-Horizontal-Scroll guarantees */
+html, body, #root, .app-shell, .main-wrapper, .workspace-view {
+  overflow-x: hidden !important;
+  max-width: 100vw;
+}
+
 

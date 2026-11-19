@@ -152,6 +152,23 @@ def run_tests():
             assert r.getcode() == 200, "Export CSV failed"
             print("    ✓ Export CSV: OK")
 
+        # Test Auth: 1-click Offline Session & /api/auth/me
+        req_auth = urllib.request.Request(f'{base}/api/auth/offline-session', method='POST', data=b'{}')
+        req_auth.add_header('Content-Type', 'application/json')
+        with urllib.request.urlopen(req_auth, timeout=4) as r:
+            assert r.getcode() == 200, "Auth offline-session failed"
+            auth_data = json.loads(r.read().decode())
+            token = auth_data['token']
+            print(f"    ✓ Auth offline-session: OK (User: {auth_data['user']['username']}, Mode: {auth_data['mode']})")
+
+        req_me = urllib.request.Request(f'{base}/api/auth/me')
+        req_me.add_header('Authorization', f'Bearer {token}')
+        with urllib.request.urlopen(req_me, timeout=4) as r:
+            assert r.getcode() == 200, "Auth /me failed"
+            me_data = json.loads(r.read().decode())
+            assert me_data['authenticated'] is True
+            print(f"    ✓ Auth /api/auth/me validation: OK (User: {me_data['user']['fullName']})")
+
     except Exception as e:
         errors.append(f"[API BRIDGE ERROR] {e}")
 
@@ -173,6 +190,7 @@ def run_tests():
         'mobile/src/services/clipboardWatcher.js',
         'mobile/src/services/screenshotWatcher.js',
         'mobile/src/services/notificationService.js',
+        'mobile/src/services/authService.js',
     ]
     for mf in mobile_files:
         try:

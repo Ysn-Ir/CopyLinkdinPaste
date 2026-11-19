@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 120,
+    paddingBottom: 140,
   },
   topBrandBar: {
     flexDirection: 'row',

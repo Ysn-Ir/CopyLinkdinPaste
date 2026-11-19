@@ -22,8 +22,10 @@ import { CVManagerModal } from './components/CVManagerModal.jsx'
 import { CategoryManagerModal } from './components/CategoryManagerModal.jsx'
 import { MobileConnectModal } from './components/MobileConnectModal.jsx'
 import { NotificationBlockedModal } from './components/NotificationBlockedModal.jsx'
+import { UserAccountModal } from './components/UserAccountModal.jsx'
 import { notificationService } from './services/notificationService.js'
-import { Bell, BellOff } from 'lucide-react'
+import { authService } from './services/authService.js'
+import { Bell, BellOff, User as UserIcon } from 'lucide-react'
 
 import { CommandCenterView } from './views/CommandCenterView.jsx'
 import { HomeView } from './views/HomeView.jsx'
@@ -52,6 +54,8 @@ export default function App() {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false)
   const [isNotifBlockedModalOpen, setIsNotifBlockedModalOpen] = useState(false)
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false)
+  const [currentUser, setCurrentUser] = useState(authService.getUser())
   const [notificationStatus, setNotificationStatus] = useState(
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported'
   )
@@ -154,10 +158,32 @@ export default function App() {
       StorageService.getOffers().then(setOffers).catch(() => {})
     }
 
+    // Initialize local-first auth and listen to state changes
+    authService.init().then((u) => {
+      if (u) setCurrentUser(u)
+    }).catch(() => {})
+    const unbindAuth = authService.subscribe((u) => {
+      if (u) setCurrentUser(u)
+    })
+
+    // Listen to notification service in-app toast dispatches
+    const unbindToast = notificationService.onToast((notif) => {
+      if (notif) {
+        setClipToast({
+          title: notif.body || notif.title || 'Signal Detected',
+          type: 'notification',
+          isJobOffer: Boolean(notif.title?.includes('Opportunity') || notif.isOffer),
+        })
+        setTimeout(() => setClipToast(null), 4000)
+      }
+    })
+
     window.addEventListener('radar:desktop-snip', handleDesktopSnip)
     window.addEventListener('radar:data-refresh', handleDataRefresh)
 
     return () => {
+      unbindAuth?.()
+      unbindToast?.()
       window.removeEventListener('pywebviewready', checkNative)
       window.removeEventListener('radar:desktop-snip', handleDesktopSnip)
       window.removeEventListener('radar:data-refresh', handleDataRefresh)
@@ -792,6 +818,57 @@ export default function App() {
               <Plus size={14} />
               <span>New Offer</span>
             </button>
+
+            {/* User Account / Identity Pill */}
+            <button
+              className="btn btn-secondary"
+              onClick={() => setIsAccountModalOpen(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '4px 10px',
+                borderRadius: '8px',
+                background: currentUser?.isOffline ? '#181214' : '#121820',
+                borderColor: currentUser?.isOffline ? 'rgba(255, 59, 48, 0.4)' : 'rgba(56, 189, 248, 0.4)',
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                cursor: 'pointer',
+              }}
+              title="Identity & Account: Click to switch user or activate offline mode"
+            >
+              <div
+                style={{
+                  width: '22px',
+                  height: '22px',
+                  borderRadius: '6px',
+                  background: currentUser?.isOffline ? '#FF3B30' : '#0284C7',
+                  color: '#FFFFFF',
+                  fontWeight: 800,
+                  fontSize: '11px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {(currentUser?.fullName || currentUser?.username || 'O')[0].toUpperCase()}
+              </div>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#FFFFFF' }}>
+                {currentUser?.fullName || currentUser?.username || 'Operator'}
+              </span>
+              <span
+                style={{
+                  fontSize: '9.5px',
+                  fontWeight: 800,
+                  padding: '1px 5px',
+                  borderRadius: '4px',
+                  background: currentUser?.isOffline ? 'rgba(255, 59, 48, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                  color: currentUser?.isOffline ? '#FF3B30' : '#10B981',
+                }}
+              >
+                {currentUser?.isOffline ? 'OFFLINE' : 'ONLINE'}
+              </span>
+            </button>
           </div>
         </header>
 
@@ -1070,6 +1147,13 @@ export default function App() {
         isOpen={isNotifBlockedModalOpen}
         onClose={() => setIsNotifBlockedModalOpen(false)}
         onPermissionChanged={setNotificationStatus}
+      />
+
+      {/* User Account & Identity Modal */}
+      <UserAccountModal
+        isOpen={isAccountModalOpen}
+        onClose={() => setIsAccountModalOpen(false)}
+        onUserChanged={(u) => setCurrentUser(u)}
       />
 
       {/* Clip Captured Toast Notification */}

@@ -200,4 +200,26 @@ class CompileCvRequest(BaseModel):
     format: Optional[str] = "typst"
 
 
+class UserRegisterSchema(BaseModel):
+    username: str
+    email: str
+    password: str
+    fullName: Optional[str] = "Radar Operator"
+    role: Optional[str] = "operator"
+
+
+class UserLoginSchema(BaseModel):
+    username: str  # Can be username or email
+    password: str
+
+
+class UserUpdateSchema(BaseModel):
+    fullName: Optional[str] = None
+    headline: Optional[str] = None
+    email: Optional[str] = None
+    avatarUrl: Optional[str] = None
+    password: Optional[str] = None
+
+
+
 

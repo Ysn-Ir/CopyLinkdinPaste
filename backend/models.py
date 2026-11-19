@@ -284,4 +284,35 @@ class N8nConfigModel(Base):
         }
 
 
+class UserModel(Base):
+    __tablename__ = "users"
+
+    id = Column(String(100), primary_key=True, index=True)
+    username = Column(String(100), unique=True, index=True, nullable=False)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    full_name = Column(String(255), default="Radar Operator")
+    role = Column(String(50), default="operator")  # "admin" | "operator" | "guest"
+    is_offline = Column(Boolean, default=False)
+    headline = Column(String(255), default="Software Engineer & Autonomous Systems Developer")
+    avatar_url = Column(String(500), default="")
+    created_at = Column(String(100), default=lambda: datetime.utcnow().isoformat())
+    updated_at = Column(String(100), default=lambda: datetime.utcnow().isoformat())
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "username": self.username,
+            "email": self.email,
+            "fullName": self.full_name,
+            "role": self.role,
+            "isOffline": bool(self.is_offline),
+            "headline": self.headline or "",
+            "avatarUrl": self.avatar_url or "",
+            "createdAt": self.created_at,
+            "updatedAt": self.updated_at,
+        }
+
+
+
 

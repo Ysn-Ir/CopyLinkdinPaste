@@ -14,10 +14,12 @@ import {
 import * as Linking from 'expo-linking'
 import { ApiService } from '../services/api'
 import { NotificationService } from '../services/notificationService'
+import { MobileAuth } from '../services/authService'
 import { THEME } from '../theme'
 import { RadarLogo } from '../components/RadarLogo'
 
 export function ProfileSettingsScreen({ onBack, onNavigateTab }) {
+  const [authUser, setAuthUser] = useState(MobileAuth.getUser())
   const [profile, setProfile] = useState({
     fullName: '',
     headline: '',
@@ -50,6 +52,10 @@ export function ProfileSettingsScreen({ onBack, onNavigateTab }) {
 
   useEffect(() => {
     loadSettingsData()
+    const unsub = MobileAuth.subscribe((u) => {
+      if (u) setAuthUser(u)
+    })
+    return () => unsub()
   }, [])
 
   const loadSettingsData = async () => {
@@ -204,6 +210,56 @@ export function ProfileSettingsScreen({ onBack, onNavigateTab }) {
             <Text style={styles.closeBtnText}>DONE</Text>
           </TouchableOpacity>
         )}
+      </View>
+
+      {/* 0. Account & Identity (Local-first & Multi-User) */}
+      <View style={styles.card}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View style={[styles.avatarBox, { backgroundColor: authUser?.isOffline ? '#FFF1F0' : '#EFF6FF', borderColor: authUser?.isOffline ? '#FECDD3' : '#BFDBFE' }]}>
+              <Text style={[styles.avatarText, { color: authUser?.isOffline ? '#FF3B30' : '#2563EB' }]}>
+                {(authUser?.fullName || authUser?.username || 'O')[0].toUpperCase()}
+              </Text>
+            </View>
+            <View>
+              <Text style={styles.profileName} numberOfLines={1}>
+                {authUser?.fullName || authUser?.username || 'Local Operator'}
+              </Text>
+              <Text style={styles.profileSub} numberOfLines={1}>
+                @{authUser?.username || 'operator'} · {authUser?.email || 'local'}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.statusPill, { backgroundColor: authUser?.isOffline ? '#FFF1F0' : '#ECFDF5', borderColor: authUser?.isOffline ? '#FECDD3' : '#A7F3D0' }]}>
+            <View style={[styles.dotGreen, { backgroundColor: authUser?.isOffline ? '#FF3B30' : '#10B981' }]} />
+            <Text style={[styles.statusPillText, { color: authUser?.isOffline ? '#FF3B30' : '#10B981' }]}>
+              {authUser?.isOffline ? 'OFFLINE MASTER' : 'SYNCED'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity
+            style={[styles.smallBtn, { backgroundColor: '#FF3B30', borderColor: '#FF3B30', flex: 1 }]}
+            onPress={async () => {
+              await MobileAuth.activateOfflineSession()
+              Alert.alert('⚡ Offline Master Active', 'Operating in zero-cloud local master mode.')
+            }}
+          >
+            <Text style={[styles.smallBtnText, { color: '#FFFFFF' }]}>⚡ Switch Offline Master</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.smallBtn, { backgroundColor: '#F1F5F9', borderColor: '#CBD5E1', flex: 1 }]}
+            onPress={async () => {
+              await MobileAuth.logout()
+              Alert.alert('Session Reset', 'Switched back to local operator.')
+            }}
+          >
+            <Text style={[styles.smallBtnText, { color: '#09090B' }]}>Reset Session</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* 1. Candidate Identity Card */}
@@ -539,7 +595,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 120,
+    paddingBottom: 140,
   },
   centerBox: {
     flex: 1,
