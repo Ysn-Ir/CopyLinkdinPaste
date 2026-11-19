@@ -261,3 +261,27 @@ class ClipVaultModel(Base):
         }
 
 
+class N8nConfigModel(Base):
+    __tablename__ = "n8n_config"
+
+    id = Column(String(50), primary_key=True, default="default")
+    webhook_ats = Column(String(500), default="")
+    webhook_email = Column(String(500), default="")
+    webhook_whatsapp = Column(String(500), default="")
+    webhook_full_cycle = Column(String(500), default="")
+    is_enabled = Column(Boolean, default=True)
+    created_at = Column(String(100), default=lambda: datetime.utcnow().isoformat())
+    updated_at = Column(String(100), default=lambda: datetime.utcnow().isoformat())
+
+    def to_dict(self):
+        return {
+            "webhookAts": self.webhook_ats or "",
+            "webhookEmail": self.webhook_email or "",
+            "webhookWhatsApp": self.webhook_whatsapp or "",
+            "webhookFullCycle": self.webhook_full_cycle or "",
+            "isEnabled": bool(self.is_enabled),
+            "updatedAt": self.updated_at
+        }
+
+
+

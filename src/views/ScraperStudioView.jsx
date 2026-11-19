@@ -515,6 +515,106 @@ export function ScraperStudioView({ candidateProfile, onOfferCreated, onTailorCv
                     </div>
                   )}
 
+                  {/* Contact & Company Intelligence Hub */}
+                  <div
+                    style={{
+                      background: '#121217',
+                      border: '1px solid #232328',
+                      borderRadius: '6px',
+                      padding: '10px 12px',
+                      marginBottom: '14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                    }}
+                  >
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#A1A1AA', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Intelligence & Recruiter Contacts
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                      {job.companyLinkedin && (
+                        <a
+                          href={job.companyLinkedin}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            color: '#38BDF8',
+                            backgroundColor: '#0F1E29',
+                            border: '1px solid #0284C7',
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            textDecoration: 'none',
+                          }}
+                        >
+                          <ExternalLink size={10} />
+                          <span>Company LinkedIn</span>
+                        </a>
+                      )}
+
+                      {job.recruiterSearchUrl && (
+                        <a
+                          href={job.recruiterSearchUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            color: '#FF3B30',
+                            backgroundColor: '#1C1313',
+                            border: '1px solid #FF3B30',
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            textDecoration: 'none',
+                          }}
+                        >
+                          <span>🔍 Find Recruiters</span>
+                        </a>
+                      )}
+
+                      {job.recruiterEmail && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(job.recruiterEmail)
+                            alert(`Copied recruiter lead: ${job.recruiterEmail}`)
+                          }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            color: '#10B981',
+                            backgroundColor: '#0D2218',
+                            border: '1px solid #10B981',
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                          }}
+                          title="Click to copy verified recruiter email"
+                        >
+                          <Mail size={10} />
+                          <span>{job.recruiterEmail}</span>
+                        </button>
+                      )}
+
+                      {job.emailPattern && (
+                        <span style={{ fontSize: '10.5px', color: '#71717A', fontFamily: 'monospace' }}>
+                          Pattern: {job.emailPattern}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Description preview */}
                   <p
                     style={{

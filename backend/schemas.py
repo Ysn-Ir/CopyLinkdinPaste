@@ -98,6 +98,21 @@ class CategorySchema(BaseModel):
     keywords: Optional[List[str]] = []
     isCustom: Optional[bool] = True
 
+class N8nConfigSchema(BaseModel):
+    webhookAts: Optional[str] = ""
+    webhookEmail: Optional[str] = ""
+    webhookWhatsApp: Optional[str] = ""
+    webhookFullCycle: Optional[str] = ""
+    isEnabled: Optional[bool] = True
+
+class N8nTriggerRequest(BaseModel):
+    workflowType: str = "full_cycle"  # 'ats_check' | 'email_dispatch' | 'whatsapp_dispatch' | 'full_cycle'
+    offerId: Optional[str] = None
+    offer: Optional[Dict[str, Any]] = None
+    candidateProfile: Optional[Dict[str, Any]] = None
+    overrideWebhookUrl: Optional[str] = None
+
+
 class ClipIngestSchema(BaseModel):
     content: str
     sourceUrl: Optional[str] = ""

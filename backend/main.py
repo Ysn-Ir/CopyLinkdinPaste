@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from .config import HOST, PORT, GROQ_API_KEY, DEFAULT_MODEL
 from .database import engine, Base, get_db, SessionLocal, DB_ENGINE_TYPE
-from .models import OfferModel, CvVaultModel, UserProfileModel, AiConfigModel, CategoryModel, ClipVaultModel
+from .models import OfferModel, CvVaultModel, UserProfileModel, AiConfigModel, CategoryModel, ClipVaultModel, N8nConfigModel
 from .schemas import (
     OfferSchema,
     BatchSyncOffersSchema,
@@ -38,6 +38,8 @@ from .schemas import (
     TailorCvRequest,
     TailorCvPartialRequest,
     CompileCvRequest,
+    N8nConfigSchema,
+    N8nTriggerRequest,
 )
 from .ai_service import (
     call_groq_chat,
@@ -2073,6 +2075,12 @@ async def save_hunt_job_to_vault(req: SaveHuntJobSchema, db: Session = Depends(g
     emails = job.get("emails") or []
     email_str = emails[0] if emails else (job.get("recruiterEmail") or "")
     channel = job.get("channel") or ("email" if email_str else "external")
+    sharer_data = {
+        "name": job.get("recruiterName") or f"{job.get('company')} Talent Acquisition",
+        "title": "Recruiter / Hiring Lead",
+        "profileUrl": job.get("recruiterSearchUrl") or job.get("companyLinkedin") or "",
+        "phone": job.get("phone") or "",
+    }
 
     new_offer = OfferModel(
         id=offer_id,
@@ -2080,18 +2088,19 @@ async def save_hunt_job_to_vault(req: SaveHuntJobSchema, db: Session = Depends(g
         company=job.get("company", "Company"),
         location=job.get("location", "Remote / Hybrid"),
         category=cat_id,
-        category_reasoning=f"Autonomous hunt capture ({job.get('site', 'JobSpy')})",
+        category_reasoning=f"Autonomous intelligence capture ({job.get('site', 'LinkedIn')})",
         channel=channel,
         recruiter_email=email_str,
-        recruiter_name="",
+        recruiter_name=sharer_data["name"],
+        sharer_json=json.dumps(sharer_data),
         skills_json=json.dumps(job.get("skills") or []),
-        description=job.get("description") or f"Scraped from {job.get('site', 'JobSpy')}",
+        description=job.get("description") or f"Scraped from {job.get('site', 'LinkedIn')}",
         source_url=job.get("jobUrl") or "",
         status="saved",
         attached_cv_tag=cv_tag,
         confidence=float(job.get("atsFitScore", 85)) / 100.0,
         needs_user_review=False,
-        notes=f"Captured via Autonomous Scraper ({job.get('site', 'JobSpy')}) on {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}. ATS Fit: {job.get('atsFitScore', 85)}%",
+        notes=f"Captured via RADAR Intelligence ({job.get('site', 'LinkedIn')}) on {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}. ATS Fit: {job.get('atsFitScore', 85)}% | Company LinkedIn: {job.get('companyLinkedin', '')} | Recruiter: {job.get('recruiterSearchUrl', '')}",
         created_at=datetime.utcnow().isoformat(),
         updated_at=datetime.utcnow().isoformat(),
     )
@@ -2288,6 +2297,192 @@ async def get_tech_news_feed():
 
     _news_cache = {"timestamp": now, "items": items}
     return {"items": items, "cached": False}
+
+
+# ==============================================================================
+# N8N AUTOMATION CYCLE & WORKFLOW WEBHOOKS ENGINE
+# ==============================================================================
+
+@app.get("/api/n8n/config")
+async def get_n8n_config(db: Session = Depends(get_db)):
+    """Returns user's n8n webhook configuration."""
+    cfg = db.query(N8nConfigModel).filter_by(id="default").first()
+    if not cfg:
+        cfg = N8nConfigModel(
+            id="default",
+            webhook_ats="",
+            webhook_email="",
+            webhook_whatsapp="",
+            webhook_full_cycle="",
+            is_enabled=True
+        )
+        db.add(cfg)
+        db.commit()
+        db.refresh(cfg)
+    return cfg.to_dict()
+
+
+@app.post("/api/n8n/config")
+async def update_n8n_config(req: N8nConfigSchema, db: Session = Depends(get_db)):
+    """Saves or updates n8n webhook endpoints."""
+    cfg = db.query(N8nConfigModel).filter_by(id="default").first()
+    if not cfg:
+        cfg = N8nConfigModel(id="default")
+        db.add(cfg)
+
+    cfg.webhook_ats = req.webhookAts or ""
+    cfg.webhook_email = req.webhookEmail or ""
+    cfg.webhook_whatsapp = req.webhookWhatsApp or ""
+    cfg.webhook_full_cycle = req.webhookFullCycle or ""
+    cfg.is_enabled = bool(req.isEnabled)
+    cfg.updated_at = datetime.utcnow().isoformat()
+    db.commit()
+    db.refresh(cfg)
+    return {"success": True, "config": cfg.to_dict()}
+
+
+@app.post("/api/n8n/trigger")
+async def trigger_n8n_workflow(req: N8nTriggerRequest, db: Session = Depends(get_db)):
+    """
+    Executes a structured n8n workflow cycle:
+    - 'ats_check': External ATS validation, CV keyword matching & auto-scoring
+    - 'email_dispatch': Direct email drafting/sending via Gmail/Outlook
+    - 'whatsapp_dispatch': Direct recruiter WhatsApp notification via WA API / Twilio
+    - 'full_cycle': End-to-end multi-agent orchestration of all 3 stages
+    """
+    import httpx
+    cfg = db.query(N8nConfigModel).filter_by(id="default").first()
+
+    # Determine target webhook URL
+    target_url = req.overrideWebhookUrl
+    if not target_url and cfg:
+        if req.workflowType == "ats_check":
+            target_url = cfg.webhook_ats
+        elif req.workflowType == "email_dispatch":
+            target_url = cfg.webhook_email
+        elif req.workflowType == "whatsapp_dispatch":
+            target_url = cfg.webhook_whatsapp
+        elif req.workflowType == "full_cycle":
+            target_url = cfg.webhook_full_cycle or cfg.webhook_email or cfg.webhook_ats
+
+    # Resolve offer data
+    offer_data = req.offer or {}
+    if not offer_data and req.offerId:
+        db_offer = db.query(OfferModel).filter_by(id=req.offerId).first()
+        if db_offer:
+            offer_data = db_offer.to_dict()
+
+    # Resolve candidate profile
+    cand_data = req.candidateProfile or {}
+    if not cand_data:
+        db_profile = db.query(UserProfileModel).filter_by(id="default").first()
+        if db_profile:
+            cand_data = db_profile.to_dict()
+
+    # Build standardized enterprise n8n payload
+    payload = {
+        "event": f"RADAR_N8N_{req.workflowType.upper()}",
+        "workflowType": req.workflowType,
+        "timestamp": datetime.utcnow().isoformat(),
+        "source": "RADAR_ENTERPRISE_COMMAND_CENTER",
+        "offer": {
+            "id": offer_data.get("id"),
+            "title": offer_data.get("title", "Engineering Role"),
+            "company": offer_data.get("company", "Company"),
+            "location": offer_data.get("location", "Remote"),
+            "channel": offer_data.get("channel", "email"),
+            "category": offer_data.get("category", "dev-fullstack"),
+            "recruiterEmail": offer_data.get("recruiterEmail", ""),
+            "recruiterName": offer_data.get("recruiterName", ""),
+            "recruiterPhone": (offer_data.get("sharer") or {}).get("phone", ""),
+            "sourceUrl": offer_data.get("sourceUrl", ""),
+            "status": offer_data.get("status", "saved"),
+            "skills": offer_data.get("skills", []),
+            "description": offer_data.get("description", "")[:4000],
+            "emailDraft": {
+                "subject": offer_data.get("customEmailSubject", f"Application: {offer_data.get('title')} - {cand_data.get('fullName', 'Candidate')}"),
+                "body": offer_data.get("customEmailBody", "")
+            },
+            "whatsAppPitch": offer_data.get("whatsAppMsg", ""),
+            "coverLetter": offer_data.get("customCoverLetter", "")
+        },
+        "candidate": {
+            "fullName": cand_data.get("fullName", "Candidate"),
+            "email": cand_data.get("email", ""),
+            "phone": cand_data.get("phone", ""),
+            "linkedIn": cand_data.get("linkedIn", ""),
+            "skills": cand_data.get("skills", ""),
+            "bio": cand_data.get("bio", "")
+        }
+    }
+
+    if not target_url:
+        return {
+            "success": True,
+            "isSimulated": True,
+            "message": f"Verified: Payload for '{req.workflowType}' generated successfully. Configure your n8n Webhook URL in n8n Settings for live HTTP dispatch.",
+            "targetUrl": None,
+            "payload": payload
+        }
+
+    try:
+        async with httpx.AsyncClient(timeout=25.0) as client:
+            resp = await client.post(target_url, json=payload)
+            return {
+                "success": resp.status_code in [200, 201, 202, 204],
+                "statusCode": resp.status_code,
+                "isSimulated": False,
+                "targetUrl": target_url,
+                "n8nResponse": resp.text[:1000],
+                "payload": payload
+            }
+    except Exception as e:
+        logger.error(f"n8n webhook dispatch error: {e}")
+        return {
+            "success": False,
+            "isSimulated": False,
+            "error": str(e),
+            "targetUrl": target_url,
+            "payload": payload
+        }
+
+
+@app.get("/api/n8n/templates")
+async def get_n8n_templates():
+    """Returns downloadable, import-ready n8n workflow schemas."""
+    return {
+        "templates": [
+            {
+                "id": "radar-ats-cv-check",
+                "name": "RADAR: External ATS & CV Keyword Optimization",
+                "description": "Receives job signals, runs automated ATS keyword density validation, and tags match scores.",
+                "category": "ats_check",
+                "nodes": ["Webhook", "Code (Extract Keywords)", "OpenAI/Groq (ATS Scoring)", "HTTP Request (Update RADAR)"]
+            },
+            {
+                "id": "radar-email-dispatch",
+                "name": "RADAR: 1-Click Recruiter Email Dispatch & Draft",
+                "description": "Receives tailored outreach body and dispatches directly through Gmail or Microsoft 365 Outlook.",
+                "category": "email_dispatch",
+                "nodes": ["Webhook", "Gmail / Outlook", "Slack / Discord (Audit Notification)"]
+            },
+            {
+                "id": "radar-whatsapp-outreach",
+                "name": "RADAR: WhatsApp Recruiter Lead Notification",
+                "description": "Routes recruiter phone number and personalized pitch to WhatsApp Business API or Twilio.",
+                "category": "whatsapp_dispatch",
+                "nodes": ["Webhook", "Twilio / Evolution API (WhatsApp)", "HTTP Request (Mark Replied)"]
+            },
+            {
+                "id": "radar-full-cycle",
+                "name": "RADAR: Complete Career Pipeline Autopilot Cycle",
+                "description": "Chains ATS validation, recruiter email drafting, and WhatsApp outreach in one continuous automation sequence.",
+                "category": "full_cycle",
+                "nodes": ["Webhook", "ATS Match Check", "Router (Email vs WhatsApp vs ATS)", "Dispatch Node", "RADAR Pipeline Sync"]
+            }
+        ]
+    }
+
 
 
 # ==============================================================================

@@ -88,11 +88,41 @@ export default function App() {
   const [clipToast, setClipToast] = useState(null) // { title, type, isJobOffer }
   const [tailorTargetJob, setTailorTargetJob] = useState(null)
 
-  // Desktop Native Cockpit State (pywebview + WinRT)
+  // Desktop Native Cockpit State (Electron Native + WinRT fallback)
   const [isDesktopNative, setIsDesktopNative] = useState(false)
   const [nativeDesktopInfo, setNativeDesktopInfo] = useState(null)
 
   useEffect(() => {
+    // 1. Electron Native Desktop Workstation
+    if (typeof window !== 'undefined' && window.radarNative) {
+      setIsDesktopNative(true)
+      setNativeDesktopInfo({
+        type: 'electron-workstation',
+        platform: window.radarNative.platform,
+        version: window.radarNative.version,
+      })
+      const unbindClipboard = window.radarNative.onClipboardDumped?.((text) => {
+        if (text) {
+          handleRunIngestion(text)
+        }
+      })
+      const unbindSnip = window.radarNative.onSnipCompleted?.((data) => {
+        setClipToast({
+          title: `Snip Extracted (${data?.charCount || 0} chars)`,
+          type: 'screenshot_ocr',
+          isJobOffer: true,
+        })
+        confetti({ particleCount: 25, spread: 45, origin: { y: 0.8 } })
+        StorageService.getClips().then(setClips).catch(() => {})
+        StorageService.getOffers().then(setOffers).catch(() => {})
+      })
+      return () => {
+        unbindClipboard?.()
+        unbindSnip?.()
+      }
+    }
+
+    // 2. Fallback check for webview
     const checkNative = () => {
       if (window.pywebview && window.pywebview.api) {
         setIsDesktopNative(true)
@@ -681,7 +711,9 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (window.pywebview?.api?.snip_screen) {
+                    if (window.radarNative?.snipScreen) {
+                      window.radarNative.snipScreen()
+                    } else if (window.pywebview?.api?.snip_screen) {
                       window.pywebview.api.snip_screen()
                     }
                   }}
@@ -713,16 +745,17 @@ export default function App() {
               className="btn btn-secondary"
               onClick={async () => {
                 try {
-                  if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
-                    const text = await navigator.clipboard.readText()
-                    if (!text || !text.trim()) {
-                      alert('Your clipboard is empty! Copy a LinkedIn link, job post, or text first.')
-                      return
-                    }
-                    handleRunIngestion(text.trim())
-                  } else {
-                    alert('Clipboard access is unavailable in this browser context.')
+                  let text = ''
+                  if (window.radarNative?.dumpClipboard) {
+                    text = await window.radarNative.dumpClipboard()
+                  } else if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
+                    text = await navigator.clipboard.readText()
                   }
+                  if (!text || !text.trim()) {
+                    alert('Your clipboard is empty! Copy a LinkedIn link, job post, or text first.')
+                    return
+                  }
+                  handleRunIngestion(text.trim())
                 } catch (e) {
                   alert(`Could not access clipboard: ${e.message}`)
                 }
