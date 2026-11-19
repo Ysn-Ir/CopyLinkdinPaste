@@ -88,6 +88,52 @@ export default function App() {
   const [clipToast, setClipToast] = useState(null) // { title, type, isJobOffer }
   const [tailorTargetJob, setTailorTargetJob] = useState(null)
 
+  // Desktop Native Cockpit State (pywebview + WinRT)
+  const [isDesktopNative, setIsDesktopNative] = useState(false)
+  const [nativeDesktopInfo, setNativeDesktopInfo] = useState(null)
+
+  useEffect(() => {
+    const checkNative = () => {
+      if (window.pywebview && window.pywebview.api) {
+        setIsDesktopNative(true)
+        window.pywebview.api.get_native_info?.().then((info) => {
+          setNativeDesktopInfo(info)
+        }).catch(() => {})
+      }
+    }
+    if (window.pywebview) {
+      checkNative()
+    } else {
+      window.addEventListener('pywebviewready', checkNative)
+    }
+
+    const handleDesktopSnip = (e) => {
+      const detail = e.detail || {}
+      setClipToast({
+        title: `Snip Extracted (${detail.charCount || 0} chars)`,
+        type: 'screenshot_ocr',
+        isJobOffer: true,
+      })
+      confetti({ particleCount: 25, spread: 45, origin: { y: 0.8 } })
+      StorageService.getClips().then(setClips).catch(() => {})
+      StorageService.getOffers().then(setOffers).catch(() => {})
+    }
+
+    const handleDataRefresh = () => {
+      StorageService.getClips().then(setClips).catch(() => {})
+      StorageService.getOffers().then(setOffers).catch(() => {})
+    }
+
+    window.addEventListener('radar:desktop-snip', handleDesktopSnip)
+    window.addEventListener('radar:data-refresh', handleDataRefresh)
+
+    return () => {
+      window.removeEventListener('pywebviewready', checkNative)
+      window.removeEventListener('radar:desktop-snip', handleDesktopSnip)
+      window.removeEventListener('radar:data-refresh', handleDataRefresh)
+    }
+  }, [])
+
   // Zero-Poll Real-Time Event Stream (SSE)
   useEffect(() => {
     let es = null
@@ -591,6 +637,58 @@ export default function App() {
                 </>
               )}
             </button>
+
+            {/* Desktop Native HUD Badge & Alt+S Snip Button */}
+            {isDesktopNative && (
+              <>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '11px',
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    background: 'rgba(255, 59, 48, 0.15)',
+                    border: '1px solid rgba(255, 59, 48, 0.4)',
+                    color: '#FF3B30',
+                    fontWeight: 700,
+                    letterSpacing: '0.03em',
+                  }}
+                  title="Running inside RADAR Native Desktop Cockpit with WinRT Media OCR"
+                >
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#FF3B30' }} />
+                  <span>DESKTOP HUD · WinOCR 15ms</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.pywebview?.api?.snip_screen) {
+                      window.pywebview.api.snip_screen()
+                    }
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '11px',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    background: '#FF3B30',
+                    border: '1px solid #FF3B30',
+                    color: '#FFFFFF',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="Capture transparent screen snip & run local WinRT OCR (Alt+S)"
+                >
+                  <span>✂️</span>
+                  <span>[Alt+S] Snip Screen</span>
+                </button>
+              </>
+            )}
           </div>
 
           <div className="topbar-right">

@@ -98,16 +98,23 @@ ${candidateProfile?.linkedIn || ''}`
   }
 
   const handleOpenLinkedIn = () => {
-    if (currentOffer?.sharer?.profileUrl) {
-      window.open(currentOffer.sharer.profileUrl, '_blank')
-    } else if (currentOffer?.sourceUrl) {
-      window.open(currentOffer.sourceUrl, '_blank')
+    const targetUrl = currentOffer?.sharer?.profileUrl || currentOffer?.sourceUrl
+    if (targetUrl) {
+      if (window.pywebview && window.pywebview.api?.open_external) {
+        window.pywebview.api.open_external(targetUrl)
+        return
+      }
+      window.open(targetUrl, '_blank')
     }
   }
 
   const handleOpenWhatsApp = () => {
     const phoneNum = cleanPhone.replace(/^\+/, '')
     if (phoneNum) {
+      if (window.pywebview && window.pywebview.api?.open_whatsapp) {
+        window.pywebview.api.open_whatsapp(phoneNum, whatsappText)
+        return
+      }
       const url = `https://wa.me/${phoneNum}?text=${encodeURIComponent(whatsappText)}`
       window.open(url, '_blank')
     }

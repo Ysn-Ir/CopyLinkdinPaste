@@ -92,6 +92,14 @@ export function EmailWorkspaceView({
 
   const handleExportEml = () => {
     if (!currentOffer) return
+    if (window.pywebview && window.pywebview.api?.export_eml) {
+      window.pywebview.api.export_eml(
+        getInterpolatedSubject(),
+        currentOffer.recruiterEmail,
+        customBody
+      )
+      return
+    }
     EmlGenerator.downloadEml({
       to: currentOffer.recruiterEmail,
       subject: getInterpolatedSubject(),

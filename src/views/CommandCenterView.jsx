@@ -485,13 +485,17 @@ export function CommandCenterView({
             style={{
               height: '40px',
               padding: '0 18px',
-              background: 'var(--accent-primary)',
-              borderColor: 'var(--border-focus)',
-              color: '#ffffff',
+              backgroundColor: '#FF3B30',
+              borderColor: '#FF3B30',
+              color: '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              fontWeight: 600,
+              fontWeight: 700,
+              fontSize: '13px',
+              cursor: isIngesting || !ingestInput.trim() ? 'not-allowed' : 'pointer',
+              opacity: isIngesting || !ingestInput.trim() ? 0.6 : 1,
+              transition: 'opacity 0.15s ease',
             }}
             disabled={isIngesting || !ingestInput.trim()}
           >
