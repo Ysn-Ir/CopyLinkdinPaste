@@ -13,6 +13,7 @@ import {
 } from 'react-native'
 import { ApiService } from '../services/api'
 import { THEME, getStageMeta } from '../theme'
+import { RadarLogo } from '../components/RadarLogo'
 
 export function OffersListScreen({ onSelectOffer, onOpenCapture, categoryFilter, onBackCategory }) {
   const [offers, setOffers] = useState([])
@@ -192,8 +193,8 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture, categoryFilter,
 
   return (
     <View style={styles.container}>
-      {/* Category Navigation Bar matching Screen 4 of reference template */}
-      {categoryFilter && (
+      {/* Top Header with RADAR Logo or Category Navigation */}
+      {categoryFilter ? (
         <View style={styles.categoryTopBar}>
           <TouchableOpacity onPress={onBackCategory} style={styles.categoryBackRow} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={styles.categoryBackIcon}>‹</Text>
@@ -206,7 +207,16 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture, categoryFilter,
               <Text style={styles.categoryBadgeText}>{displayedOffers.length}</Text>
             </View>
             <View style={styles.categoryAvatarCircle}>
-              <Text style={styles.categoryAvatarText}>RO</Text>
+              <Text style={styles.categoryAvatarText}>KP</Text>
+            </View>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.brandTopBar}>
+          <RadarLogo size={26} showWordmark={true} subtitle="PIPELINE JOBS" />
+          <View style={styles.categoryRightBox}>
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryBadgeText}>{displayedOffers.length} offers</Text>
             </View>
           </View>
         </View>
@@ -315,6 +325,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    backgroundColor: THEME.colors.bgCard,
+    borderBottomWidth: 1,
+    borderBottomColor: THEME.colors.borderSubtle,
+  },
+  brandTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     backgroundColor: THEME.colors.bgCard,
     borderBottomWidth: 1,
     borderBottomColor: THEME.colors.borderSubtle,

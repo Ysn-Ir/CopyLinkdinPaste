@@ -29,6 +29,7 @@ import { OfferDetailScreen } from './src/screens/OfferDetailScreen'
 import { ConnectScreen } from './src/screens/ConnectScreen'
 import { ClipVaultScreen } from './src/screens/ClipVaultScreen'
 import { AgentScreen } from './src/screens/AgentScreen'
+import { ProfileSettingsScreen } from './src/screens/ProfileSettingsScreen'
 import { ClipboardWatcher } from './src/services/clipboardWatcher'
 import { ScreenshotWatcher } from './src/services/screenshotWatcher'
 import { NotificationService } from './src/services/notificationService'
@@ -376,6 +377,13 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'settings' && (
+          <ProfileSettingsScreen
+            onBack={() => setActiveTab('dashboard')}
+            onNavigateTab={setActiveTab}
+          />
+        )}
+
         {activeTab === 'connect' && (
           <ConnectScreen
             onConnected={() => setActiveTab('dashboard')}
@@ -421,22 +429,22 @@ export default function App() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.navItem, activeTab === 'scraper' && styles.navItemActive]}
-            onPress={() => setActiveTab('scraper')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.navLabel, activeTab === 'scraper' && styles.navLabelActive]}>
-              HUNT
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
             style={[styles.navItem, activeTab === 'clipvault' && styles.navItemActive]}
             onPress={() => setActiveTab('clipvault')}
             activeOpacity={0.8}
           >
             <Text style={[styles.navLabel, activeTab === 'clipvault' && styles.navLabelActive]}>
               VAULT
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.navItem, activeTab === 'settings' && styles.navItemActive]}
+            onPress={() => setActiveTab('settings')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.navLabel, activeTab === 'settings' && styles.navLabelActive]}>
+              SETTINGS
             </Text>
           </TouchableOpacity>
 

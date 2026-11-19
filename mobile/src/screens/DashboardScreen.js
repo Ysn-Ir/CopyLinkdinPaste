@@ -13,9 +13,10 @@ import {
 import { ApiService } from '../services/api'
 import { ScreenshotWatcher } from '../services/screenshotWatcher'
 import { THEME, getStageMeta } from '../theme'
+import { RadarLogo } from '../components/RadarLogo'
 
 const { width } = Dimensions.get('window')
-const RECOMMENDED_CARD_WIDTH = width * 0.72
+const RECOMMENDED_CARD_WIDTH = width * 0.74
 
 export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
   const [stats, setStats] = useState({
@@ -28,8 +29,12 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
   })
   const [recentOffers, setRecentOffers] = useState([])
   const [candidateProfile, setCandidateProfile] = useState({
-    fullName: 'Radar Operator',
-    degree: 'Software & AI Infrastructure Engineer',
+    fullName: 'Khalil Ingénieur PFE',
+    headline: 'Élève Ingénieur en Génie Logiciel & IA',
+    email: 'khalil.pfe@gmail.com',
+    phone: '+33 6 12 34 56 78',
+    city: 'Paris, France / Télétravail',
+    skills: 'Python, PyTorch, LLMs, NLP, React, FastAPI, Docker',
   })
   const [serverInfo, setServerInfo] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -76,7 +81,7 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
 
       if (offersRes && offersRes.success) {
         const all = offersRes.offers || []
-        setRecentOffers(all.slice(0, 6))
+        setRecentOffers(all)
         setStats({
           total: all.length,
           saved: all.filter((o) => o.status === 'saved' || o.status === 'to_apply').length,
@@ -106,23 +111,49 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
     setIsRefreshing(false)
   }
 
-  // Recommended sample jobs or top offers
-  const recommendedJobs = recentOffers.length > 0 ? recentOffers.slice(0, 3) : [
+  // Use real offers from database or high-fidelity fallback
+  const recommendedJobs = recentOffers.length > 0 ? recentOffers.slice(0, 4) : [
     {
       id: 'rec-1',
-      title: 'Senior AI & Distributed Systems Engineer',
-      company: 'Microsoft Corp.',
-      location: 'Remote / Global',
-      channel: 'email',
+      title: 'Python Lead Engineer',
+      company: 'CetaCorp',
+      location: 'Remote / Hybrid',
+      channel: 'external',
+      confidence: 0.94,
     },
     {
       id: 'rec-2',
-      title: 'Fullstack Machine Learning Engineer',
-      company: 'OpenAI Ecosystem',
-      location: 'San Francisco, CA',
-      channel: 'direct_contact',
+      title: 'Stage PFE - Ingénieur Fullstack',
+      company: 'Datadog Tech',
+      location: 'Paris, France',
+      channel: 'external',
+      confidence: 0.91,
     },
   ]
+
+  // Dynamic calculations
+  const filledFields = [
+    candidateProfile.fullName,
+    candidateProfile.email,
+    candidateProfile.phone,
+    candidateProfile.headline || candidateProfile.degree,
+    candidateProfile.city,
+    candidateProfile.skills,
+    candidateProfile.bio || candidateProfile.customInstructions,
+  ].filter(Boolean).length
+  const completenessPct = Math.min(100, Math.max(50, Math.round((filledFields / 7) * 100)))
+
+  const emailCount = recentOffers.filter((o) => o.channel === 'email').length
+  const dmCount = recentOffers.filter((o) => o.channel === 'direct_contact').length
+  const atsCount = Math.max(0, stats.total - emailCount - dmCount)
+  const funnelMax = Math.max(1, stats.total, stats.saved, stats.ready, stats.applied, stats.interview, stats.offer)
+
+  const initials = (candidateProfile.fullName || 'KP')
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
 
   return (
     <ScrollView
@@ -137,34 +168,158 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
         />
       }
     >
+      {/* 0. Top Brand Header with RADAR Logo */}
+      <View style={styles.topBrandBar}>
+        <RadarLogo size={32} showWordmark={true} subtitle="SIGNAL & CAREER HUD" />
+        <View style={styles.topBrandActions}>
+          <TouchableOpacity
+            style={styles.settingsPill}
+            onPress={() => onNavigateTab && onNavigateTab('settings')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.settingsPillText}>⚙️ SETTINGS</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* 1. Operator Profile Header matching Reference Screen 2 */}
-      <View style={styles.profileCard}>
+      <TouchableOpacity
+        style={styles.profileCard}
+        onPress={() => onNavigateTab && onNavigateTab('settings')}
+        activeOpacity={0.9}
+      >
         <View style={styles.avatarBox}>
-          <Text style={styles.avatarInitials}>
-            {(candidateProfile.fullName || 'RO').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
-          </Text>
+          <Text style={styles.avatarInitials}>{initials}</Text>
         </View>
 
-        <Text style={styles.operatorName}>{candidateProfile.fullName || 'Radar Operator'}</Text>
+        <Text style={styles.operatorName}>{candidateProfile.fullName || 'Khalil Ingénieur PFE'}</Text>
         <Text style={styles.operatorTitle}>
-          {candidateProfile.headline || candidateProfile.degree || 'Software & AI Infrastructure Engineer'}
+          {candidateProfile.headline || candidateProfile.degree || 'Élève Ingénieur en Génie Logiciel & IA'}
         </Text>
 
         {/* Profile Completeness Bar matching Screen 2 */}
         <View style={styles.completenessRow}>
           <Text style={styles.completenessLabel}>Profile completeness</Text>
-          <Text style={styles.completenessPct}>92%</Text>
+          <Text style={styles.completenessPct}>{completenessPct}%</Text>
         </View>
         <View style={styles.progressBarTrack}>
-          <View style={[styles.progressBarFill, { width: '92%' }]} />
+          <View style={[styles.progressBarFill, { width: `${completenessPct}%` }]} />
+        </View>
+      </TouchableOpacity>
+
+      {/* 2. Visual Graphs: Pipeline Progression Funnel & Channels */}
+      <View style={styles.graphCard}>
+        <View style={styles.graphHeaderRow}>
+          <View>
+            <Text style={styles.graphTitle}>Pipeline Progression Funnel</Text>
+            <Text style={styles.graphSubtitle}>
+              {stats.total} Tracked Opportunities across operational stages
+            </Text>
+          </View>
+          <View style={styles.graphRateBadge}>
+            <Text style={styles.graphRateText}>
+              {stats.total > 0
+                ? Math.round(((stats.applied + stats.interview + stats.offer) / stats.total) * 100)
+                : 0}
+              % Active
+            </Text>
+          </View>
+        </View>
+
+        {/* Funnel 5-stage vertical bar pillars */}
+        <View style={styles.funnelGrid}>
+          {[
+            { label: 'SAVED', count: stats.saved, color: '#64748B' },
+            { label: 'READY', count: stats.ready, color: '#3B82F6' },
+            { label: 'APPLIED', count: stats.applied, color: '#10B981' },
+            { label: 'INTERVIEW', count: stats.interview, color: '#F59E0B' },
+            { label: 'OFFER', count: stats.offer, color: '#FF3B30' },
+          ].map((stage) => {
+            const heightPct = Math.max(16, Math.min(100, Math.round((stage.count / funnelMax) * 100)))
+            return (
+              <TouchableOpacity
+                key={stage.label}
+                style={styles.funnelPillar}
+                onPress={() => onNavigateTab && onNavigateTab('offers')}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.funnelCount, { color: stage.color }]}>{stage.count}</Text>
+                <View style={styles.pillarTrack}>
+                  <View
+                    style={[
+                      styles.pillarBar,
+                      {
+                        height: `${heightPct}%`,
+                        backgroundColor: stage.color,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.funnelLabel}>{stage.label}</Text>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+
+        {/* Channel Distribution Progress Bar */}
+        <View style={styles.channelSection}>
+          <View style={styles.channelHeaderRow}>
+            <Text style={styles.channelSectionTitle}>Dispatch Channel Allocation</Text>
+            <Text style={styles.channelTotalText}>{stats.total} total</Text>
+          </View>
+
+          <View style={styles.segmentedBar}>
+            <View
+              style={[
+                styles.segment,
+                {
+                  flex: Math.max(0.1, emailCount),
+                  backgroundColor: '#FF3B30',
+                },
+              ]}
+            />
+            <View
+              style={[
+                styles.segment,
+                {
+                  flex: Math.max(0.1, dmCount),
+                  backgroundColor: '#10B981',
+                },
+              ]}
+            />
+            <View
+              style={[
+                styles.segment,
+                {
+                  flex: Math.max(0.1, atsCount),
+                  backgroundColor: '#475569',
+                },
+              ]}
+            />
+          </View>
+
+          <View style={styles.channelLegendRow}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#FF3B30' }]} />
+              <Text style={styles.legendText}>Direct Email ({emailCount})</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
+              <Text style={styles.legendText}>WhatsApp/DM ({dmCount})</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#475569' }]} />
+              <Text style={styles.legendText}>ATS Portals ({atsCount})</Text>
+            </View>
+          </View>
         </View>
       </View>
 
-      {/* 2. Recommended Jobs Section matching Screen 2 with RADAR Logo Colors */}
+      {/* 3. Recommended Real Opportunities matching Reference Screen 2 */}
       <View style={styles.sectionRow}>
-        <Text style={styles.sectionTitle}>Recommended Jobs</Text>
-        <TouchableOpacity onPress={() => onNavigateTab('offers')} activeOpacity={0.8}>
-          <Text style={styles.seeAllText}>SEE ALL</Text>
+        <Text style={styles.sectionTitle}>Recommended Opportunities</Text>
+        <TouchableOpacity onPress={() => onNavigateTab && onNavigateTab('offers')} activeOpacity={0.8}>
+          <Text style={styles.seeAllText}>SEE ALL ({stats.total})</Text>
         </TouchableOpacity>
       </View>
 
@@ -173,75 +328,56 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.recommendedScroll}
       >
-        {/* Card 1: Signature RADAR Crimson Beacon Gradient Card */}
-        <TouchableOpacity
-          style={[styles.recommendedCard, styles.cardCrimson]}
-          onPress={() => onSelectOffer && onSelectOffer(recommendedJobs[0])}
-          activeOpacity={0.9}
-        >
-          <View style={styles.cardScopeBadge}>
-            <Text style={styles.cardScopeText}>94% FIT</Text>
-          </View>
+        {recommendedJobs.map((job, idx) => {
+          const isCrimson = idx % 2 === 0
+          const fitPct = Math.round((job.confidence || 0.92) * 100)
+          return (
+            <TouchableOpacity
+              key={job.id || idx}
+              style={[
+                styles.recommendedCard,
+                isCrimson ? styles.cardCrimson : styles.cardObsidian,
+              ]}
+              onPress={() => onSelectOffer && onSelectOffer(job)}
+              activeOpacity={0.9}
+            >
+              <View style={[styles.cardScopeBadge, !isCrimson && { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]}>
+                <Text style={styles.cardScopeText}>{fitPct}% FIT</Text>
+              </View>
 
-          <View style={{ flex: 1, justifyContent: 'center' }}>
-            <Text style={styles.cardRole} numberOfLines={2}>
-              {recommendedJobs[0]?.title}
-            </Text>
-            <Text style={styles.cardCompany} numberOfLines={1}>
-              {recommendedJobs[0]?.company}
-            </Text>
-            <Text style={styles.cardLocation} numberOfLines={1}>
-              {recommendedJobs[0]?.location || 'Remote / Global'}
-            </Text>
-          </View>
+              <View style={{ flex: 1, justifyContent: 'center' }}>
+                <Text style={styles.cardRole} numberOfLines={2}>
+                  {job.title}
+                </Text>
+                <Text style={styles.cardCompany} numberOfLines={1}>
+                  {job.company || 'Direct Organization'}
+                </Text>
+                <Text style={styles.cardLocation} numberOfLines={1}>
+                  {job.location || 'Remote / Hybrid'}
+                </Text>
+              </View>
 
-          <View style={styles.cardActionRow}>
-            <View style={styles.applyPill}>
-              <Text style={[styles.applyPillText, { color: '#FF3B30' }]}>APPLY</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        {/* Card 2: Deep Obsidian Titanium Card */}
-        <TouchableOpacity
-          style={[styles.recommendedCard, styles.cardObsidian]}
-          onPress={() => onSelectOffer && onSelectOffer(recommendedJobs[1] || recommendedJobs[0])}
-          activeOpacity={0.9}
-        >
-          <View style={[styles.cardScopeBadge, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]}>
-            <Text style={styles.cardScopeText}>89% FIT</Text>
-          </View>
-
-          <View style={{ flex: 1, justifyContent: 'center' }}>
-            <Text style={styles.cardRole} numberOfLines={2}>
-              {recommendedJobs[1]?.title || 'Backend Microservices Lead'}
-            </Text>
-            <Text style={styles.cardCompany} numberOfLines={1}>
-              {recommendedJobs[1]?.company || 'Cloud Infrastructure'}
-            </Text>
-            <Text style={styles.cardLocation} numberOfLines={1}>
-              {recommendedJobs[1]?.location || 'Remote'}
-            </Text>
-          </View>
-
-          <View style={styles.cardActionRow}>
-            <View style={styles.applyPill}>
-              <Text style={[styles.applyPillText, { color: '#09090B' }]}>APPLY</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
+              <View style={styles.cardActionRow}>
+                <View style={styles.applyPill}>
+                  <Text style={[styles.applyPillText, { color: isCrimson ? '#FF3B30' : '#09090B' }]}>
+                    INSPECT →
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          )
+        })}
       </ScrollView>
 
-      {/* 3. Recent Activities Section matching Screen 2 */}
+      {/* 4. Recent Activities Section matching Screen 2 */}
       <View style={[styles.sectionRow, { marginTop: 22 }]}>
-        <Text style={styles.sectionTitle}>Recent Activities</Text>
+        <Text style={styles.sectionTitle}>Pipeline Metrics</Text>
       </View>
 
       <View style={styles.activitiesRow}>
-        {/* Card 1: Saved Jobs (with Crimson Bookmark Badge) */}
         <TouchableOpacity
           style={styles.activityCard}
-          onPress={() => onNavigateTab('offers')}
+          onPress={() => onNavigateTab && onNavigateTab('offers')}
           activeOpacity={0.85}
         >
           <View style={[styles.activityIconBox, { backgroundColor: '#FFF1F0', borderColor: '#FECDD3' }]}>
@@ -249,14 +385,13 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
           </View>
           <View style={{ marginLeft: 12 }}>
             <Text style={styles.activityNumber}>{stats.saved + stats.ready}</Text>
-            <Text style={styles.activityLabel}>Saved Jobs</Text>
+            <Text style={styles.activityLabel}>Saved / Ready</Text>
           </View>
         </TouchableOpacity>
 
-        {/* Card 2: Applied (with Emerald Checkmark Badge) */}
         <TouchableOpacity
           style={styles.activityCard}
-          onPress={() => onNavigateTab('offers')}
+          onPress={() => onNavigateTab && onNavigateTab('offers')}
           activeOpacity={0.85}
         >
           <View style={[styles.activityIconBox, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
@@ -264,16 +399,16 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
           </View>
           <View style={{ marginLeft: 12 }}>
             <Text style={styles.activityNumber}>{stats.applied}</Text>
-            <Text style={styles.activityLabel}>Applied</Text>
+            <Text style={styles.activityLabel}>Applications Sent</Text>
           </View>
         </TouchableOpacity>
       </View>
 
-      {/* 4. Autonomous Scraper & Local OCR Screen Snip Launcher Tiles */}
+      {/* 5. Autonomous Scraper & Screenshot OCR Launcher Tiles */}
       <View style={styles.toolsRow}>
         <TouchableOpacity
           style={styles.toolCard}
-          onPress={() => onNavigateTab('scraper')}
+          onPress={() => onNavigateTab && onNavigateTab('scraper')}
           activeOpacity={0.85}
         >
           <View style={[styles.toolBadge, { backgroundColor: '#FFF1F0', borderColor: '#FECDD3' }]}>
@@ -309,15 +444,17 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
         </TouchableOpacity>
       </View>
 
-      {/* 5. Network Node Status Pill */}
+      {/* 6. Network Node Status Pill */}
       <TouchableOpacity
         style={styles.nodeStatusPill}
-        onPress={() => onNavigateTab('connect')}
+        onPress={() => onNavigateTab && onNavigateTab('settings')}
         activeOpacity={0.85}
       >
         <View style={styles.beaconDot} />
         <Text style={styles.nodeStatusText}>
-          {serverInfo ? `RADAR Host: ${serverInfo.hostname || '192.168.1.27:8003'} · Online` : 'RADAR Node: 192.168.1.27:8003 · Tap to Link'}
+          {serverInfo
+            ? `RADAR Host: ${serverInfo.hostname || '192.168.1.27:8003'} · Online (${serverInfo.databaseEngine || 'PostgreSQL'})`
+            : 'RADAR Node: 192.168.1.27:8003 · Tap to Configure'}
         </Text>
       </TouchableOpacity>
     </ScrollView>
@@ -331,8 +468,38 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 110,
+    paddingTop: 12,
+    paddingBottom: 120,
+  },
+  topBrandBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingVertical: 4,
+  },
+  topBrandActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  settingsPill: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  settingsPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#09090B',
+    letterSpacing: 0.5,
   },
   profileCard: {
     backgroundColor: '#FFFFFF',
@@ -346,7 +513,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 12,
     elevation: 2,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   avatarBox: {
     width: 68,
@@ -366,16 +533,17 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   operatorName: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '800',
     color: '#09090B',
     letterSpacing: -0.3,
   },
   operatorTitle: {
-    fontSize: 12.5,
+    fontSize: 12,
     color: '#64748B',
     marginTop: 2,
     marginBottom: 14,
+    textAlign: 'center',
   },
   completenessRow: {
     flexDirection: 'row',
@@ -404,6 +572,143 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#10B981',
     borderRadius: 4,
+  },
+  graphCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 20,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  graphHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  graphTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#09090B',
+    letterSpacing: -0.2,
+  },
+  graphSubtitle: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  graphRateBadge: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  graphRateText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  funnelGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    height: 120,
+    paddingBottom: 4,
+    marginBottom: 16,
+  },
+  funnelPillar: {
+    flex: 1,
+    alignItems: 'center',
+    height: '100%',
+    justifyContent: 'flex-end',
+    marginHorizontal: 3,
+  },
+  funnelCount: {
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  pillarTrack: {
+    width: 22,
+    height: 75,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 6,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  pillarBar: {
+    width: '100%',
+    borderRadius: 5,
+  },
+  funnelLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#64748B',
+    marginTop: 6,
+  },
+  channelSection: {
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingTop: 14,
+  },
+  channelHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  channelSectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#09090B',
+  },
+  channelTotalText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  segmentedBar: {
+    flexDirection: 'row',
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+    backgroundColor: '#F1F5F9',
+    marginBottom: 10,
+  },
+  segment: {
+    height: '100%',
+  },
+  channelLegendRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  legendDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 5,
+  },
+  legendText: {
+    fontSize: 10,
+    color: '#64748B',
+    fontWeight: '600',
   },
   sectionRow: {
     flexDirection: 'row',
@@ -452,31 +757,31 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.25)',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 10,
+    borderRadius: 6,
   },
   cardScopeText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
   cardRole: {
-    color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
-    lineHeight: 20,
+    color: '#FFFFFF',
     letterSpacing: -0.2,
+    lineHeight: 20,
   },
   cardCompany: {
-    color: 'rgba(255, 255, 255, 0.85)',
     fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginTop: 3,
     fontWeight: '600',
-    marginTop: 2,
   },
   cardLocation: {
+    fontSize: 10.5,
     color: 'rgba(255, 255, 255, 0.65)',
-    fontSize: 11,
-    marginTop: 1,
+    marginTop: 2,
   },
   cardActionRow: {
     flexDirection: 'row',
@@ -484,25 +789,18 @@ const styles = StyleSheet.create({
   },
   applyPill: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 16,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
   },
   applyPillText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
   activitiesRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     gap: 12,
-    marginBottom: 20,
   },
   activityCard: {
     flex: 1,
@@ -515,35 +813,36 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
+    shadowOpacity: 0.04,
     shadowRadius: 8,
-    elevation: 1,
+    elevation: 2,
   },
   activityIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   activityIconText: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 9,
+    fontWeight: '900',
   },
   activityNumber: {
     fontSize: 18,
     fontWeight: '800',
     color: '#09090B',
+    letterSpacing: -0.3,
   },
   activityLabel: {
-    fontSize: 11,
+    fontSize: 10.5,
     color: '#64748B',
-    fontWeight: '500',
+    marginTop: 1,
   },
   toolsRow: {
+    marginTop: 16,
     gap: 10,
-    marginBottom: 20,
   },
   toolCard: {
     backgroundColor: '#FFFFFF',
@@ -554,55 +853,57 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
-    shadowRadius: 6,
+    shadowRadius: 4,
     elevation: 1,
   },
   toolBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   toolTitle: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '700',
     color: '#09090B',
   },
   toolSub: {
-    fontSize: 11,
+    fontSize: 10.5,
     color: '#64748B',
     marginTop: 1,
   },
   toolArrow: {
-    fontSize: 16,
-    color: '#94A3B8',
+    fontSize: 14,
     fontWeight: '700',
+    color: '#94A3B8',
+    marginLeft: 6,
   },
   nodeStatusPill: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    marginTop: 18,
   },
   beaconDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#FF3B30',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
     marginRight: 8,
   },
   nodeStatusText: {
-    fontSize: 11.5,
-    color: '#64748B',
+    fontSize: 11,
     fontWeight: '600',
+    color: '#475569',
   },
 })

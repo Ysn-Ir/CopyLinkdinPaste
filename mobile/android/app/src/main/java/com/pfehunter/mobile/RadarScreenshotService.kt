@@ -26,12 +26,39 @@ class RadarScreenshotService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannels()
+        startForegroundServiceNotification()
         registerScreenshotObserver()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Keeps service alive
+        startForegroundServiceNotification()
         return START_STICKY
+    }
+
+    private fun startForegroundServiceNotification() {
+        try {
+            val intent = Intent(this, MainActivity::class.java)
+            val pendingIntent = PendingIntent.getActivity(
+                this,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+            )
+
+            val notification = NotificationCompat.Builder(this, "radar-background")
+                .setContentTitle("RADAR Signal Sentinel")
+                .setContentText("Monitoring for screenshot opportunities in background")
+                .setSmallIcon(android.R.drawable.ic_menu_camera)
+                .setColor(0xFFFF3B30.toInt())
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(true)
+                .setContentIntent(pendingIntent)
+                .build()
+
+            startForeground(1001, notification)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun registerScreenshotObserver() {
@@ -115,7 +142,9 @@ class RadarScreenshotService : Service() {
 
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            val captureChannel = NotificationChannel(
                 "radar-captures",
                 "RADAR Opportunities & Captures",
                 NotificationManager.IMPORTANCE_HIGH
@@ -124,8 +153,17 @@ class RadarScreenshotService : Service() {
                 enableVibration(true)
                 lightColor = 0xFFFF3B30.toInt()
             }
-            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            manager.createNotificationChannel(channel)
+            manager.createNotificationChannel(captureChannel)
+
+            val bgChannel = NotificationChannel(
+                "radar-background",
+                "RADAR Background Sentinel",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Ongoing notification keeping RADAR scanner active"
+                setShowBadge(false)
+            }
+            manager.createNotificationChannel(bgChannel)
         }
     }
 

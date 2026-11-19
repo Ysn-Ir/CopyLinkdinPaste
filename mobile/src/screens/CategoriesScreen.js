@@ -10,6 +10,7 @@ import {
 } from 'react-native'
 import { ApiService } from '../services/api'
 import { THEME } from '../theme'
+import { RadarLogo } from '../components/RadarLogo'
 
 const { width } = Dimensions.get('window')
 const CARD_WIDTH = (width - 48) / 2
@@ -145,18 +146,25 @@ export function CategoriesScreen({ onSelectCategory, onNavigateTab }) {
       }
       showsVerticalScrollIndicator={false}
     >
-      {/* 1. Header matching Reference Screen 1 */}
+      {/* 1. Header matching Reference Screen 1 with RADAR Logo */}
       <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>Categories</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <RadarLogo size={26} showWordmark={false} />
+          <Text style={styles.headerTitle}>Categories</Text>
+        </View>
         <View style={styles.headerRight}>
           <View style={styles.notifBadge}>
             <Text style={styles.notifBadgeText}>
               {totalOffers > 99 ? '99+' : String(totalOffers).padStart(2, '0')}
             </Text>
           </View>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarInitials}>RO</Text>
-          </View>
+          <TouchableOpacity
+            style={styles.avatarCircle}
+            onPress={() => onNavigateTab && onNavigateTab('settings')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.avatarInitials}>KP</Text>
+          </TouchableOpacity>
         </View>
       </View>
 

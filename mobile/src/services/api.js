@@ -421,9 +421,75 @@ export const ApiService = {
       const res = await fetch(url, { headers: DEFAULT_HEADERS })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const profile = await res.json()
+      if (profile) {
+        await AsyncStorage.setItem('@radar_candidate_profile', JSON.stringify(profile)).catch(() => {})
+      }
       return { success: true, profile }
     } catch {
+      try {
+        const local = await AsyncStorage.getItem('@radar_candidate_profile')
+        if (local) return { success: true, profile: JSON.parse(local), isOffline: true }
+      } catch {}
       return { success: false, profile: null }
+    }
+  },
+
+  async saveProfile(profile) {
+    const url = `${currentServerUrl}/api/profile`
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: DEFAULT_HEADERS,
+        body: JSON.stringify(profile),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      await AsyncStorage.setItem('@radar_candidate_profile', JSON.stringify(data)).catch(() => {})
+      return { success: true, profile: data }
+    } catch (err) {
+      await AsyncStorage.setItem('@radar_candidate_profile', JSON.stringify(profile)).catch(() => {})
+      return { success: true, profile, isOffline: true }
+    }
+  },
+
+  async getAiConfig() {
+    const url = `${currentServerUrl}/api/ai-config`
+    try {
+      const res = await fetch(url, { headers: DEFAULT_HEADERS })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return await res.json()
+    } catch {
+      return { provider: 'groq', model: 'openai/gpt-oss-120b', apiKey: '' }
+    }
+  },
+
+  async saveAiConfig(config) {
+    const url = `${currentServerUrl}/api/ai-config`
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: DEFAULT_HEADERS,
+        body: JSON.stringify(config),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  },
+
+  async runAiPrompt({ prompt, systemPrompt = '', temperature = 0.3 }) {
+    const url = `${currentServerUrl}/api/ai/complete`
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: DEFAULT_HEADERS,
+        body: JSON.stringify({ prompt, systemPrompt, temperature }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return await res.json()
+    } catch (err) {
+      return { success: false, error: err.message }
     }
   },
 

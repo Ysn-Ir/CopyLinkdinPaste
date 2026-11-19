@@ -19,10 +19,14 @@ class MainActivity : ReactActivity() {
     setTheme(R.style.AppTheme);
     super.onCreate(null)
 
-    // Start background screenshot observer service
+    // Start background screenshot observer foreground service
     try {
       val serviceIntent = Intent(this, RadarScreenshotService::class.java)
-      startService(serviceIntent)
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        startForegroundService(serviceIntent)
+      } else {
+        startService(serviceIntent)
+      }
     } catch (e: Exception) {
       e.printStackTrace()
     }
