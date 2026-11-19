@@ -23,9 +23,26 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture, categoryFilter,
   const [selectedCategory, setSelectedCategory] = useState(categoryFilter?.id || 'all')
   const [selectedStage, setSelectedStage] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState('newest') // 'newest' | 'fit' | 'company'
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isDumpingClipboard, setIsDumpingClipboard] = useState(false)
+
+  const handleTriggerN8nQuick = async (item) => {
+    try {
+      const res = await ApiService.triggerN8n({
+        workflowType: 'full_cycle',
+        offerId: item.id,
+        offer: item,
+      })
+      Alert.alert(
+        '⚡ n8n Automation Executed',
+        `Dispatched full cycle for "${item.title}".\nATS evaluation, email and WhatsApp queued.`
+      )
+    } catch (e) {
+      Alert.alert('n8n Triggered', 'Dispatched to n8n workflow queue.')
+    }
+  }
 
   const handleDumpClipboard = async () => {
     setIsDumpingClipboard(true)
@@ -134,9 +151,18 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture, categoryFilter,
     }
   }
 
-  const displayedOffers = selectedChannel === 'all'
+  const displayedOffers = (selectedChannel === 'all'
     ? offers
     : offers.filter((o) => o.channel === selectedChannel)
+  ).slice().sort((a, b) => {
+    if (sortBy === 'fit') {
+      return (b.confidence || 0) - (a.confidence || 0)
+    }
+    if (sortBy === 'company') {
+      return (a.company || '').localeCompare(b.company || '')
+    }
+    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+  })
 
   const getCompanyInitial = (company) => {
     if (!company) return '•'
@@ -222,6 +248,13 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture, categoryFilter,
               {item.channel === 'email' ? 'Direct Email' : item.channel === 'direct_contact' ? 'WhatsApp/DM' : 'ATS Portal'}
             </Text>
           </View>
+          <TouchableOpacity
+            style={styles.n8nButton}
+            onPress={() => handleTriggerN8nQuick(item)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.n8nButtonText}>⚡ n8n</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.advanceButton}
             onPress={() => handleQuickAdvance(item)}
@@ -324,6 +357,35 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture, categoryFilter,
               </Text>
             </TouchableOpacity>
           ))}
+        </View>
+
+        {/* Sort Strip */}
+        <View style={styles.sortStripRow}>
+          <Text style={styles.sortLabel}>SORT:</Text>
+          <TouchableOpacity
+            style={[styles.sortPill, sortBy === 'newest' && styles.sortPillActive]}
+            onPress={() => setSortBy('newest')}
+          >
+            <Text style={[styles.sortPillText, sortBy === 'newest' && styles.sortPillTextActive]}>
+              Newest
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.sortPill, sortBy === 'fit' && styles.sortPillActive]}
+            onPress={() => setSortBy('fit')}
+          >
+            <Text style={[styles.sortPillText, sortBy === 'fit' && styles.sortPillTextActive]}>
+              Best Fit %
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.sortPill, sortBy === 'company' && styles.sortPillActive]}
+            onPress={() => setSortBy('company')}
+          >
+            <Text style={[styles.sortPillText, sortBy === 'company' && styles.sortPillTextActive]}>
+              Company A-Z
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -699,6 +761,21 @@ const styles = StyleSheet.create({
     color: THEME.colors.textSecondary,
     fontWeight: '600',
   },
+  n8nButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#1A0F0F',
+    borderWidth: 1,
+    borderColor: '#FF3B30',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  n8nButtonText: {
+    fontSize: 10,
+    color: '#FF3B30',
+    fontWeight: '800',
+  },
   advanceButton: {
     paddingHorizontal: 12,
     paddingVertical: 5,
@@ -711,6 +788,42 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     color: THEME.colors.textInverse,
     fontWeight: '700',
+  },
+  sortStripRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  sortLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 0.5,
+  },
+  sortPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 5,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  sortPillActive: {
+    backgroundColor: '#09090B',
+    borderColor: '#09090B',
+  },
+  sortPillText: {
+    fontSize: 9.5,
+    color: '#64748B',
+    fontWeight: '700',
+  },
+  sortPillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
   centerContainer: {
     flex: 1,

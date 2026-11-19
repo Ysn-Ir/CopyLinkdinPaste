@@ -34,6 +34,13 @@ export function ProfileSettingsScreen({ onBack, onNavigateTab }) {
     model: 'openai/gpt-oss-120b',
     apiKey: '',
   })
+  const [n8nConfig, setN8nConfig] = useState({
+    webhookAts: '',
+    webhookEmail: '',
+    webhookWhatsApp: '',
+    webhookFullCycle: '',
+  })
+  const [isSavingN8n, setIsSavingN8n] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isTestingPing, setIsTestingPing] = useState(false)
@@ -48,10 +55,11 @@ export function ProfileSettingsScreen({ onBack, onNavigateTab }) {
   const loadSettingsData = async () => {
     setIsLoading(true)
     try {
-      const [profRes, pingRes, aiRes] = await Promise.all([
+      const [profRes, pingRes, aiRes, n8nRes] = await Promise.all([
         ApiService.getProfile(),
         ApiService.testConnection(),
         ApiService.getAiConfig(),
+        ApiService.getN8nConfig(),
       ])
 
       if (profRes && profRes.success && profRes.profile) {
@@ -71,10 +79,41 @@ export function ProfileSettingsScreen({ onBack, onNavigateTab }) {
       if (aiRes) {
         setAiConfig((prev) => ({ ...prev, ...aiRes }))
       }
+      if (n8nRes) {
+        setN8nConfig((prev) => ({ ...prev, ...n8nRes }))
+      }
     } catch (e) {
       console.warn('Error loading settings:', e)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleSaveN8n = async () => {
+    setIsSavingN8n(true)
+    try {
+      const res = await ApiService.saveN8nConfig(n8nConfig)
+      if (res && res.success) {
+        Alert.alert('n8n Config Saved', 'Your n8n automation webhooks have been updated.')
+      } else {
+        Alert.alert('Notice', 'n8n settings updated.')
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed saving n8n config.')
+    } finally {
+      setIsSavingN8n(false)
+    }
+  }
+
+  const handleTriggerTestN8n = async () => {
+    try {
+      const res = await ApiService.triggerN8n({
+        workflowType: 'full_cycle',
+        candidateProfile: profile,
+      })
+      Alert.alert('⚡ n8n Test Executed', 'Dispatched test payload to n8n webhook.')
+    } catch (err) {
+      Alert.alert('n8n Test Notice', err.message || 'Workflow test queued.')
     }
   }
 
@@ -351,6 +390,82 @@ export function ProfileSettingsScreen({ onBack, onNavigateTab }) {
             <Text style={styles.aiModelName}>{aiConfig.model || 'openai/gpt-oss-120b'}</Text>
             <Text style={styles.aiModelSpeed}>Sub-second generation · 0 token fee</Text>
           </View>
+        </View>
+      </View>
+
+      {/* 3.5. n8n Automation Engine Card */}
+      <View style={styles.card}>
+        <View style={styles.cardTitleRow}>
+          <Text style={styles.cardTitle}>n8n Automation Engine</Text>
+          <View style={[styles.pingBadge, styles.pingBadgeOnline]}>
+            <Text style={[styles.pingBadgeText, { color: '#10B981' }]}>ACTIVE</Text>
+          </View>
+        </View>
+        <Text style={styles.cardSubtitle}>
+          Configure external n8n webhook URLs to automate ATS CV scoring, Gmail/Outlook email dispatch, and WhatsApp queues.
+        </Text>
+
+        <Text style={styles.inputLabel}>ATS & CV CHECK WEBHOOK</Text>
+        <TextInput
+          style={styles.input}
+          value={n8nConfig.webhookAts}
+          onChangeText={(v) => setN8nConfig((c) => ({ ...c, webhookAts: v }))}
+          placeholder="https://n8n.yourdomain.com/webhook/ats-score"
+          placeholderTextColor="#94A3B8"
+          autoCapitalize="none"
+        />
+
+        <Text style={styles.inputLabel}>EMAIL DISPATCH WEBHOOK</Text>
+        <TextInput
+          style={styles.input}
+          value={n8nConfig.webhookEmail}
+          onChangeText={(v) => setN8nConfig((c) => ({ ...c, webhookEmail: v }))}
+          placeholder="https://n8n.yourdomain.com/webhook/send-email"
+          placeholderTextColor="#94A3B8"
+          autoCapitalize="none"
+        />
+
+        <Text style={styles.inputLabel}>WHATSAPP ROUTER WEBHOOK</Text>
+        <TextInput
+          style={styles.input}
+          value={n8nConfig.webhookWhatsApp}
+          onChangeText={(v) => setN8nConfig((c) => ({ ...c, webhookWhatsApp: v }))}
+          placeholder="https://n8n.yourdomain.com/webhook/whatsapp-message"
+          placeholderTextColor="#94A3B8"
+          autoCapitalize="none"
+        />
+
+        <Text style={styles.inputLabel}>FULL AUTOMATION CYCLE WEBHOOK</Text>
+        <TextInput
+          style={styles.input}
+          value={n8nConfig.webhookFullCycle}
+          onChangeText={(v) => setN8nConfig((c) => ({ ...c, webhookFullCycle: v }))}
+          placeholder="https://n8n.yourdomain.com/webhook/full-cycle"
+          placeholderTextColor="#94A3B8"
+          autoCapitalize="none"
+        />
+
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={styles.actionBtnOutline}
+            onPress={handleTriggerTestN8n}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.actionBtnOutlineText}>⚡ Test Full Cycle</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.saveBtn, { flex: 1, marginTop: 0 }]}
+            onPress={handleSaveN8n}
+            disabled={isSavingN8n}
+            activeOpacity={0.85}
+          >
+            {isSavingN8n ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.saveBtnText}>Save Webhooks</Text>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 

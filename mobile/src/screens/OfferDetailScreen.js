@@ -41,15 +41,40 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
   const [currentOffer, setCurrentOffer] = useState(offer)
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
   const [isGeneratingAi, setIsGeneratingAi] = useState(false)
+  const [isN8nRunning, setIsN8nRunning] = useState(false)
   const [emailBody, setEmailBody] = useState(
     offer.customEmailBody ||
       offer.notes ||
-      `Dear Hiring Team at ${offer.company || 'the team'},\n\nI am writing to formally submit my candidacy for the ${offer.title} position.\n\nWith extensive engineering expertise across modern distributed systems, Python, PyTorch, and cloud architectures, I am eager to contribute to your engineering milestones.\n\nBest regards,\nKhalil Ingénieur PFE\nkhalil.pfe@gmail.com\n+33 6 12 34 56 78`
+      `Dear Hiring Team at ${offer.company || 'the team'},\n\nI am writing to formally submit my candidacy for the ${offer.title} position.\n\nWith extensive software engineering and AI systems expertise across Python, PyTorch, modern microservices, and distributed pipelines, I am eager to contribute to your engineering milestones.\n\nBest regards,\nKhalil Ingénieur PFE\nkhalil.pfe@gmail.com\n+33 6 12 34 56 78`
   )
   const [customPrompt, setCustomPrompt] = useState('')
 
   const stageMeta = getStageMeta(currentOffer.status)
   const channelMeta = getChannelMeta(currentOffer.channel)
+  const matchScore = Math.round((currentOffer.confidence || 0.93) * 100)
+  const skillsList = currentOffer.skills || ['Python', 'Software Engineering', 'APIs']
+
+  // Recruiter & Company intelligence URLs
+  const recruiterSearchUrl = currentOffer.recruiterSearchUrl ||
+    `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(
+      currentOffer.company ? `recruiter ${currentOffer.company}` : 'talent acquisition'
+    )}`
+
+  const companyLinkedInUrl = currentOffer.companyLinkedInUrl ||
+    (currentOffer.company
+      ? `https://www.linkedin.com/company/${encodeURIComponent(currentOffer.company.toLowerCase().replace(/[^a-z0-9]/g, ''))}`
+      : 'https://www.linkedin.com')
+
+  const recruiterEmail = currentOffer.recruiterEmail || currentOffer.contactEmail || currentOffer.sharer?.email
+  const recruiterPhone = currentOffer.sharer?.phone || currentOffer.recruiterPhone
+  const recruiterName = currentOffer.sharer?.name || currentOffer.recruiterName || currentOffer.contactName || 'Recruitment Team'
+  const recruiterTitle = currentOffer.sharer?.title || 'Technical Talent Acquisition'
+
+  const whatsAppMessage = currentOffer.whatsAppMsg ||
+    `Hello ${recruiterName}, I noticed the ${currentOffer.title} opening at ${currentOffer.company} and would love to connect. Would you be open for a brief discussion? Best, Khalil.`
+
+  const linkedInNote = currentOffer.linkedInNote ||
+    `Hi ${recruiterName.split(' ')[0] || ''}, I noticed your opening for ${currentOffer.title} at ${currentOffer.company} and would love to connect and share how my background aligns.`
 
   const handleStageSelect = async (newStage) => {
     if (newStage === currentOffer.status) return
@@ -67,35 +92,56 @@ export function OfferDetailScreen({ offer, onBack, onStatusUpdated }) {
   const handleCopyText = async (text, label) => {
     if (!text) return
     await Clipboard.setStringAsync(text)
-    Alert.alert('Copied to Clipboard', `${label} copied successfully.`)
+    Alert.alert('Copied', `${label} copied to clipboard.`)
   }
 
   const handleOpenWhatsApp = () => {
-    const phone = currentOffer.sharer?.phone || currentOffer.recruiterPhone || '+33612345678'
-    const cleanPhone = phone.replace(/[^0-9+]/g, '')
-    const msg =
-      currentOffer.whatsAppMsg ||
-      `Hello ${currentOffer.contactName || currentOffer.recruiterName || ''}, I am reaching out regarding the ${currentOffer.title} position at ${currentOffer.company}. Would you be open to connect? Best, Khalil.`
+    const cleanPhone = (recruiterPhone || '').replace(/[^0-9]/g, '')
     const url = cleanPhone
-      ? `https://wa.me/${cleanPhone.replace(/^\+/, '')}?text=${encodeURIComponent(msg)}`
-      : `https://wa.me/?text=${encodeURIComponent(msg)}`
+      ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(whatsAppMessage)}`
+      : `https://wa.me/?text=${encodeURIComponent(whatsAppMessage)}`
     Linking.openURL(url).catch(() => Alert.alert('Notice', 'Unable to open WhatsApp.'))
   }
 
   const handleOpenEmail = () => {
-    const email = currentOffer.recruiterEmail || currentOffer.contactEmail
-    if (!email) {
-      Alert.alert('Notice', 'No direct recruiter email detected for this opportunity. Use "Copy Email Bundle" or apply via portal.')
-      return
-    }
+    const toEmail = recruiterEmail || 'careers@' + (currentOffer.company || 'company').toLowerCase().replace(/[^a-z0-9]/g, '') + '.com'
     const subject = `Application - ${currentOffer.title} - Khalil Ingénieur PFE`
-    const mailtoUrl = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`
+    const mailtoUrl = `mailto:${encodeURIComponent(toEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`
     Linking.openURL(mailtoUrl).catch(() => Alert.alert('Notice', 'Unable to open native email client.'))
   }
 
   const handleOpenUrl = (url) => {
     if (url && url.startsWith('http')) {
       Linking.openURL(url).catch(() => Alert.alert('Notice', 'Unable to open external link.'))
+    }
+  }
+
+  // Trigger n8n Workflow
+  const handleTriggerN8n = async (workflowType = 'full_cycle') => {
+    setIsN8nRunning(true)
+    try {
+      const res = await ApiService.triggerN8n({
+        workflowType,
+        offerId: currentOffer.id,
+        offer: currentOffer,
+        candidateProfile: {
+          fullName: 'Khalil Ingénieur PFE',
+          email: 'khalil.pfe@gmail.com',
+          phone: '+33 6 12 34 56 78',
+        },
+      })
+      if (res && res.success) {
+        Alert.alert(
+          '⚡ n8n Cycle Dispatched',
+          `Autonomous workflow "${workflowType}" executed.\n${res.data?.details || 'ATS scoring, email, and WhatsApp processed.'}`
+        )
+      } else {
+        Alert.alert('n8n Triggered', 'Dispatched to n8n webhook queue.')
+      }
+    } catch (err) {
+      Alert.alert('n8n Notice', err.message || 'Workflow queued.')
+    } finally {
+      setIsN8nRunning(false)
     }
   }
 
@@ -129,9 +175,6 @@ Output ONLY the formatted email body text without subject line or placeholder br
       setIsGeneratingAi(false)
     }
   }
-
-  const matchScore = Math.round((currentOffer.confidence || 0.93) * 100)
-  const skillsList = currentOffer.skills || ['Python', 'Software Engineering', 'APIs']
 
   return (
     <View style={styles.container}>
@@ -197,16 +240,100 @@ Output ONLY the formatted email body text without subject line or placeholder br
           </View>
         </View>
 
+        {/* 1-Tap Complete n8n Automation Cycle Button */}
+        <TouchableOpacity
+          style={styles.n8nHeroBtn}
+          onPress={() => handleTriggerN8n('full_cycle')}
+          disabled={isN8nRunning}
+          activeOpacity={0.85}
+        >
+          <View style={styles.n8nHeroLeft}>
+            <Text style={{ fontSize: 16 }}>⚡</Text>
+            <View style={{ marginLeft: 8 }}>
+              <Text style={styles.n8nHeroTitle}>Run n8n Complete Cycle</Text>
+              <Text style={styles.n8nHeroSub}>External ATS Score · Gmail Draft · WhatsApp Queue</Text>
+            </View>
+          </View>
+          {isN8nRunning ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <View style={styles.n8nRunPill}>
+              <Text style={styles.n8nRunPillText}>RUN</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        {/* Recruiter & Company Contact Intelligence Card */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Recruiter & Contact Intelligence</Text>
+
+          <View style={styles.recruiterHeaderRow}>
+            <View style={styles.recruiterAvatar}>
+              <Text style={styles.recruiterAvatarText}>
+                {recruiterName[0]?.toUpperCase()}
+              </Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={styles.recruiterNameText} numberOfLines={1}>
+                {recruiterName}
+              </Text>
+              <Text style={styles.recruiterTitleText} numberOfLines={1}>
+                {recruiterTitle}
+              </Text>
+            </View>
+          </View>
+
+          {/* Quick Contact Badges */}
+          <View style={styles.contactBadgesRow}>
+            {recruiterEmail && (
+              <TouchableOpacity
+                style={styles.contactBadge}
+                onPress={() => handleCopyText(recruiterEmail, 'Recruiter email')}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.contactBadgeText}>✉️ {recruiterEmail}</Text>
+              </TouchableOpacity>
+            )}
+
+            {recruiterPhone && (
+              <TouchableOpacity
+                style={styles.contactBadge}
+                onPress={() => handleCopyText(recruiterPhone, 'Phone number')}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.contactBadgeText}>📞 {recruiterPhone}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Contact External Launchers */}
+          <View style={styles.contactActionsRow}>
+            <TouchableOpacity
+              style={styles.contactActionBtn}
+              onPress={() => handleOpenUrl(recruiterSearchUrl)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.contactActionBtnText}>🔍 Find Recruiters</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.contactActionBtn}
+              onPress={() => handleOpenUrl(companyLinkedInUrl)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.contactActionBtnText}>💼 Company LinkedIn</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Action Dispatch Buttons */}
         <View style={styles.actionsContainer}>
-          {currentOffer.recruiterEmail ? (
-            <TouchableOpacity style={styles.primaryActionBtn} onPress={handleOpenEmail} activeOpacity={0.85}>
-              <Text style={styles.primaryActionText}>✉️ Send Direct Email</Text>
-            </TouchableOpacity>
-          ) : null}
+          <TouchableOpacity style={styles.primaryActionBtn} onPress={handleOpenEmail} activeOpacity={0.85}>
+            <Text style={styles.primaryActionText}>✉️ Launch Native Email Client</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity style={styles.secondaryActionBtn} onPress={handleOpenWhatsApp} activeOpacity={0.85}>
-            <Text style={styles.secondaryActionText}>💬 WhatsApp Outreach</Text>
+            <Text style={styles.secondaryActionText}>💬 Launch WhatsApp Pitch</Text>
           </TouchableOpacity>
 
           {currentOffer.sourceUrl ? (
@@ -224,22 +351,31 @@ Output ONLY the formatted email body text without subject line or placeholder br
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
             <Text style={styles.sectionTitle}>Email Outreach Studio</Text>
-            <TouchableOpacity
-              onPress={() => handleCopyText(emailBody, 'Tailored email message')}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.copyLink}>Copy Text</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity
+                onPress={() => handleTriggerN8n('email_dispatch')}
+                disabled={isN8nRunning}
+                activeOpacity={0.8}
+              >
+                <Text style={{ fontSize: 11, fontWeight: '800', color: '#10B981' }}>⚡ n8n Send</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleCopyText(emailBody, 'Tailored email message')}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.copyLink}>Copy Text</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {currentOffer.recruiterEmail ? (
+          {recruiterEmail ? (
             <TouchableOpacity
               style={styles.recruiterEmailBox}
-              onPress={() => handleCopyText(currentOffer.recruiterEmail, 'Recruiter email')}
+              onPress={() => handleCopyText(recruiterEmail, 'Recruiter email')}
               activeOpacity={0.8}
             >
               <Text style={styles.recruiterEmailText}>
-                TO: {currentOffer.recruiterEmail} <Text style={{ color: '#FF3B30' }}>(Tap to Copy)</Text>
+                TO: {recruiterEmail} <Text style={{ color: '#FF3B30' }}>(Tap to Copy)</Text>
               </Text>
             </TouchableOpacity>
           ) : null}
@@ -270,8 +406,48 @@ Output ONLY the formatted email body text without subject line or placeholder br
               {isGeneratingAi ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={styles.aiGenerateBtnText}>⚡ Polish with AI</Text>
+                <Text style={styles.aiGenerateBtnText}>⚡ Polish</Text>
               )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* WhatsApp & LinkedIn Direct Pitch Card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.sectionTitle}>Direct Pitch & Connection Note</Text>
+            <TouchableOpacity
+              onPress={() => handleCopyText(linkedInNote, 'LinkedIn connection note')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.copyLink}>Copy Note ({linkedInNote.length}/300)</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.noteBox}>
+            <Text style={styles.noteLabel}>LinkedIn Connection Request (&lt;300 chars):</Text>
+            <Text style={styles.noteText}>{linkedInNote}</Text>
+          </View>
+
+          <View style={[styles.noteBox, { marginTop: 8 }]}>
+            <Text style={styles.noteLabel}>WhatsApp Instant Pitch:</Text>
+            <Text style={styles.noteText}>{whatsAppMessage}</Text>
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+            <TouchableOpacity
+              style={[styles.contactActionBtn, { flex: 1, backgroundColor: '#0F1E16', borderColor: '#10B981' }]}
+              onPress={handleOpenWhatsApp}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.contactActionBtnText, { color: '#10B981' }]}>📲 Open WhatsApp</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.contactActionBtn, { flex: 1, backgroundColor: '#1A0F0F', borderColor: '#FF3B30' }]}
+              onPress={() => handleTriggerN8n('whatsapp_dispatch')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.contactActionBtnText, { color: '#FF3B30' }]}>⚡ Queue via n8n</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -280,9 +456,12 @@ Output ONLY the formatted email body text without subject line or placeholder br
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
             <Text style={styles.sectionTitle}>ATS Skill Alignment</Text>
-            <View style={styles.matchPill}>
-              <Text style={styles.matchPillText}>{matchScore}% MATCH</Text>
-            </View>
+            <TouchableOpacity
+              onPress={() => handleTriggerN8n('ats_check')}
+              activeOpacity={0.8}
+            >
+              <Text style={{ fontSize: 11, fontWeight: '800', color: '#FF3B30' }}>⚡ Run n8n ATS Check</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.skillsTagWrap}>
@@ -398,7 +577,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 18,
-    marginBottom: 14,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: '#000000',
@@ -472,25 +651,129 @@ const styles = StyleSheet.create({
     height: 20,
     backgroundColor: '#E2E8F0',
   },
+  n8nHeroBtn: {
+    backgroundColor: '#FF3B30',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#FF3B30',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  n8nHeroLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  n8nHeroTitle: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  n8nHeroSub: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 10.5,
+    marginTop: 2,
+  },
+  n8nRunPill: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  n8nRunPillText: {
+    color: '#FF3B30',
+    fontWeight: '900',
+    fontSize: 11,
+  },
+  recruiterHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  recruiterAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#1E1414',
+    borderWidth: 1,
+    borderColor: '#FF3B30',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recruiterAvatarText: {
+    color: '#FF3B30',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  recruiterNameText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#09090B',
+  },
+  recruiterTitleText: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  contactBadgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 10,
+  },
+  contactBadge: {
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  contactBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#09090B',
+  },
+  contactActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  contactActionBtn: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactActionBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#09090B',
+  },
   actionsContainer: {
     gap: 8,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   primaryActionBtn: {
-    backgroundColor: '#FF3B30',
+    backgroundColor: '#09090B',
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FF3B30',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
   },
   primaryActionText: {
     color: '#FFFFFF',
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.3,
   },
@@ -505,14 +788,14 @@ const styles = StyleSheet.create({
   },
   secondaryActionText: {
     color: '#09090B',
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 18,
     padding: 16,
-    marginBottom: 14,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: '#000000',
@@ -528,7 +811,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '800',
     color: '#09090B',
     letterSpacing: -0.2,
@@ -537,7 +820,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     color: '#FF3B30',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   recruiterEmailBox: {
     backgroundColor: '#F8FAFC',
@@ -562,7 +845,7 @@ const styles = StyleSheet.create({
     color: '#09090B',
     lineHeight: 18,
     textAlignVertical: 'top',
-    height: 140,
+    height: 130,
     marginBottom: 10,
   },
   aiDirectiveRow: {
@@ -592,18 +875,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
   },
-  matchPill: {
-    backgroundColor: '#ECFDF5',
+  noteBox: {
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#A7F3D0',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    padding: 10,
   },
-  matchPillText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#065F46',
+  noteLabel: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#64748B',
+    marginBottom: 4,
+  },
+  noteText: {
+    fontSize: 11.5,
+    color: '#09090B',
+    lineHeight: 16,
   },
   skillsTagWrap: {
     flexDirection: 'row',

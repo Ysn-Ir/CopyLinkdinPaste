@@ -759,6 +759,75 @@ export const ApiService = {
   },
 
   // ==================================================================
+  // N8N WORKFLOW AUTOMATION CYCLES
+  // ==================================================================
+
+  async getN8nConfig() {
+    const url = `${currentServerUrl}/api/n8n/config`
+    try {
+      const res = await fetch(url, { headers: DEFAULT_HEADERS })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return await res.json()
+    } catch (err) {
+      return {
+        webhookAts: '',
+        webhookEmail: '',
+        webhookWhatsApp: '',
+        webhookFullCycle: '',
+        isEnabled: true,
+      }
+    }
+  },
+
+  async saveN8nConfig(config) {
+    const url = `${currentServerUrl}/api/n8n/config`
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: DEFAULT_HEADERS,
+        body: JSON.stringify(config),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return await res.json()
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  },
+
+  async triggerN8n({ workflowType = 'full_cycle', offerId, offer, candidateProfile, overrideWebhookUrl = '' }) {
+    const url = `${currentServerUrl}/api/n8n/trigger`
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: DEFAULT_HEADERS,
+        body: JSON.stringify({
+          workflowType,
+          offerId: offerId || offer?.id,
+          offer,
+          candidateProfile,
+          overrideWebhookUrl,
+        }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return await res.json()
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  },
+
+  async getN8nTemplates() {
+    const url = `${currentServerUrl}/api/n8n/templates`
+    try {
+      const res = await fetch(url, { headers: DEFAULT_HEADERS })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      return data.templates || []
+    } catch (err) {
+      return []
+    }
+  },
+
+  // ==================================================================
   // AI AGENT TERMINAL
   // ==================================================================
 

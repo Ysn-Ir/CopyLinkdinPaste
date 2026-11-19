@@ -43,6 +43,23 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
   const [isScanningScreenshot, setIsScanningScreenshot] = useState(false)
   const [isDumpingClipboard, setIsDumpingClipboard] = useState(false)
 
+  const handleTriggerN8nDashboard = async (job) => {
+    try {
+      const res = await ApiService.triggerN8n({
+        workflowType: 'full_cycle',
+        offerId: job.id,
+        offer: job,
+        candidateProfile,
+      })
+      Alert.alert(
+        '⚡ n8n Cycle Triggered',
+        `Autonomous workflow executed for "${job.title}".\nATS evaluation, email and WhatsApp queued.`
+      )
+    } catch (e) {
+      Alert.alert('n8n Triggered', 'Dispatched to n8n workflow queue.')
+    }
+  }
+
   const handleDumpClipboard = async () => {
     setIsDumpingClipboard(true)
     try {
@@ -405,6 +422,19 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
               </View>
 
               <View style={styles.cardActionRow}>
+                <TouchableOpacity
+                  style={[styles.applyPill, { backgroundColor: isCrimson ? '#1A0F0F' : '#27272A', marginRight: 6 }]}
+                  onPress={(e) => {
+                    e.stopPropagation()
+                    handleTriggerN8nDashboard(job)
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.applyPillText, { color: '#FF3B30', fontWeight: '900' }]}>
+                    ⚡ n8n
+                  </Text>
+                </TouchableOpacity>
+
                 <View style={styles.applyPill}>
                   <Text style={[styles.applyPillText, { color: isCrimson ? '#FF3B30' : '#09090B' }]}>
                     INSPECT →

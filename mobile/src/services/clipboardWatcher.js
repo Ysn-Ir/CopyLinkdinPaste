@@ -67,16 +67,15 @@ class ClipboardWatcherService {
     if (this.intervalId) return
 
     this.appStateSubscription = AppState.addEventListener('change', async (nextState) => {
-      if (this.appState.match(/inactive|background/) && nextState === 'active') {
+      if (nextState === 'active') {
         await this.checkAndIngest()
       }
       this.appState = nextState
     })
 
+    // Continuous timer - checks regardless of foreground/background state
     this.intervalId = setInterval(() => {
-      if (this.appState === 'active') {
-        this.checkAndIngest()
-      }
+      this.checkAndIngest()
     }, intervalMs)
   }
 

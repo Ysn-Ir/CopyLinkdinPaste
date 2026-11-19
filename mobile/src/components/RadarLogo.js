@@ -55,6 +55,17 @@ export function RadarLogo({ size = 32, showWordmark = true, wordmarkSize = 16, s
           ]}
         />
 
+        {/* Center transceiver core */}
+        <View
+          style={{
+            width: Math.max(3, size * 0.14),
+            height: Math.max(3, size * 0.14),
+            borderRadius: Math.max(3, size * 0.14) / 2,
+            backgroundColor: light ? '#FFFFFF' : '#09090B',
+            position: 'absolute',
+          }}
+        />
+
         {/* Tactical Crimson Beacon Dot */}
         <View
           style={[
