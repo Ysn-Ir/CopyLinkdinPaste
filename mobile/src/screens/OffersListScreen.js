@@ -11,6 +11,7 @@ import {
   Alert,
   Linking,
 } from 'react-native'
+import * as Clipboard from 'expo-clipboard'
 import { ApiService } from '../services/api'
 import { THEME, getStageMeta } from '../theme'
 import { RadarLogo } from '../components/RadarLogo'
@@ -24,6 +25,48 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture, categoryFilter,
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isDumpingClipboard, setIsDumpingClipboard] = useState(false)
+
+  const handleDumpClipboard = async () => {
+    setIsDumpingClipboard(true)
+    try {
+      const hasStr = await Clipboard.hasStringAsync()
+      if (!hasStr) {
+        Alert.alert('Empty Clipboard', 'No text or links copied yet. Copy a LinkedIn job URL or recruiter post first!')
+        return
+      }
+      const text = await Clipboard.getStringAsync()
+      if (!text || !text.trim()) {
+        Alert.alert('Empty Clipboard', 'Your clipboard contains only blank spaces.')
+        return
+      }
+
+      const trimmed = text.trim()
+      const urls = trimmed.match(/https?:\/\/[^\s]+/g)
+      if (urls && urls.length > 1) {
+        await ApiService.bulkIngestClips({ rawText: trimmed, urls, sourceDevice: 'android_mobile_dump' })
+        Alert.alert('📥 Batch Dump Complete', `Vaulted ${urls.length} links into your RADAR system!`)
+        await loadData()
+      } else {
+        const res = await ApiService.ingestPost(trimmed)
+        if (res && res.success) {
+          Alert.alert(
+            res.isJobOffer ? '🎯 Opportunity Detected!' : '📋 Clip Saved to Vault',
+            res.isJobOffer
+              ? `"${res.offer?.title || 'Job'}" at ${res.offer?.company || 'Company'} extracted with Groq AI and added to pipeline.`
+              : 'Content cataloged into your RADAR Vault.'
+          )
+          await loadData()
+        } else {
+          Alert.alert('Ingestion Status', res?.error || 'Could not process clipboard text.')
+        }
+      }
+    } catch (err) {
+      Alert.alert('Clipboard Error', err.message || 'Failed reading phone clipboard.')
+    } finally {
+      setIsDumpingClipboard(false)
+    }
+  }
 
   useEffect(() => {
     if (categoryFilter?.id) {
@@ -235,6 +278,18 @@ export function OffersListScreen({ onSelectOffer, onOpenCapture, categoryFilter,
             returnKeyType="search"
           />
           <TouchableOpacity
+            style={styles.dumpBtn}
+            onPress={handleDumpClipboard}
+            disabled={isDumpingClipboard}
+            activeOpacity={0.8}
+          >
+            {isDumpingClipboard ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.dumpBtnText}>📥 DUMP</Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
             style={styles.exportBtn}
             onPress={handleExportCsv}
             activeOpacity={0.8}
@@ -427,6 +482,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: THEME.colors.textPrimary,
+    letterSpacing: 0.5,
+  },
+  dumpBtn: {
+    height: 38,
+    paddingHorizontal: 10,
+    backgroundColor: '#1E1414',
+    borderWidth: 1,
+    borderColor: '#FF3B30',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dumpBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FF3B30',
     letterSpacing: 0.5,
   },
   channelFilterRow: {

@@ -360,23 +360,40 @@ export default function App() {
     await StorageService.saveCategories(updated)
   }
 
-  // Autonomous Ingestion Pipeline (Groq AI powered with dynamic user domains)
+  // Autonomous Ingestion Pipeline (Groq AI powered with dynamic user domains & Multi-URL Dump)
   const handleRunIngestion = async (input) => {
     if (!input || !input.trim()) return
     setIsIngesting(true)
 
     try {
-      const { offer, trace } = await AgentOrchestrator.runIngestionPipeline(input, {
-        cvList,
-        candidateProfile,
-        aiConfig,
-        categories,
-      })
-
-      const updated = [offer, ...offers]
-      await persistOffers(updated)
-
-      confetti({ particleCount: 35, spread: 45, origin: { y: 0.8 } })
+      const urls = input.match(/https?:\/\/[^\s]+/g)
+      if (urls && urls.length > 1) {
+        // Multi-URL clipboard dump detected!
+        // 1. Bulk ingest into Vault
+        await StorageService.bulkIngestClips({ rawText: input, urls, sourceDevice: 'web_clipboard_dump' })
+        // 2. Ingest the first opportunity directly into offers stream
+        const { offer } = await AgentOrchestrator.runIngestionPipeline(urls[0], {
+          cvList,
+          candidateProfile,
+          aiConfig,
+          categories,
+        })
+        const updated = [offer, ...offers]
+        await persistOffers(updated)
+        await loadClips()
+        confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } })
+        alert(`📥 Dumped ${urls.length} URLs from clipboard!\nPrimary signal analyzed and added to pipeline. Remaining links cataloged in Clip Vault.`)
+      } else {
+        const { offer } = await AgentOrchestrator.runIngestionPipeline(input, {
+          cvList,
+          candidateProfile,
+          aiConfig,
+          categories,
+        })
+        const updated = [offer, ...offers]
+        await persistOffers(updated)
+        confetti({ particleCount: 35, spread: 45, origin: { y: 0.8 } })
+      }
 
       // Keep user in the unified Command Center
       setActiveView('command-center')
@@ -692,6 +709,41 @@ export default function App() {
           </div>
 
           <div className="topbar-right">
+            <button
+              className="btn btn-secondary"
+              onClick={async () => {
+                try {
+                  if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
+                    const text = await navigator.clipboard.readText()
+                    if (!text || !text.trim()) {
+                      alert('Your clipboard is empty! Copy a LinkedIn link, job post, or text first.')
+                      return
+                    }
+                    handleRunIngestion(text.trim())
+                  } else {
+                    alert('Clipboard access is unavailable in this browser context.')
+                  }
+                } catch (e) {
+                  alert(`Could not access clipboard: ${e.message}`)
+                }
+              }}
+              disabled={isIngesting}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderColor: '#FF3B30',
+                color: '#FF3B30',
+                background: '#1A0F0F',
+                fontWeight: 700,
+                fontSize: '12px',
+              }}
+              title="Dump whatever is on your system clipboard into Groq AI ingestion"
+            >
+              <span>📥</span>
+              <span>Dump Clipboard</span>
+            </button>
+
             <button
               className="btn btn-secondary"
               onClick={() => setActiveView('agent-console')}

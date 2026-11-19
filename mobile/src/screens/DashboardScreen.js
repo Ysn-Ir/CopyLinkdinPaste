@@ -10,6 +10,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native'
+import * as Clipboard from 'expo-clipboard'
 import { ApiService } from '../services/api'
 import { ScreenshotWatcher } from '../services/screenshotWatcher'
 import { THEME, getStageMeta } from '../theme'
@@ -40,6 +41,52 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isScanningScreenshot, setIsScanningScreenshot] = useState(false)
+  const [isDumpingClipboard, setIsDumpingClipboard] = useState(false)
+
+  const handleDumpClipboard = async () => {
+    setIsDumpingClipboard(true)
+    try {
+      const hasStr = await Clipboard.hasStringAsync()
+      if (!hasStr) {
+        Alert.alert('Empty Clipboard', 'No text or links copied yet. Copy a LinkedIn job URL or recruiter post first!')
+        return
+      }
+      const text = await Clipboard.getStringAsync()
+      if (!text || !text.trim()) {
+        Alert.alert('Empty Clipboard', 'Your clipboard contains only blank spaces.')
+        return
+      }
+
+      const trimmed = text.trim()
+      const urls = trimmed.match(/https?:\/\/[^\s]+/g)
+      if (urls && urls.length > 1) {
+        // Multi-link batch dump
+        const res = await ApiService.bulkIngestClips({ rawText: trimmed, urls, sourceDevice: 'android_mobile_dump' })
+        Alert.alert('📥 Batch Dump Complete', `Vaulted ${urls.length} links into your RADAR system!`)
+        await loadDashboardData()
+      } else {
+        const res = await ApiService.ingestPost(trimmed)
+        if (res && res.success) {
+          Alert.alert(
+            res.isJobOffer ? '🎯 Opportunity Detected!' : '📋 Clip Saved to Vault',
+            res.isJobOffer
+              ? `"${res.offer?.title || 'Job'}" at ${res.offer?.company || 'Company'} extracted with Groq AI and added to pipeline.`
+              : 'Content cataloged into your RADAR Vault.'
+          )
+          await loadDashboardData()
+          if (res.isJobOffer && res.offer && onSelectOffer) {
+            onSelectOffer(res.offer)
+          }
+        } else {
+          Alert.alert('Ingestion Status', res?.error || 'Could not process clipboard text.')
+        }
+      }
+    } catch (err) {
+      Alert.alert('Clipboard Error', err.message || 'Failed reading phone clipboard.')
+    } finally {
+      setIsDumpingClipboard(false)
+    }
+  }
 
   const handleQuickScanScreenshot = async () => {
     setIsScanningScreenshot(true)
@@ -403,6 +450,36 @@ export function DashboardScreen({ onNavigateTab, onSelectOffer }) {
           </View>
         </TouchableOpacity>
       </View>
+
+      {/* 4.5. 1-Tap Dump Clipboard Hero Action */}
+      <TouchableOpacity
+        style={styles.dumpClipboardCard}
+        onPress={handleDumpClipboard}
+        disabled={isDumpingClipboard}
+        activeOpacity={0.85}
+      >
+        <View style={styles.dumpClipboardIconBox}>
+          <Text style={{ fontSize: 20 }}>📥</Text>
+        </View>
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={styles.dumpClipboardTitle}>Dump Clipboard & Ingest</Text>
+            <View style={styles.dumpGroqBadge}>
+              <Text style={styles.dumpGroqText}>Groq AI</Text>
+            </View>
+          </View>
+          <Text style={styles.dumpClipboardSub}>
+            {isDumpingClipboard ? 'Extracting with Groq AI...' : '1-tap ingest link, post text, or multi-URL dump'}
+          </Text>
+        </View>
+        {isDumpingClipboard ? (
+          <ActivityIndicator size="small" color="#FF3B30" />
+        ) : (
+          <View style={styles.dumpActionBtn}>
+            <Text style={styles.dumpActionBtnText}>DUMP</Text>
+          </View>
+        )}
+      </TouchableOpacity>
 
       {/* 5. Autonomous Scraper & Screenshot OCR Launcher Tiles */}
       <View style={styles.toolsRow}>
@@ -801,6 +878,66 @@ const styles = StyleSheet.create({
   activitiesRow: {
     flexDirection: 'row',
     gap: 12,
+  },
+  dumpClipboardCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FF3B30',
+    marginTop: 14,
+    shadowColor: '#FF3B30',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  dumpClipboardIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#FFF1F0',
+    borderWidth: 1,
+    borderColor: '#FECDD3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dumpClipboardTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#09090B',
+    letterSpacing: -0.2,
+  },
+  dumpGroqBadge: {
+    backgroundColor: '#FF3B30',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  dumpGroqText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  dumpClipboardSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  dumpActionBtn: {
+    backgroundColor: '#FF3B30',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginLeft: 6,
+  },
+  dumpActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   activityCard: {
     flex: 1,

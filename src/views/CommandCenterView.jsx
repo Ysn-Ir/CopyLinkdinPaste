@@ -417,74 +417,124 @@ export function CommandCenterView({
   const directOffersCount = offers.filter((o) => o.channel === 'direct_contact').length
   const externalOffersCount = offers.filter((o) => o.channel === 'external').length
 
+  const handleDumpClipboard = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
+        const text = await navigator.clipboard.readText()
+        if (!text || !text.trim()) {
+          alert('Your clipboard is empty! Copy a LinkedIn link, job post, or text first.')
+          return
+        }
+        setIngestInput(text.trim())
+        onQuickIngest(text.trim())
+      } else {
+        alert('Clipboard API is not supported in this browser context.')
+      }
+    } catch (e) {
+      alert(`Could not access clipboard: ${e.message}`)
+    }
+  }
+
   return (
     <div className="workspace-view" style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden', padding: 0, gap: 0, minWidth: 0, minHeight: 0 }}>
       {/* 1. UNIVERSAL INGESTION HERO BAR */}
       <section
         style={{
-          background: 'var(--bg-surface)',
-          borderBottom: '1px solid var(--border-default)',
-          padding: '12px 18px',
+          background: '#0D0D0E',
+          borderBottom: '1px solid #1F1F23',
+          padding: '14px 22px',
           flexShrink: 0,
         }}
       >
-        <form onSubmit={handleTriggerIngest} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <form onSubmit={handleTriggerIngest} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <div style={{ position: 'relative', flex: 1 }}>
             <input
               type="text"
               className="form-input"
               style={{
                 width: '100%',
-                paddingLeft: '34px',
-                paddingRight: '100px',
-                height: '40px',
-                fontSize: '13px',
-                background: 'var(--bg-app)',
+                paddingLeft: '38px',
+                paddingRight: '120px',
+                height: '44px',
+                fontSize: '13.5px',
+                background: '#121215',
+                borderColor: '#27272A',
+                color: '#FFFFFF',
+                borderRadius: '8px',
               }}
-              placeholder="Paste any LinkedIn post link, Indeed URL, or raw post text to ingest with Groq AI..."
+              placeholder="Paste LinkedIn post link, Indeed URL, or raw job text to ingest with Groq AI..."
               value={ingestInput}
               onChange={(e) => setIngestInput(e.target.value)}
               disabled={isIngesting}
             />
             <LinkIcon
-              size={15}
+              size={16}
               style={{
                 position: 'absolute',
-                left: '11px',
+                left: '12px',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                color: 'var(--text-tertiary)',
+                color: '#71717A',
               }}
             />
             <button
               type="button"
               style={{
                 position: 'absolute',
-                right: '8px',
+                right: '10px',
                 top: '50%',
                 transform: 'translateY(-50%)',
                 background: 'transparent',
                 border: 'none',
-                color: 'var(--text-secondary)',
-                fontSize: '11.5px',
+                color: '#A1A1AA',
+                fontSize: '12px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '3px',
+                gap: '4px',
               }}
               onClick={() => setShowExtendedIngest(!showExtendedIngest)}
             >
               <span>{showExtendedIngest ? 'Less options' : '+ Paste flyer / text'}</span>
-              <ChevronDown size={12} style={{ transform: showExtendedIngest ? 'rotate(180deg)' : 'none' }} />
+              <ChevronDown size={13} style={{ transform: showExtendedIngest ? 'rotate(180deg)' : 'none' }} />
             </button>
           </div>
+
+          {/* Dump Clipboard Button */}
+          <button
+            type="button"
+            onClick={handleDumpClipboard}
+            disabled={isIngesting}
+            style={{
+              height: '44px',
+              padding: '0 16px',
+              backgroundColor: '#1E1414',
+              borderColor: '#FF3B30',
+              borderWidth: '1px',
+              borderStyle: 'solid',
+              color: '#FF3B30',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontWeight: 700,
+              fontSize: '13px',
+              cursor: isIngesting ? 'not-allowed' : 'pointer',
+              borderRadius: '8px',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+            }}
+            title="Dump whatever is currently copied on your clipboard and process with Groq AI"
+          >
+            <span>📥</span>
+            <span>Dump Clipboard</span>
+          </button>
 
           <button
             type="submit"
             className="btn btn-primary"
             style={{
-              height: '40px',
-              padding: '0 18px',
+              height: '44px',
+              padding: '0 20px',
               backgroundColor: '#FF3B30',
               borderColor: '#FF3B30',
               color: '#FFFFFF',
@@ -495,7 +545,9 @@ export function CommandCenterView({
               fontSize: '13px',
               cursor: isIngesting || !ingestInput.trim() ? 'not-allowed' : 'pointer',
               opacity: isIngesting || !ingestInput.trim() ? 0.6 : 1,
-              transition: 'opacity 0.15s ease',
+              borderRadius: '8px',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
             }}
             disabled={isIngesting || !ingestInput.trim()}
           >
@@ -550,13 +602,13 @@ export function CommandCenterView({
 
       {/* 2. MASTER-DETAIL SPLIT WORKSPACE */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* LEFT PANE: OFFERS STREAM (420px wide on desktop, spacious) */}
+        {/* LEFT PANE: OFFERS STREAM (470px wide on desktop, executive & spacious) */}
         <aside
           className={`command-master-pane ${mobilePane === 'detail' ? 'mobile-hidden' : ''}`}
           style={{
-            width: '420px',
-            borderRight: '1px solid var(--border-default)',
-            background: 'var(--bg-sidebar)',
+            width: '470px',
+            borderRight: '1px solid #1F1F23',
+            background: '#0B0B0D',
             display: 'flex',
             flexDirection: 'column',
             flexShrink: 0,
@@ -566,11 +618,11 @@ export function CommandCenterView({
           {/* Channel Filters */}
           <div
             style={{
-              padding: '12px 16px',
-              borderBottom: '1px solid var(--border-subtle)',
+              padding: '12px 18px',
+              borderBottom: '1px solid #1F1F23',
               display: 'flex',
-              gap: '6px',
-              background: 'var(--bg-surface)',
+              gap: '8px',
+              background: '#0E0E12',
               alignItems: 'center',
               overflowX: 'auto',
             }}
@@ -578,37 +630,81 @@ export function CommandCenterView({
             <button
               className={`pill-btn ${activeChannelFilter === 'all' ? 'active' : ''}`}
               onClick={() => setActiveChannelFilter('all')}
-              style={{ padding: '5px 10px', fontSize: '11.5px', display: 'flex', gap: '5px', alignItems: 'center' }}
+              style={{
+                padding: '7px 12px',
+                fontSize: '12px',
+                fontWeight: 700,
+                display: 'flex',
+                gap: '6px',
+                alignItems: 'center',
+                borderRadius: '6px',
+                backgroundColor: activeChannelFilter === 'all' ? '#1E1414' : '#141418',
+                borderColor: activeChannelFilter === 'all' ? '#FF3B30' : '#27272A',
+                color: activeChannelFilter === 'all' ? '#FF3B30' : '#A1A1AA',
+              }}
             >
               <span>All</span>
-              <span className="badge-pill">{offers.length}</span>
+              <span className="badge-pill" style={{ backgroundColor: activeChannelFilter === 'all' ? '#FF3B30' : '#27272A', color: '#FFFFFF' }}>{offers.length}</span>
             </button>
             <button
               className={`pill-btn ${activeChannelFilter === 'email' ? 'active' : ''}`}
               onClick={() => setActiveChannelFilter('email')}
-              style={{ padding: '5px 10px', fontSize: '11.5px', display: 'flex', gap: '5px', alignItems: 'center' }}
+              style={{
+                padding: '7px 12px',
+                fontSize: '12px',
+                fontWeight: 700,
+                display: 'flex',
+                gap: '6px',
+                alignItems: 'center',
+                borderRadius: '6px',
+                backgroundColor: activeChannelFilter === 'email' ? '#1E1414' : '#141418',
+                borderColor: activeChannelFilter === 'email' ? '#FF3B30' : '#27272A',
+                color: activeChannelFilter === 'email' ? '#FF3B30' : '#A1A1AA',
+              }}
             >
-              <Mail size={12} />
+              <Mail size={13} />
               <span>Email</span>
-              <span className="badge-pill">{emailOffersCount}</span>
+              <span className="badge-pill" style={{ backgroundColor: activeChannelFilter === 'email' ? '#FF3B30' : '#27272A', color: '#FFFFFF' }}>{emailOffersCount}</span>
             </button>
             <button
               className={`pill-btn ${activeChannelFilter === 'direct_contact' ? 'active' : ''}`}
               onClick={() => setActiveChannelFilter('direct_contact')}
-              style={{ padding: '5px 10px', fontSize: '11.5px', display: 'flex', gap: '5px', alignItems: 'center' }}
+              style={{
+                padding: '7px 12px',
+                fontSize: '12px',
+                fontWeight: 700,
+                display: 'flex',
+                gap: '6px',
+                alignItems: 'center',
+                borderRadius: '6px',
+                backgroundColor: activeChannelFilter === 'direct_contact' ? '#1E1414' : '#141418',
+                borderColor: activeChannelFilter === 'direct_contact' ? '#FF3B30' : '#27272A',
+                color: activeChannelFilter === 'direct_contact' ? '#FF3B30' : '#A1A1AA',
+              }}
             >
-              <MessageSquare size={12} />
+              <MessageSquare size={13} />
               <span>DM / WA</span>
-              <span className="badge-pill">{directOffersCount}</span>
+              <span className="badge-pill" style={{ backgroundColor: activeChannelFilter === 'direct_contact' ? '#FF3B30' : '#27272A', color: '#FFFFFF' }}>{directOffersCount}</span>
             </button>
             <button
               className={`pill-btn ${activeChannelFilter === 'external' ? 'active' : ''}`}
               onClick={() => setActiveChannelFilter('external')}
-              style={{ padding: '5px 10px', fontSize: '11.5px', display: 'flex', gap: '5px', alignItems: 'center' }}
+              style={{
+                padding: '7px 12px',
+                fontSize: '12px',
+                fontWeight: 700,
+                display: 'flex',
+                gap: '6px',
+                alignItems: 'center',
+                borderRadius: '6px',
+                backgroundColor: activeChannelFilter === 'external' ? '#1E1414' : '#141418',
+                borderColor: activeChannelFilter === 'external' ? '#FF3B30' : '#27272A',
+                color: activeChannelFilter === 'external' ? '#FF3B30' : '#A1A1AA',
+              }}
             >
-              <Globe size={12} />
+              <Globe size={13} />
               <span>ATS</span>
-              <span className="badge-pill">{externalOffersCount}</span>
+              <span className="badge-pill" style={{ backgroundColor: activeChannelFilter === 'external' ? '#FF3B30' : '#27272A', color: '#FFFFFF' }}>{externalOffersCount}</span>
             </button>
 
             {clips && clips.some((c) => !c.convertedToOffer && (c.contentType === 'job_offer' || /stage|pfe|recrute|hiring|candidat|poste|cdi|internship|job/i.test(c.content || ''))) && onSyncClips && (
@@ -616,31 +712,32 @@ export function CommandCenterView({
                 className="pill-btn"
                 onClick={onSyncClips}
                 style={{
-                  padding: '4px 9px',
-                  fontSize: '11px',
+                  padding: '6px 12px',
+                  fontSize: '12px',
                   display: 'flex',
-                  gap: '4px',
+                  gap: '5px',
                   alignItems: 'center',
-                  background: '#27272a',
-                  borderColor: '#3f3f46',
-                  color: '#ffffff',
-                  fontWeight: 600,
+                  background: '#27272A',
+                  borderColor: '#3F3F46',
+                  color: '#FFFFFF',
+                  fontWeight: 700,
                   marginLeft: 'auto',
+                  borderRadius: '6px',
                 }}
                 title="Sync captured job offers from clipboard vault into channels"
               >
-                <Zap size={11} />
+                <Zap size={12} color="#FF3B30" />
                 <span>Sync</span>
               </button>
             )}
           </div>
 
-          {/* Search Bar - Line 1 */}
+          {/* Search Bar & Export CSV */}
           <div
             style={{
-              padding: '12px 16px 8px 16px',
+              padding: '14px 18px 10px 18px',
               display: 'flex',
-              gap: '8px',
+              gap: '10px',
               alignItems: 'center',
             }}
           >
@@ -648,37 +745,46 @@ export function CommandCenterView({
               <input
                 type="text"
                 className="form-input"
-                style={{ width: '100%', height: '34px', fontSize: '12px', paddingLeft: '30px' }}
+                style={{
+                  width: '100%',
+                  height: '38px',
+                  fontSize: '13px',
+                  paddingLeft: '34px',
+                  background: '#121215',
+                  borderColor: '#27272A',
+                  borderRadius: '8px',
+                  color: '#FFFFFF',
+                }}
                 placeholder="Search opportunities, skills, recruiter..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               <Search
-                size={13}
-                style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}
+                size={14}
+                style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: '#71717A' }}
               />
             </div>
             <a
               href="/api/offers/export/csv"
               className="btn btn-secondary"
               style={{
-                height: '34px',
-                padding: '0 10px',
-                fontSize: '11.5px',
-                color: '#ffffff',
+                height: '38px',
+                padding: '0 12px',
+                fontSize: '12px',
+                color: '#FFFFFF',
                 borderColor: '#27272A',
-                background: '#171717',
+                background: '#141418',
                 flexShrink: 0,
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
+                gap: '6px',
                 textDecoration: 'none',
-                borderRadius: '6px',
-                fontWeight: 600,
+                borderRadius: '8px',
+                fontWeight: 700,
               }}
               title="Export all offers to CSV"
             >
-              <Download size={12} />
+              <Download size={13} />
               <span>CSV</span>
             </a>
           </div>
@@ -686,11 +792,11 @@ export function CommandCenterView({
           {/* Domain Taxonomy Section Inside the Command Center */}
           <div
             style={{
-              padding: '8px 14px',
-              borderBottom: '1px solid var(--border-subtle)',
-              background: '#0D0D0D',
+              padding: '10px 18px',
+              borderBottom: '1px solid #1F1F23',
+              background: '#0D0D10',
               display: 'flex',
-              gap: '6px',
+              gap: '8px',
               alignItems: 'center',
               overflowX: 'auto',
               scrollbarWidth: 'none',
@@ -701,21 +807,21 @@ export function CommandCenterView({
               className={`pill-btn ${categoryFilter === 'all' ? 'active' : ''}`}
               onClick={() => setCategoryFilter('all')}
               style={{
-                padding: '4px 9px',
-                fontSize: '11px',
+                padding: '6px 12px',
+                fontSize: '12px',
                 fontWeight: '700',
-                borderRadius: '4px',
+                borderRadius: '6px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
+                gap: '6px',
                 whiteSpace: 'nowrap',
-                backgroundColor: categoryFilter === 'all' ? '#1E1414' : '#171717',
+                backgroundColor: categoryFilter === 'all' ? '#1E1414' : '#141418',
                 borderColor: categoryFilter === 'all' ? '#FF3B30' : '#27272A',
                 color: categoryFilter === 'all' ? '#FF3B30' : '#A1A1AA',
               }}
             >
               <span>All Domains</span>
-              <span className="badge-pill">{offers.length}</span>
+              <span className="badge-pill" style={{ backgroundColor: categoryFilter === 'all' ? '#FF3B30' : '#27272A', color: '#FFFFFF' }}>{offers.length}</span>
             </button>
 
             {domainCategories.filter((c) => c.id !== 'all').map((cat) => {
@@ -727,15 +833,15 @@ export function CommandCenterView({
                   className={`pill-btn ${isActive ? 'active' : ''}`}
                   onClick={() => setCategoryFilter(isActive ? 'all' : cat.id)}
                   style={{
-                    padding: '4px 9px',
-                    fontSize: '11px',
+                    padding: '6px 12px',
+                    fontSize: '12px',
                     fontWeight: '600',
-                    borderRadius: '4px',
+                    borderRadius: '6px',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '5px',
+                    gap: '6px',
                     whiteSpace: 'nowrap',
-                    backgroundColor: isActive ? '#1E1414' : '#171717',
+                    backgroundColor: isActive ? '#1E1414' : '#141418',
                     borderColor: isActive ? '#FF3B30' : '#27272A',
                     color: isActive ? '#FF3B30' : '#A1A1AA',
                   }}
@@ -743,14 +849,14 @@ export function CommandCenterView({
                 >
                   <span
                     style={{
-                      width: '6px',
-                      height: '6px',
+                      width: '7px',
+                      height: '7px',
                       borderRadius: '50%',
                       backgroundColor: cat.color || '#A1A1AA',
                     }}
                   />
                   <span>{cat.shortLabel || cat.label}</span>
-                  {count > 0 && <span className="badge-pill">{count}</span>}
+                  {count > 0 && <span className="badge-pill" style={{ backgroundColor: isActive ? '#FF3B30' : '#27272A', color: '#FFFFFF' }}>{count}</span>}
                 </button>
               )
             })}
@@ -763,18 +869,18 @@ export function CommandCenterView({
                   background: 'transparent',
                   border: '1px dashed #3F3F46',
                   color: '#A1A1AA',
-                  borderRadius: '4px',
-                  padding: '3px 8px',
-                  fontSize: '10.5px',
+                  borderRadius: '6px',
+                  padding: '5px 10px',
+                  fontSize: '11.5px',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '3px',
+                  gap: '4px',
                   whiteSpace: 'nowrap',
                 }}
                 title="Configure Engineering Domains"
               >
-                <Plus size={10} />
+                <Plus size={11} />
                 <span>Domain</span>
               </button>
             )}
@@ -783,22 +889,22 @@ export function CommandCenterView({
           {/* Grouping Row */}
           <div
             style={{
-              padding: '6px 16px 8px 16px',
-              borderBottom: '1px solid var(--border-subtle)',
+              padding: '8px 18px 10px 18px',
+              borderBottom: '1px solid #1F1F23',
               display: 'flex',
               gap: '8px',
               alignItems: 'center',
               justifyContent: 'space-between',
-              fontSize: '11px',
+              fontSize: '12px',
               color: '#71717A',
             }}
           >
             <span>Showing {filteredOffers.length} opportunities</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span>Group:</span>
               <select
                 className="form-select"
-                style={{ height: '26px', fontSize: '11px', padding: '0 6px', background: '#171717', borderColor: '#27272A', color: '#FFFFFF', width: 'auto' }}
+                style={{ height: '30px', fontSize: '11.5px', padding: '0 8px', background: '#141418', borderColor: '#27272A', color: '#FFFFFF', width: 'auto', borderRadius: '6px' }}
                 value={groupBy}
                 onChange={(e) => setGroupBy(e.target.value)}
               >
@@ -811,30 +917,30 @@ export function CommandCenterView({
           </div>
 
           {/* Stream List with Categorized Groupings */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '6px' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}>
             {filteredOffers.length === 0 ? (
-              <div style={{ padding: '36px 16px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '12px' }}>
-                No offers match your current filter. Paste a link above to add one!
+              <div style={{ padding: '48px 20px', textAlign: 'center', color: '#71717A', fontSize: '13px' }}>
+                No opportunities match your filter. Paste a link or dump clipboard above!
               </div>
             ) : (
               groupedSections.map((section) => (
-                <div key={section.id} style={{ marginBottom: '8px' }}>
+                <div key={section.id} style={{ marginBottom: '12px' }}>
                   {section.title && (
                     <div
                       style={{
-                        padding: '4px 8px',
-                        fontSize: '10.5px',
+                        padding: '6px 12px',
+                        fontSize: '11px',
                         fontWeight: 700,
                         textTransform: 'uppercase',
                         letterSpacing: '0.05em',
-                        color: section.color || 'var(--text-secondary)',
+                        color: section.color || '#A1A1AA',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         background: 'rgba(255, 255, 255, 0.03)',
-                        borderRadius: '4px',
-                        margin: '6px 0 4px 0',
-                        borderLeft: `3px solid ${section.color || 'var(--border-default)'}`,
+                        borderRadius: '6px',
+                        margin: '8px 0 6px 0',
+                        borderLeft: `3px solid ${section.color || '#FF3B30'}`,
                       }}
                     >
                       <span>{section.title}</span>
@@ -854,37 +960,39 @@ export function CommandCenterView({
                           setMobilePane('detail')
                         }}
                         style={{
-                          padding: '12px 14px',
-                          marginBottom: '8px',
-                          borderRadius: '8px',
-                          background: isSelected ? '#171717' : '#0D0D0D',
-                          border: `1px solid ${isSelected ? '#FF3B30' : '#27272A'}`,
+                          padding: '14px 16px',
+                          marginBottom: '10px',
+                          borderRadius: '10px',
+                          background: isSelected ? '#1B1718' : '#111114',
+                          border: `1px solid ${isSelected ? '#FF3B30' : '#232328'}`,
+                          borderLeft: isSelected ? '4px solid #FF3B30' : '1px solid #232328',
+                          boxShadow: isSelected ? '0 4px 16px rgba(255, 59, 48, 0.12)' : 'none',
                           cursor: 'pointer',
-                          transition: 'all 0.12s ease',
+                          transition: 'all 0.15s ease',
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px', gap: '8px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: isSelected ? '#ffffff' : 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', gap: '8px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: isSelected ? '#FF3B30' : '#A1A1AA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                             {offer.company || 'Confidential Company'}
                           </span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                             {offer.createdAt && (
                               <span
                                 style={{
-                                  fontSize: '9.5px',
-                                  color: 'var(--text-tertiary)',
+                                  fontSize: '10.5px',
+                                  color: '#71717A',
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: '2px',
+                                  gap: '3px',
                                 }}
                                 title={`Added on ${formatFullDate(offer.createdAt)}`}
                               >
-                                <Clock size={9} />
+                                <Clock size={10} />
                                 <span>{formatInsertionDate(offer.createdAt)}</span>
                               </span>
                             )}
-                            <span className={`badge-channel ${offer.channel}`} style={{ fontSize: '9.5px', padding: '1px 5px' }}>
-                              {offer.channel === 'email' ? <Mail size={9} /> : offer.channel === 'direct_contact' ? <MessageSquare size={9} /> : <Globe size={9} />}
+                            <span className={`badge-channel ${offer.channel}`} style={{ fontSize: '10.5px', padding: '2px 7px', borderRadius: '4px' }}>
+                              {offer.channel === 'email' ? <Mail size={10} /> : offer.channel === 'direct_contact' ? <MessageSquare size={10} /> : <Globe size={10} />}
                               <span>{offer.channel === 'email' ? 'Email' : offer.channel === 'direct_contact' ? 'DM / WA' : 'ATS'}</span>
                             </span>
                           </div>
@@ -892,14 +1000,15 @@ export function CommandCenterView({
 
                         <div
                           style={{
-                            fontSize: '12.5px',
-                            fontWeight: 600,
-                            color: 'var(--text-primary)',
-                            marginBottom: '4px',
-                            lineHeight: 1.3,
-                            whiteSpace: 'nowrap',
+                            fontSize: '14.5px',
+                            fontWeight: 700,
+                            color: '#FFFFFF',
+                            marginBottom: '6px',
+                            lineHeight: 1.35,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
                             overflow: 'hidden',
-                            textOverflow: 'ellipsis',
                           }}
                         >
                           {offer.title}
@@ -909,15 +1018,15 @@ export function CommandCenterView({
                         {(offer.sharer?.name || offer.recruiterName) && (
                           <div
                             style={{
-                              fontSize: '10.5px',
-                              color: 'var(--text-secondary)',
-                              marginBottom: '4px',
+                              fontSize: '11.5px',
+                              color: '#71717A',
+                              marginBottom: '6px',
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '4px',
+                              gap: '5px',
                             }}
                           >
-                            <User size={10} style={{ color: '#ffffff' }} />
+                            <User size={11} style={{ color: '#FF3B30' }} />
                             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {offer.sharer?.name || offer.recruiterName}
                               {offer.sharer?.title ? ` • ${offer.sharer.title}` : ''}
@@ -926,15 +1035,18 @@ export function CommandCenterView({
                         )}
 
                         {/* Footer chips */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
-                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                             <span
                               className="badge-category"
                               style={{
-                                fontSize: '10px',
-                                padding: '1px 5px',
-                                color: cat?.color || '#a1a1aa',
-                                borderColor: cat?.borderColor || '#27272a',
+                                fontSize: '11px',
+                                padding: '2px 7px',
+                                borderRadius: '4px',
+                                color: cat?.color || '#A1A1AA',
+                                borderColor: cat?.borderColor || '#27272A',
+                                background: '#16161B',
+                                fontWeight: 600,
                               }}
                             >
                               {cat?.shortLabel || offer.category}
@@ -942,38 +1054,40 @@ export function CommandCenterView({
                             {offer.needsUserReview && (
                               <span
                                 style={{
-                                  fontSize: '9px',
-                                  padding: '1px 4px',
-                                  borderRadius: '3px',
+                                  fontSize: '10px',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
                                   background: 'rgba(234, 179, 8, 0.15)',
                                   border: '1px solid rgba(234, 179, 8, 0.35)',
-                                  color: '#facc15',
-                                  fontWeight: 600,
+                                  color: '#FACC15',
+                                  fontWeight: 700,
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: '2px',
+                                  gap: '3px',
                                 }}
                                 title="AI classification pending your review"
                               >
-                                <Sparkles size={8} />
+                                <Sparkles size={9} />
                                 <span>Review</span>
                               </span>
                             )}
                           </div>
 
-                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                             {offer.attachedCvTag && (
-                              <span style={{ fontSize: '9.5px', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+                              <span style={{ fontSize: '10.5px', color: '#71717A', fontFamily: 'var(--font-mono)' }}>
                                 {offer.attachedCvTag.replace('CV - ', '')}
                               </span>
                             )}
                             <span
                               style={{
-                                fontSize: '9.5px',
-                                padding: '1px 5px',
-                                borderRadius: '3px',
-                                background: offer.status === 'applied' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                                color: offer.status === 'applied' ? '#ffffff' : 'var(--text-tertiary)',
+                                fontSize: '11px',
+                                padding: '2px 7px',
+                                borderRadius: '4px',
+                                fontWeight: 700,
+                                background: offer.status === 'applied' ? 'rgba(16, 185, 129, 0.15)' : offer.status === 'offer' ? 'rgba(255, 59, 48, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                color: offer.status === 'applied' ? '#10B981' : offer.status === 'offer' ? '#FF3B30' : '#A1A1AA',
+                                border: `1px solid ${offer.status === 'applied' ? 'rgba(16, 185, 129, 0.3)' : offer.status === 'offer' ? 'rgba(255, 59, 48, 0.3)' : '#27272A'}`,
                                 textTransform: 'capitalize',
                               }}
                             >
@@ -1145,21 +1259,21 @@ export function CommandCenterView({
                 </div>
               )}
 
-              {/* Offer Header */}
+              {/* Offer Header (Spacious Executive Cockpit) */}
               <div
                 style={{
-                  padding: '14px 20px',
-                  borderBottom: '1px solid var(--border-default)',
-                  background: 'var(--bg-surface)',
+                  padding: '20px 28px',
+                  borderBottom: '1px solid #1F1F24',
+                  background: '#0F0F13',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'flex-start',
                   flexShrink: 0,
-                  gap: '12px',
+                  gap: '16px',
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                     <input
                       type="text"
                       value={currentOffer.title}
@@ -1167,47 +1281,53 @@ export function CommandCenterView({
                       style={{
                         background: 'transparent',
                         border: 'none',
-                        color: 'var(--text-primary)',
-                        fontSize: '17px',
-                        fontWeight: 700,
+                        color: '#FFFFFF',
+                        fontSize: '22px',
+                        fontWeight: 800,
                         width: '100%',
                         outline: 'none',
+                        letterSpacing: '-0.02em',
                       }}
+                      placeholder="Opportunity Role Title"
                     />
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ color: 'var(--text-tertiary)' }}>Company:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '13px', color: '#A1A1AA', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ color: '#71717A', fontWeight: 600 }}>Company:</span>
                       <input
                         type="text"
                         value={currentOffer.company}
                         onChange={(e) => handleUpdateField('company', e.target.value)}
                         style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: '#ffffff',
-                          fontWeight: 600,
-                          fontSize: '12px',
+                          background: '#16161C',
+                          border: '1px solid #27272A',
+                          borderRadius: '4px',
+                          padding: '2px 8px',
+                          color: '#FF3B30',
+                          fontWeight: 700,
+                          fontSize: '13px',
                           outline: 'none',
-                          width: '130px',
+                          minWidth: '150px',
                         }}
                       />
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ color: 'var(--text-tertiary)' }}>Location:</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ color: '#71717A', fontWeight: 600 }}>Location:</span>
                       <input
                         type="text"
                         value={currentOffer.location}
                         onChange={(e) => handleUpdateField('location', e.target.value)}
                         style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--text-secondary)',
-                          fontSize: '12px',
+                          background: '#16161C',
+                          border: '1px solid #27272A',
+                          borderRadius: '4px',
+                          padding: '2px 8px',
+                          color: '#E4E4E7',
+                          fontSize: '13px',
                           outline: 'none',
-                          width: '140px',
+                          minWidth: '160px',
                         }}
                       />
                     </div>
@@ -1218,14 +1338,14 @@ export function CommandCenterView({
                         style={{
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '4px',
-                          color: 'var(--text-tertiary)',
-                          fontSize: '11px',
+                          gap: '5px',
+                          color: '#71717A',
+                          fontSize: '12px',
                           fontFamily: 'var(--font-mono)',
                         }}
                         title={`Inserted: ${currentOffer.createdAt}`}
                       >
-                        <Clock size={11} style={{ color: '#a1a1aa' }} />
+                        <Clock size={12} style={{ color: '#A1A1AA' }} />
                         <span>Added: {formatFullDate(currentOffer.createdAt)}</span>
                       </div>
                     )}
@@ -1238,31 +1358,38 @@ export function CommandCenterView({
                         style={{
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '3px',
-                          color: '#ffffff',
+                          gap: '5px',
+                          color: '#FFFFFF',
+                          background: '#1E1E24',
+                          border: '1px solid #2E2E36',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
                           textDecoration: 'none',
+                          fontWeight: 600,
+                          fontSize: '12px',
                         }}
                       >
-                        <span>View Source</span>
-                        <ExternalLink size={11} />
+                        <span>Target Posting</span>
+                        <ExternalLink size={12} />
                       </a>
                     )}
                   </div>
                 </div>
 
                 {/* Right controls: Domain Field, Channel, Status, Delete */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
                   {/* Domain Field Switcher */}
                   <select
                     className="form-select"
                     style={{
-                      height: '32px',
-                      fontSize: '11px',
-                      background: 'var(--bg-app)',
-                      color: currentCategory?.color || 'var(--text-primary)',
-                      borderColor: currentCategory?.borderColor || 'var(--border-default)',
-                      fontWeight: 600,
-                      maxWidth: '130px',
+                      height: '36px',
+                      fontSize: '12px',
+                      background: '#16161C',
+                      color: currentCategory?.color || '#FFFFFF',
+                      borderColor: '#27272A',
+                      fontWeight: 700,
+                      borderRadius: '6px',
+                      padding: '0 10px',
                     }}
                     value={currentOffer.category}
                     onChange={(e) => {
@@ -1281,7 +1408,7 @@ export function CommandCenterView({
                   >
                     {domainCategories.filter((c) => c.id !== 'all').map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.shortLabel || c.label}
+                        {c.label}
                       </option>
                     ))}
                   </select>
@@ -1289,19 +1416,28 @@ export function CommandCenterView({
                   {/* Channel Switcher */}
                   <select
                     className="form-select"
-                    style={{ height: '32px', fontSize: '11px', background: 'var(--bg-app)' }}
+                    style={{ height: '36px', fontSize: '12px', background: '#16161C', borderColor: '#27272A', color: '#FFFFFF', borderRadius: '6px', padding: '0 10px', fontWeight: 600 }}
                     value={currentOffer.channel}
                     onChange={(e) => handleUpdateField('channel', e.target.value)}
                   >
-                    <option value="email">Email</option>
-                    <option value="direct_contact">DM / WA</option>
-                    <option value="external">ATS Portal</option>
+                    <option value="email">✉️ Email Channel</option>
+                    <option value="direct_contact">💬 DM / WA</option>
+                    <option value="external">🌐 ATS Portal</option>
                   </select>
 
                   {/* Status Dropdown */}
                   <select
                     className="form-select"
-                    style={{ height: '32px', fontSize: '11px', background: 'var(--bg-app)', fontWeight: 600 }}
+                    style={{
+                      height: '36px',
+                      fontSize: '12px',
+                      background: '#1A0F0F',
+                      borderColor: '#FF3B30',
+                      color: '#FF3B30',
+                      fontWeight: 700,
+                      borderRadius: '6px',
+                      padding: '0 10px',
+                    }}
                     value={currentOffer.status}
                     onChange={(e) => handleUpdateStatus(e.target.value)}
                   >
@@ -1316,7 +1452,7 @@ export function CommandCenterView({
 
                   <button
                     className="btn btn-secondary"
-                    style={{ height: '32px', padding: '0 8px', color: '#f87171' }}
+                    style={{ height: '36px', padding: '0 10px', color: '#FF3B30', borderColor: '#27272A', borderRadius: '6px', background: '#16161C' }}
                     onClick={() => {
                       if (confirm(`Delete offer "${currentOffer.title}"?`)) {
                         onDeleteOffer(currentOffer.id)
@@ -1324,7 +1460,7 @@ export function CommandCenterView({
                     }}
                     title="Delete offer"
                   >
-                    <Trash2 size={13} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>
@@ -1332,36 +1468,38 @@ export function CommandCenterView({
               {/* Recruiter / Sharer Profile Card */}
               <div
                 style={{
-                  padding: '10px 20px',
-                  background: 'var(--bg-app)',
-                  borderBottom: '1px solid var(--border-subtle)',
+                  padding: '14px 28px',
+                  background: '#111116',
+                  borderBottom: '1px solid #1F1F24',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   flexShrink: 0,
+                  flexWrap: 'wrap',
+                  gap: '12px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div
                     style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '50%',
-                      background: '#27272a',
-                      border: '1px solid #3f3f46',
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '10px',
+                      background: '#181820',
+                      border: '1px solid #FF3B30',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#ffffff',
-                      fontWeight: 700,
-                      fontSize: '12px',
+                      color: '#FF3B30',
+                      fontWeight: 800,
+                      fontSize: '16px',
                     }}
                   >
                     {(currentOffer.sharer?.name || currentOffer.recruiterName || 'R')[0]?.toUpperCase()}
                   </div>
 
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <input
                         type="text"
                         placeholder="Recruiter Name"
@@ -1370,16 +1508,16 @@ export function CommandCenterView({
                         style={{
                           background: 'transparent',
                           border: 'none',
-                          color: 'var(--text-primary)',
-                          fontWeight: 600,
-                          fontSize: '12.5px',
+                          color: '#FFFFFF',
+                          fontWeight: 700,
+                          fontSize: '14.5px',
                           outline: 'none',
-                          width: '180px',
+                          minWidth: '200px',
                         }}
                       />
                       {currentOffer.sharer?.phone && (
-                        <span style={{ fontSize: '11px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                          <Phone size={10} />
+                        <span style={{ fontSize: '12px', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                          <Phone size={12} />
                           {currentOffer.sharer.phone}
                         </span>
                       )}
@@ -1392,24 +1530,24 @@ export function CommandCenterView({
                       style={{
                         background: 'transparent',
                         border: 'none',
-                        color: 'var(--text-tertiary)',
-                        fontSize: '11px',
+                        color: '#A1A1AA',
+                        fontSize: '12px',
                         outline: 'none',
-                        width: '320px',
+                        minWidth: '340px',
                       }}
                     />
                   </div>
                 </div>
 
                 {/* Recruiter Quick Action Launchers */}
-                <div style={{ display: 'flex', gap: '6px' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
                   {(currentOffer.sharer?.profileUrl || currentOffer.sourceUrl) && (
                     <button
                       className="btn btn-secondary"
-                      style={{ height: '28px', padding: '0 8px', fontSize: '11px', color: '#ffffff' }}
+                      style={{ height: '34px', padding: '0 12px', fontSize: '12px', color: '#FFFFFF', background: '#181820', borderColor: '#27272A', borderRadius: '6px', fontWeight: 600 }}
                       onClick={handleOpenLinkedIn}
                     >
-                      <Share2 size={11} />
+                      <Share2 size={13} color="#0A66C2" />
                       <span>LinkedIn Profile</span>
                     </button>
                   )}
@@ -1417,21 +1555,21 @@ export function CommandCenterView({
                   {currentOffer.sharer?.phone && (
                     <button
                       className="btn btn-secondary"
-                      style={{ height: '28px', padding: '0 8px', fontSize: '11px', color: '#4ade80' }}
+                      style={{ height: '34px', padding: '0 12px', fontSize: '12px', color: '#10B981', background: '#0F1E16', borderColor: '#10B981', borderRadius: '6px', fontWeight: 700 }}
                       onClick={handleOpenWhatsApp}
                     >
-                      <Phone size={11} />
-                      <span>WhatsApp Launcher</span>
+                      <Phone size={13} />
+                      <span>Launch WhatsApp</span>
                     </button>
                   )}
 
                   {currentOffer.recruiterEmail && (
                     <button
                       className="btn btn-secondary"
-                      style={{ height: '28px', padding: '0 8px', fontSize: '11px' }}
+                      style={{ height: '34px', padding: '0 12px', fontSize: '12px', background: '#181820', borderColor: '#27272A', borderRadius: '6px', color: '#FFFFFF', fontWeight: 600 }}
                       onClick={() => handleCopy(currentOffer.recruiterEmail, 'recruiterEmail')}
                     >
-                      {copiedKey === 'recruiterEmail' ? <Check size={11} /> : <Copy size={11} />}
+                      {copiedKey === 'recruiterEmail' ? <Check size={13} color="#10B981" /> : <Copy size={13} />}
                       <span>{currentOffer.recruiterEmail}</span>
                     </button>
                   )}
@@ -1442,77 +1580,79 @@ export function CommandCenterView({
               <div
                 style={{
                   display: 'flex',
-                  gap: '2px',
-                  background: 'var(--bg-surface)',
-                  padding: '6px 16px 0 16px',
-                  borderBottom: '1px solid var(--border-default)',
+                  gap: '4px',
+                  background: '#0F0F13',
+                  padding: '8px 28px 0 28px',
+                  borderBottom: '1px solid #1F1F24',
                   flexShrink: 0,
                 }}
               >
                 <button
                   className={`tab-btn ${inspectorTab === 'email' ? 'active' : ''}`}
                   onClick={() => setInspectorTab('email')}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '13px', fontWeight: 700, padding: '10px 16px' }}
                 >
-                  <Mail size={13} />
+                  <Mail size={14} />
                   <span>Email Outreach</span>
                 </button>
                 <button
                   className={`tab-btn ${inspectorTab === 'direct' ? 'active' : ''}`}
                   onClick={() => setInspectorTab('direct')}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '13px', fontWeight: 700, padding: '10px 16px' }}
                 >
-                  <MessageSquare size={13} />
+                  <MessageSquare size={14} />
                   <span>Direct Contact (LinkedIn / WA)</span>
                 </button>
                 <button
                   className={`tab-btn ${inspectorTab === 'cover' ? 'active' : ''}`}
                   onClick={() => setInspectorTab('cover')}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '13px', fontWeight: 700, padding: '10px 16px' }}
                 >
-                  <FileText size={13} />
+                  <FileText size={14} />
                   <span>Cover Letter & ATS</span>
                 </button>
                 <button
                   className={`tab-btn ${inspectorTab === 'flyer' ? 'active' : ''}`}
                   onClick={() => setInspectorTab('flyer')}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '13px', fontWeight: 700, padding: '10px 16px' }}
                 >
-                  <ImageIcon size={13} />
+                  <ImageIcon size={14} />
                   <span>Post Flyer & Raw Text</span>
                 </button>
                 <button
                   className={`tab-btn ${inspectorTab === 'copilot' ? 'active' : ''}`}
                   onClick={() => setInspectorTab('copilot')}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ffffff' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '13px', fontWeight: 700, padding: '10px 16px', color: '#FF3B30' }}
                 >
-                  <Bot size={13} />
+                  <Bot size={14} />
                   <span>Groq AI Copilot</span>
                 </button>
               </div>
 
-              {/* Outreach Tab Content (Scrollable) */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '18px 24px' }}>
+              {/* Outreach Tab Content (Scrollable & Expansive) */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
                 {/* 1. EMAIL OUTREACH TAB */}
                 {inspectorTab === 'email' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxWidth: '820px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '100%' }}>
                     {/* CV Vault binding */}
                     <div
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        background: 'var(--bg-surface)',
-                        padding: '10px 14px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border-subtle)',
+                        background: '#121217',
+                        padding: '12px 18px',
+                        borderRadius: '8px',
+                        border: '1px solid #27272A',
+                        flexWrap: 'wrap',
+                        gap: '10px',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Matched CV Variant:</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#A1A1AA' }}>Matched CV Variant:</span>
                         <select
                           className="form-select"
-                          style={{ height: '30px', fontSize: '11.5px', background: 'var(--bg-app)' }}
+                          style={{ height: '34px', fontSize: '12px', background: '#181820', borderColor: '#3F3F46', color: '#FFFFFF', borderRadius: '6px' }}
                           value={currentOffer.attachedCvTag || ''}
                           onChange={(e) => handleUpdateField('attachedCvTag', e.target.value)}
                         >
@@ -1525,20 +1665,22 @@ export function CommandCenterView({
                         </select>
                       </div>
 
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <button className="btn btn-secondary" onClick={handleDownloadEml}>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button className="btn btn-secondary" style={{ height: '36px', fontSize: '12px', borderRadius: '6px' }} onClick={handleDownloadEml}>
                           <Download size={13} />
-                          <span>Download .EML</span>
+                          <span>Export .EML</span>
                         </button>
                         <button
                           className="btn btn-secondary"
+                          style={{ height: '36px', fontSize: '12px', borderRadius: '6px' }}
                           onClick={() => handleCopy(`${emailDraftSubject}\n\n${emailDraftBody}`, 'copyEmailAll')}
                         >
-                          {copiedKey === 'copyEmailAll' ? <Check size={13} /> : <Copy size={13} />}
+                          {copiedKey === 'copyEmailAll' ? <Check size={13} color="#10B981" /> : <Copy size={13} />}
                           <span>Copy for Gmail</span>
                         </button>
                         <button
                           className="btn btn-primary"
+                          style={{ height: '36px', fontSize: '12px', borderRadius: '6px', background: '#10B981', borderColor: '#10B981', color: '#FFFFFF', fontWeight: 700 }}
                           onClick={() => handleUpdateStatus('applied')}
                         >
                           <CheckCircle2 size={13} />
@@ -1549,30 +1691,32 @@ export function CommandCenterView({
 
                     {/* Recipient and Subject */}
                     <div className="form-group">
-                      <label className="form-label">Recipient Email</label>
+                      <label className="form-label" style={{ fontSize: '12px', fontWeight: 700, color: '#FFFFFF', marginBottom: '6px' }}>Recipient Email</label>
                       <input
                         type="email"
                         className="form-input"
                         placeholder="recruteur@entreprise.com"
+                        style={{ height: '42px', fontSize: '13.5px', background: '#121217', borderColor: '#27272A', color: '#FFFFFF', borderRadius: '8px' }}
                         value={currentOffer.recruiterEmail || ''}
                         onChange={(e) => handleUpdateField('recruiterEmail', e.target.value)}
                       />
                     </div>
 
                     <div className="form-group">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <label className="form-label">Subject Line</label>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <label className="form-label" style={{ fontSize: '12px', fontWeight: 700, color: '#FFFFFF' }}>Subject Line</label>
                         <button
                           type="button"
-                          style={{ background: 'none', border: 'none', color: '#ffffff', fontSize: '11px', cursor: 'pointer' }}
+                          style={{ background: 'none', border: 'none', color: '#FF3B30', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
                           onClick={() => handleCopy(emailDraftSubject, 'subject')}
                         >
-                          {copiedKey === 'subject' ? 'Copied!' : 'Copy Subject'}
+                          {copiedKey === 'subject' ? '✓ Copied!' : 'Copy Subject'}
                         </button>
                       </div>
                       <input
                         type="text"
                         className="form-input"
+                        style={{ height: '42px', fontSize: '13.5px', background: '#121217', borderColor: '#27272A', color: '#FFFFFF', borderRadius: '8px' }}
                         value={emailDraftSubject}
                         onChange={(e) => handleUpdateField('customEmailSubject', e.target.value)}
                       />
@@ -1580,19 +1724,19 @@ export function CommandCenterView({
 
                     {/* Email Body */}
                     <div className="form-group">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <label className="form-label">Email Body (Tailored & Editable)</label>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <label className="form-label" style={{ fontSize: '12px', fontWeight: 700, color: '#FFFFFF' }}>Email Body (Personalized & Editable)</label>
                         <button
                           type="button"
-                          style={{ background: 'none', border: 'none', color: '#ffffff', fontSize: '11px', cursor: 'pointer' }}
+                          style={{ background: 'none', border: 'none', color: '#FF3B30', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
                           onClick={() => handleCopy(emailDraftBody, 'body')}
                         >
-                          {copiedKey === 'body' ? 'Copied Body!' : 'Copy Body'}
+                          {copiedKey === 'body' ? '✓ Copied Body!' : 'Copy Body'}
                         </button>
                       </div>
                       <textarea
                         className="form-textarea"
-                        style={{ minHeight: '260px', fontFamily: 'var(--font-sans)', fontSize: '13px', lineHeight: 1.6 }}
+                        style={{ minHeight: '300px', fontFamily: 'var(--font-sans)', fontSize: '14px', lineHeight: 1.65, background: '#121217', borderColor: '#27272A', color: '#F4F4F5', borderRadius: '8px', padding: '16px' }}
                         value={emailDraftBody}
                         onChange={(e) => handleUpdateField('customEmailBody', e.target.value)}
                       />
@@ -1602,42 +1746,43 @@ export function CommandCenterView({
 
                 {/* 2. DIRECT CONTACT TAB (LinkedIn & WhatsApp) */}
                 {inspectorTab === 'direct' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '820px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', maxWidth: '100%' }}>
                     {/* LinkedIn Connection Note (<300 chars) */}
                     <div
                       style={{
-                        background: 'var(--bg-surface)',
-                        padding: '16px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border-subtle)',
+                        background: '#121217',
+                        padding: '18px',
+                        borderRadius: '8px',
+                        border: '1px solid #27272A',
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)' }}>
+                          <div style={{ fontWeight: 700, fontSize: '14px', color: '#FFFFFF' }}>
                             LinkedIn Connection Request Note
                           </div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                          <div style={{ fontSize: '12px', color: '#A1A1AA' }}>
                             Personalized invitation note strictly under LinkedIn's 300 character limit.
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <span
                             style={{
-                              fontSize: '11px',
+                              fontSize: '12px',
                               fontFamily: 'var(--font-mono)',
-                              color: linkedInNote.length > 300 ? '#f87171' : '#34d399',
-                              fontWeight: 600,
+                              color: linkedInNote.length > 300 ? '#FF3B30' : '#10B981',
+                              fontWeight: 700,
                             }}
                           >
                             {linkedInNote.length} / 300 chars
                           </span>
                           <button
                             className="btn btn-secondary"
+                            style={{ height: '34px', fontSize: '12px', borderRadius: '6px' }}
                             onClick={() => handleCopy(linkedInNote, 'liNote')}
                           >
-                            {copiedKey === 'liNote' ? <Check size={12} /> : <Copy size={12} />}
+                            {copiedKey === 'liNote' ? <Check size={13} color="#10B981" /> : <Copy size={13} />}
                             <span>Copy Note</span>
                           </button>
                         </div>
@@ -1648,40 +1793,41 @@ export function CommandCenterView({
                         rows={4}
                         value={linkedInNote}
                         onChange={(e) => handleUpdateField('linkedInNote', e.target.value)}
-                        style={{ fontSize: '12.5px', lineHeight: 1.5 }}
+                        style={{ fontSize: '13.5px', lineHeight: 1.6, background: '#16161C', borderColor: '#27272A', color: '#F4F4F5', borderRadius: '8px', padding: '12px' }}
                       />
                     </div>
 
                     {/* WhatsApp Direct Message */}
                     <div
                       style={{
-                        background: 'var(--bg-surface)',
-                        padding: '16px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border-subtle)',
+                        background: '#121217',
+                        padding: '18px',
+                        borderRadius: '8px',
+                        border: '1px solid #27272A',
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)' }}>
+                          <div style={{ fontWeight: 700, fontSize: '14px', color: '#FFFFFF' }}>
                             WhatsApp Direct Outreach Pitch
                           </div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                          <div style={{ fontSize: '12px', color: '#A1A1AA' }}>
                             Crisp, professional mobile pitch for recruiters who provided phone / WhatsApp contact.
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '6px' }}>
+                        <div style={{ display: 'flex', gap: '8px' }}>
                           <button
                             className="btn btn-secondary"
+                            style={{ height: '34px', fontSize: '12px', borderRadius: '6px' }}
                             onClick={() => handleCopy(whatsAppMessage, 'waPitch')}
                           >
-                            {copiedKey === 'waPitch' ? <Check size={12} /> : <Copy size={12} />}
+                            {copiedKey === 'waPitch' ? <Check size={13} color="#10B981" /> : <Copy size={13} />}
                             <span>Copy Text</span>
                           </button>
                           {currentOffer.sharer?.phone && (
-                            <button className="btn btn-primary" onClick={handleOpenWhatsApp}>
-                              <Phone size={12} />
+                            <button className="btn btn-primary" style={{ height: '34px', fontSize: '12px', borderRadius: '6px', background: '#10B981', borderColor: '#10B981', color: '#FFFFFF', fontWeight: 700 }} onClick={handleOpenWhatsApp}>
+                              <Phone size={13} />
                               <span>Launch WhatsApp</span>
                             </button>
                           )}
@@ -1693,7 +1839,7 @@ export function CommandCenterView({
                         rows={4}
                         value={whatsAppMessage}
                         onChange={(e) => handleUpdateField('whatsAppMsg', e.target.value)}
-                        style={{ fontSize: '12.5px', lineHeight: 1.5 }}
+                        style={{ fontSize: '13.5px', lineHeight: 1.6, background: '#16161C', borderColor: '#27272A', color: '#F4F4F5', borderRadius: '8px', padding: '12px' }}
                       />
                     </div>
                   </div>
@@ -1701,45 +1847,47 @@ export function CommandCenterView({
 
                 {/* 3. COVER LETTER & ATS TAB */}
                 {inspectorTab === 'cover' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxWidth: '820px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '100%' }}>
                     <div
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        background: 'var(--bg-surface)',
-                        padding: '12px 16px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border-subtle)',
+                        background: '#121217',
+                        padding: '14px 20px',
+                        borderRadius: '8px',
+                        border: '1px solid #27272A',
+                        flexWrap: 'wrap',
+                        gap: '10px',
                       }}
                     >
                       <div>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>
                           Tailored Cover Letter
                         </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        <div style={{ fontSize: '12px', color: '#A1A1AA' }}>
                           Formatted according to classic engineering standards. Generates vector PDF via jsPDF.
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', gap: '6px' }}>
+                      <div style={{ display: 'flex', gap: '8px' }}>
                         {currentOffer.sourceUrl && (
                           <a
                             href={currentOffer.sourceUrl}
                             target="_blank"
                             rel="noreferrer"
                             className="btn btn-secondary"
-                            style={{ textDecoration: 'none' }}
+                            style={{ textDecoration: 'none', height: '36px', fontSize: '12px', borderRadius: '6px' }}
                           >
                             <Globe size={13} />
                             <span>Open Portal Link</span>
                           </a>
                         )}
-                        <button className="btn btn-secondary" onClick={() => handleCopy(coverLetterBody, 'coverLetter')}>
-                          {copiedKey === 'coverLetter' ? <Check size={13} /> : <Copy size={13} />}
+                        <button className="btn btn-secondary" style={{ height: '36px', fontSize: '12px', borderRadius: '6px' }} onClick={() => handleCopy(coverLetterBody, 'coverLetter')}>
+                          {copiedKey === 'coverLetter' ? <Check size={13} color="#10B981" /> : <Copy size={13} />}
                           <span>Copy Text</span>
                         </button>
-                        <button className="btn btn-primary" onClick={handleDownloadPdf}>
+                        <button className="btn btn-primary" style={{ height: '36px', fontSize: '12px', borderRadius: '6px', background: '#FF3B30', borderColor: '#FF3B30', color: '#FFFFFF', fontWeight: 700 }} onClick={handleDownloadPdf}>
                           <Download size={13} />
                           <span>Download PDF</span>
                         </button>
@@ -1747,17 +1895,17 @@ export function CommandCenterView({
                     </div>
 
                     {/* Paper Document Preview */}
-                    <div className="latex-paper" style={{ minHeight: '340px' }}>
-                      <div style={{ textAlign: 'center', marginBottom: '16px', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px' }}>
-                        <div style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '0.04em' }}>
+                    <div className="latex-paper" style={{ minHeight: '360px', padding: '28px', borderRadius: '8px' }}>
+                      <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '1px solid #e5e7eb', paddingBottom: '14px' }}>
+                        <div style={{ fontSize: '17px', fontWeight: 800, letterSpacing: '0.04em' }}>
                           {(candidateProfile.fullName || 'Candidate Name').toUpperCase()}
                         </div>
-                        <div style={{ fontSize: '10px', color: '#4b5563', marginTop: '3px' }}>
+                        <div style={{ fontSize: '11px', color: '#4b5563', marginTop: '4px' }}>
                           {[candidateProfile.email, candidateProfile.phone, candidateProfile.city].filter(Boolean).join(' • ')}
                         </div>
                       </div>
 
-                      <div style={{ fontSize: '11.5px', lineHeight: 1.6, whiteSpace: 'pre-wrap', color: '#1f2937' }}>
+                      <div style={{ fontSize: '13px', lineHeight: 1.7, whiteSpace: 'pre-wrap', color: '#1f2937' }}>
                         {coverLetterBody}
                       </div>
                     </div>
@@ -1766,7 +1914,7 @@ export function CommandCenterView({
 
                 {/* 4. FLYER & RAW TEXT TAB */}
                 {inspectorTab === 'flyer' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxWidth: '820px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '100%' }}>
                     {/* Flyer Image */}
                     {currentOffer.imageUrl ? (
                       <div
